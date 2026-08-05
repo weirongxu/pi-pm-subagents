@@ -4,8 +4,9 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import { Type } from 'typebox'
 
+import { DemoWorkerManager } from './demo-worker-manager.js'
 import { FleetList } from './fleet-list.js'
-import { DELEGATE_TOOL, type ModesState, persist } from './helper.js'
+import { MANAGER_TOOLS, type ModesState, persist } from './helper.js'
 import {
   applyModeSetup,
   assertModeIdle,
@@ -21,6 +22,7 @@ export type { LiveWorker, WorkerStatus } from './worker-manager.js'
 
 interface ManagerRuntime {
   manager: WorkerManager
+  demoManager: DemoWorkerManager | undefined
   fleet: FleetList
 }
 
@@ -57,7 +59,7 @@ export async function resumeManagerMode(
   ensureManagerTools(pi, state, manager)
   fleet.setContext(ctx)
   await applyModeSetup(pi, state, 'manager', ctx, {
-    extraTools: [DELEGATE_TOOL],
+    extraTools: Object.values(MANAGER_TOOLS),
     color: 'accent',
     render: () => {
       fleet.update()
@@ -93,12 +95,41 @@ function ensureManagerTools(
   managerToolsRegistered = true
 
   pi.registerTool({
-    name: DELEGATE_TOOL,
+    name: MANAGER_TOOLS.list,
+    label: 'List Workers',
+    description: 'List all background workers with their status',
+    promptSnippet: 'Check status of all background workers',
+    parameters: Type.Object({}),
+    async execute() {
+      const allWorkers = workers.list()
+      if (allWorkers.length === 0) {
+        return {
+          content: [{ type: 'text', text: 'No workers.' }],
+          details: {},
+        }
+      }
+
+      const sorted = [...allWorkers].sort((a, b) => a.startedAt - b.startedAt)
+      const lines = [`Workers (${allWorkers.length}):`]
+      for (const worker of sorted) {
+        const end = worker.completedAt ?? Date.now()
+        const elapsed = `${Math.max(0, Math.round((end - worker.startedAt) / 1000))}s`
+        lines.push(`${worker.status} #${worker.id} ${worker.text} ${elapsed}`)
+      }
+      return {
+        content: [{ type: 'text', text: lines.join('\n') }],
+        details: {},
+      }
+    },
+  })
+
+  pi.registerTool({
+    name: MANAGER_TOOLS.delegate,
     label: 'Delegate Worker',
-    description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; the worker's summary when it finishes.`,
+    description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; the worker's summary when it finishes`,
     promptSnippet: 'Delegate task to background worker with full tool access',
     promptGuidelines: [
-      `Use ${DELEGATE_TOOL} to execute task through background worker.`,
+      `Use ${MANAGER_TOOLS.delegate} to execute task through background worker`,
     ],
     parameters: Type.Object({
       task: Type.String({
@@ -168,10 +199,13 @@ export async function setupManager(
     },
   })
   const fleet = new FleetList({
-    list: () => manager.list(),
-    onOpen: (ctx, id) => openWorkerViewer(ctx, manager, id),
+    list: () => runtime?.demoManager?.list() ?? manager.list(),
+    onOpen: async (ctx, id) => {
+      const activeManager = runtime?.demoManager ?? manager
+      return openWorkerViewer(ctx, activeManager, id)
+    },
   })
-  runtime = { manager, fleet }
+  runtime = { manager, demoManager: undefined, fleet }
 
   const managerPrompt = await readPrompt('manager')
   pi.on('before_agent_start', async (event) => {
@@ -195,12 +229,11 @@ export async function setupManager(
     },
   })
 
-  pi.registerCommand('workers', {
-    description:
-      'Browse a worker live (manager mode). ↑↓ scroll · enter steer · x stop · q close',
-    handler: async (_args, ctx) => {
+  pi.registerCommand('workers-demo', {
+    description: 'Browse a worker live demo (manager mode)',
+    handler: async (args, ctx) => {
+      const argList = args.split(/\s+/)
       if (!ctx.hasUI) return
-      const { manager, fleet } = requiredRuntime()
       if (state.mode !== 'manager') {
         ctx.ui.notify(
           'Workers browser is only available in manager mode.',
@@ -208,13 +241,30 @@ export async function setupManager(
         )
         return
       }
-      const latest = manager.latest()
-      if (!latest) {
-        ctx.ui.notify('No workers to browse yet.', 'info')
-        return
+
+      const runtime = requiredRuntime()
+      const { fleet } = runtime
+
+      if (argList[0] === 'add') {
+        runtime.demoManager ??= new DemoWorkerManager()
+        runtime.demoManager.add(argList.slice(1).join(' '))
+        fleet.update()
+        ctx.ui.notify(
+          'Added a demo worker. Use /workers demo to exit demo mode.',
+          'info',
+        )
+      } else if (runtime.demoManager) {
+        runtime.demoManager = undefined
+        fleet.update()
+        ctx.ui.notify('Demo mode exited.', 'info')
+      } else {
+        runtime.demoManager = new DemoWorkerManager()
+        fleet.update()
+        ctx.ui.notify(
+          'Demo mode active: fake workers loaded. Use /workers demo to exit.',
+          'info',
+        )
       }
-      await openWorkerViewer(ctx, manager, latest.id)
-      fleet.update()
     },
   })
 }

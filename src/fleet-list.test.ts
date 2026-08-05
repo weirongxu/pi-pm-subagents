@@ -7,6 +7,7 @@ describe('formatElapsed', () => {
     id: 1,
     text: '',
     startedAt: 1000,
+    status: 'running',
     ...overrides,
   })
 

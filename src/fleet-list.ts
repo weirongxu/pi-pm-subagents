@@ -15,9 +15,12 @@ const TICK_MS = 200
 /** Max agent rows shown at once; extras collapse into a "↓ N more" hint. */
 const MAX_ROWS = 5
 
+export type FleetEntryStatus = 'running' | 'done' | 'failed' | 'stopped'
+
 export interface FleetEntry {
   id: number
   text: string
+  status: FleetEntryStatus
   startedAt: number
   completedAt?: number
 }
@@ -47,7 +50,7 @@ export class FleetList {
   private inputUnsub: (() => void) | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private registered = false
-  private active = false
+  private activeSelect = false
   private selectedIndex = 0
 
   constructor(private options: FleetListOptions) {}
@@ -67,16 +70,10 @@ export class FleetList {
   update(): void {
     const ctx = this.ctx
     if (!ctx) return
+
     const items = this.options.list()
     if (items.length === 0) {
-      if (this.registered) {
-        ctx.ui.setWidget(FLEET_KEY, undefined)
-        this.registered = false
-        this.tui = undefined
-      }
-      this.stopTimer()
-      this.active = false
-      this.selectedIndex = 0
+      this.hide()
       return
     }
 
@@ -104,15 +101,26 @@ export class FleetList {
     }
   }
 
+  hide() {
+    const ctx = this.ctx
+    if (!ctx) return
+    if (this.registered) {
+      ctx.ui.setWidget(FLEET_KEY, undefined)
+      this.registered = false
+      this.tui = undefined
+    }
+    this.stopTimer()
+    this.activeSelect = false
+    this.selectedIndex = 0
+  }
+
   dispose(): void {
     this.stopTimer()
     this.inputUnsub?.()
     this.inputUnsub = undefined
-    if (this.ctx && this.registered) this.ctx.ui.setWidget(FLEET_KEY, undefined)
-    this.registered = false
-    this.tui = undefined
+    this.hide()
     this.ctx = undefined
-    this.active = false
+    this.activeSelect = false
     this.selectedIndex = 0
   }
 
@@ -143,14 +151,14 @@ export class FleetList {
     if (!ctx) return undefined
     if (isKeyRelease(data)) return undefined
 
-    if (!this.active) {
+    if (!this.activeSelect) {
       const activator = matchesKey(data, 'down') || matchesKey(data, 'left')
       if (
         activator &&
         this.options.list().length > 0 &&
         ctx.ui.getEditorText() === ''
       ) {
-        this.active = true
+        this.activeSelect = true
         this.selectedIndex = 0
         this.update()
         return { consume: true }
@@ -188,7 +196,7 @@ export class FleetList {
   }
 
   private deactivate(): void {
-    this.active = false
+    this.activeSelect = false
     this.selectedIndex = 0
     this.update()
   }
@@ -220,7 +228,7 @@ export class FleetList {
     if (items.length === 0) return []
 
     const sel = Math.min(this.selectedIndex, items.length)
-    const hint = this.active
+    const hint = this.activeSelect
       ? '↑↓ select · enter view · esc back'
       : 'esc to interrupt · ←/↓ for items'
     const lines: string[] = [
@@ -250,7 +258,7 @@ export class FleetList {
   }
 
   private bullet(index: number, sel: number, theme: Theme): string {
-    return index === sel ? theme.fg('accent', '⏺') : theme.fg('dim', '◯')
+    return index === sel ? theme.fg('accent', '●') : theme.fg('dim', '◯')
   }
 
   private renderItemRow(
@@ -261,12 +269,9 @@ export class FleetList {
     theme: Theme,
   ): string {
     const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${item.text}`
-    const right = theme.fg('dim', formatElapsed(item))
-    return rightAlign(
-      truncateToWidth(left, Math.max(0, width - visibleWidth(right) - 1)),
-      right,
-      width,
-    )
+    const right = `${item.status} ${theme.fg('dim', formatElapsed(item))}`
+    const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
+    return rightAlign(truncateToWidth(left, leftMaxWidth), right, width)
   }
 
   private ensureTimer(): void {

@@ -14,6 +14,11 @@ describe('isReadOnlyBashCommand', () => {
   it('allows read-only commands with forward prefix', () => {
     expect(isReadOnlyBashCommand('rtk ls -la')).toBe(true)
     expect(isReadOnlyBashCommand('rtk git status')).toBe(true)
+    expect(
+      isReadOnlyBashCommand(
+        `export RTK_DB_PATH='/tmp/pi-rtk-optimizer/history.db'; rtk ls -la`,
+      ),
+    ).toBe(true)
   })
 
   it('blocks destructive commands', () => {

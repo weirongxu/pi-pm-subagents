@@ -10,8 +10,10 @@ import type { ModeType } from './types.js'
 /** Built-in tools that mutate the filesystem — disabled in read-only modes. */
 export const WRITE_TOOLS = new Set(['edit', 'write'])
 
-/** The tool the manager uses to dispatch work to a worker. */
-export const DELEGATE_TOOL = 'delegate_worker'
+export const MANAGER_TOOLS = {
+  delegate: 'worker_delegate',
+  list: 'worker_list',
+}
 
 /** Key under which the modes' state is persisted in the session. */
 export const STATE_KEY = 'modes'
@@ -83,7 +85,6 @@ export function lastAssistantText(
   return undefined
 }
 
-/** Command prefixes that are stripped before checking read-only safety (e.g., 'rtk ls'). */
 const FORWARD_PREFIX = ['rtk'] as const
 
 const DESTRUCTIVE_BASH_PATTERNS = [
@@ -131,6 +132,12 @@ const READONLY_BASH_PATTERNS = [
 ] as const
 
 export function isReadOnlyBashCommand(command: string): boolean {
+  // Handle export VAR=VALUE; command format - strip the export part
+  const exportMatch = command.match(/^\s*export\s+[^;]+;\s*/i)
+  if (exportMatch) {
+    command = command.slice(exportMatch[0].length).trim()
+  }
+
   // Remove allowed forward prefix if present
   for (const prefix of FORWARD_PREFIX) {
     const pattern = new RegExp(`^\\s*${prefix}\\s+`, 'i')
