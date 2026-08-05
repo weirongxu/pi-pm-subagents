@@ -5,6 +5,7 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { Markdown, matchesKey, truncateToWidth } from '@earendil-works/pi-tui'
 
+import { BorderView } from './border-view.js'
 import { lastAssistantText, type ModesState, persist } from './helper.js'
 import { enterManagerMode, exitManagerMode } from './manager.js'
 import {
@@ -28,17 +29,18 @@ const VIEWPORT_HEIGHT_PCT = 80
 const CHROME_LINES = PLAN_CHOICES.length + 3
 /** Overlay width as a percentage of the terminal. */
 const OVERLAY_WIDTH_PCT = '90%'
+const PLAN_MODE_WIDGET_KEY = 'pi-modes:plan-mode'
 
 export function renderPlanBanner(
   ctx: ExtensionContext,
   state: ModesState,
 ): void {
   if (state.mode !== 'plan') {
-    ctx.ui.setWidget('plan-mode', undefined)
+    ctx.ui.setWidget(PLAN_MODE_WIDGET_KEY, undefined)
     return
   }
-  ctx.ui.setWidget('plan-mode', [
-    ctx.ui.theme.fg('warning', ctx.ui.theme.bold('📋 PLAN MODE — read-only')),
+  ctx.ui.setWidget(PLAN_MODE_WIDGET_KEY, [
+    ctx.ui.theme.fg('warning', ctx.ui.theme.bold('📋 PLAN MODE ')),
   ])
 }
 
@@ -101,7 +103,7 @@ async function renderPlanPager(
           ),
       })
 
-      return {
+      const component = {
         render(width: number) {
           const rows = scroll.render(width)
           const start = scroll.offset
@@ -154,6 +156,8 @@ async function renderPlanPager(
           scroll.invalidate()
         },
       }
+
+      return new BorderView(theme, { child: component })
     },
     {
       overlay: true,

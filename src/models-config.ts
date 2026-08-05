@@ -10,6 +10,7 @@ import { getAgentDir } from '@earendil-works/pi-coding-agent'
 import { Type } from 'typebox'
 import { Parse } from 'typebox/value'
 
+import { customSelect } from './custom-select.js'
 import type { ModesState } from './helper.js'
 import type { ModeRole } from './types.js'
 
@@ -17,7 +18,7 @@ export const MODES_ROLES: readonly ModeRole[] = ['plan', 'manager', 'worker']
 
 export type ModelsConfig = Partial<Record<ModeRole, string>>
 
-const MODEL_DEFAULT = 'DEFAULT'
+export const MODEL_DEFAULT = 'DEFAULT'
 
 /** Schema for `<agentDir>/modes-models.json`: optional ref per role. */
 const ModelsConfigSchema = Type.Object({
@@ -86,9 +87,18 @@ function isRole(value: string): value is ModeRole {
 }
 
 async function pickModel(ctx: ExtensionContext): Promise<string | undefined> {
-  const models = ctx.modelRegistry.getAvailable()
-  const options = [MODEL_DEFAULT, ...models.map((m) => modelRefOf(m))]
-  return await ctx.ui.select('Choose model', options)
+  const items = [
+    { key: MODEL_DEFAULT, text: 'DEFAULT (use agent default)' },
+    ...ctx.modelRegistry.getAvailable().map((m) => ({
+      key: modelRefOf(m),
+      text: `${m.provider}/${m.name}`,
+    })),
+  ]
+  return customSelect(ctx, {
+    items,
+    title: 'Choose model',
+    placeholder: 'filter (provider/id substring)',
+  })
 }
 
 /** Resolve a role from an explicit arg, otherwise prompt the user. */
@@ -101,9 +111,10 @@ async function pickRole(
     ctx.ui.notify(`Invalid role ${arg}`, 'warning')
     return undefined
   }
-  const picked = await ctx.ui.select('Select role to configure', [
-    ...MODES_ROLES,
-  ])
+  const picked = await customSelect(ctx, {
+    title: 'Select role to configure',
+    items: MODES_ROLES.map((it) => ({ key: it, text: it })),
+  })
   return picked && isRole(picked) ? picked : undefined
 }
 

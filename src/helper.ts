@@ -152,3 +152,7 @@ export function isReadOnlyBashCommand(command: string): boolean {
   const readonly = READONLY_BASH_PATTERNS.some((p) => p.test(command))
   return !destructive && readonly
 }
+
+export function strInline(s: string) {
+  return s.split('\n').join('⮒ ')
+}

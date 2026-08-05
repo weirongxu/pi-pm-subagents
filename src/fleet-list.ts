@@ -7,9 +7,12 @@ import {
   truncateToWidth,
   visibleWidth,
 } from '@earendil-works/pi-tui'
+import { orderBy } from 'lodash-es'
+
+import { strInline } from './helper.js'
 
 /** Widget key for the below-editor fleet list. */
-const FLEET_KEY = 'modes-fleet'
+const FLEET_KEY = 'pi-modes:fleet'
 /** Re-render cadence so elapsed/activity stats tick while run. */
 const TICK_MS = 200
 /** Max agent rows shown at once; extras collapse into a "↓ N more" hint. */
@@ -127,8 +130,10 @@ export class FleetList {
   // ---- roster ----
 
   private roster(): RosterEntry[] {
-    const items = [...this.options.list()].sort(
-      (a, b) => a.startedAt - b.startedAt,
+    const items = orderBy(
+      this.options.list(),
+      (it) => (it.status === 'done' ? 0 : Number.MAX_VALUE),
+      'asc',
     )
     return [
       { kind: 'main' },
@@ -268,8 +273,7 @@ export class FleetList {
     width: number,
     theme: Theme,
   ): string {
-    const textInline = item.text.split('\n').join('; ')
-    const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${textInline}`
+    const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${strInline(item.text)}`
     const right = `${item.status} ${theme.fg('dim', formatElapsed(item))}`
     const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
     return rightAlign(truncateToWidth(left, leftMaxWidth), right, width)

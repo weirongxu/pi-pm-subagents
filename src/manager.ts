@@ -15,8 +15,14 @@ import {
 import { getModelsConfig, resolveModelRef } from './models-config.js'
 import { exitPlanMode } from './plan.js'
 import { readPrompt } from './prompts.js'
-import { type LiveWorker, WorkerManager } from './worker-manager.js'
+import {
+  type LiveWorker,
+  MAX_CONCURRENCY_WORKER,
+  WorkerManager,
+} from './worker-manager.js'
 import { openWorkerViewer } from './worker-viewer.js'
+
+const MANAGER_MODE_WIDGET_KEY = 'pi-modes:manager-mode'
 
 export type { LiveWorker, WorkerStatus } from './worker-manager.js'
 
@@ -63,11 +69,8 @@ export async function resumeManagerMode(
     color: 'accent',
     render: () => {
       fleet.update()
-      ctx.ui.setWidget('manager-mode', [
-        ctx.ui.theme.fg(
-          'accent',
-          ctx.ui.theme.bold('👥 MANAGER MODE — read-only'),
-        ),
+      ctx.ui.setWidget(MANAGER_MODE_WIDGET_KEY, [
+        ctx.ui.theme.fg('accent', ctx.ui.theme.bold('👥 MANAGER MODE')),
       ])
     },
   })
@@ -82,7 +85,7 @@ export async function exitManagerMode(
   state.mode = undefined
   fleet.dispose()
   manager.disposeAll()
-  ctx.ui.setWidget('manager-mode', undefined)
+  ctx.ui.setWidget(MANAGER_MODE_WIDGET_KEY, undefined)
   await exitReadOnly(pi, state, ctx, 'manager', { restoreModel: true })
 }
 
@@ -114,7 +117,9 @@ function ensureManagerTools(
       for (const worker of sorted) {
         const end = worker.completedAt ?? Date.now()
         const elapsed = `${Math.max(0, Math.round((end - worker.startedAt) / 1000))}s`
-        lines.push(`${worker.status} #${worker.id} ${worker.text} ${elapsed}`)
+        lines.push(
+          `${worker.status} #${worker.id} ${worker.text.slice(0, 10)} ${elapsed}`,
+        )
       }
       return {
         content: [{ type: 'text', text: lines.join('\n') }],
@@ -126,8 +131,7 @@ function ensureManagerTools(
   pi.registerTool({
     name: MANAGER_TOOLS.delegate,
     label: 'Delegate Worker',
-    description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; the worker's summary when it finishes`,
-    promptSnippet: 'Delegate task to background worker with full tool access',
+    description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; the worker's summary when it finishes, max concurrency worker ${MAX_CONCURRENCY_WORKER}`,
     promptGuidelines: [
       `Use ${MANAGER_TOOLS.delegate} to execute task through background worker`,
     ],
@@ -195,13 +199,15 @@ export async function setupManager(
     onStatusChange: () => runtime?.fleet.update(),
     onDone: (worker) => {
       if (state.mode !== 'manager') return
-      pi.sendUserMessage(doneMessage(worker), { deliverAs: 'followUp' })
+      // FIXME: 有没有办法获取 followUp 的所有消息，然后一次发送，不然会响应多次
+      pi.sendUserMessage(doneMessage(worker), { deliverAs: 'steer' })
     },
   })
   const fleet = new FleetList({
     list: () => runtime?.demoManager?.list() ?? manager.list(),
     onOpen: async (ctx, id) => {
       const activeManager = runtime?.demoManager ?? manager
+      // FIXME: 打开 worker viewer 时，要关闭之前的
       return openWorkerViewer(ctx, activeManager, id)
     },
   })

@@ -18,7 +18,8 @@ const SELF_DIR = fileURLToPath(new URL('../', import.meta.url))
 const MAX_WORKER_OUTPUT_BYTES = 50 * 1024
 
 /** Max follow-up tasks per worker before requiring a fresh worker. */
-export const MAX_FOLLOWUPS = 5
+export const MAX_RETRY_FOLLOWUPS = 5
+export const MAX_CONCURRENCY_WORKER = 5
 
 /** Worker status values:
  * - running: Worker is actively executing a task
@@ -117,9 +118,9 @@ export class WorkerManager {
         `Cannot follow-up worker #${followupOf} while it is still running`,
       )
     }
-    if (followupWorker.followUpCount >= MAX_FOLLOWUPS) {
+    if (followupWorker.followUpCount >= MAX_RETRY_FOLLOWUPS) {
       throw new Error(
-        `Worker #${followupOf} follow-up budget exhausted (${MAX_FOLLOWUPS}/${MAX_FOLLOWUPS}). Start a fresh worker instead.`,
+        `Worker #${followupOf} follow-up budget exhausted (${MAX_RETRY_FOLLOWUPS}/${MAX_RETRY_FOLLOWUPS}). Start a fresh worker instead.`,
       )
     }
 
@@ -156,6 +157,7 @@ export class WorkerManager {
     task: string,
     options: SpawnOptions,
   ): Promise<LiveWorker> {
+    // FIXME: 根据 MAX_CONCURRENCY_WORKER 限制并发的数量
     const loader = await this.createLoader(options)
     const created = await createAgentSession({
       cwd: options.cwd,

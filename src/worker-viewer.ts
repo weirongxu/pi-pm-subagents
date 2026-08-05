@@ -9,6 +9,8 @@ import {
   wrapTextWithAnsi,
 } from '@earendil-works/pi-tui'
 
+import { BorderView } from './border-view.js'
+import { strInline } from './helper.js'
 import { ScrollView } from './scroll-view.js'
 import type { LiveWorker, WorkerManager } from './worker-manager.js'
 
@@ -16,8 +18,8 @@ import type { LiveWorker, WorkerManager } from './worker-manager.js'
 const TOOL_RESULT_PREVIEW = 500
 /** Terminal-row percentage the worker overlay occupies. */
 const VIEWPORT_HEIGHT_PCT = 80
-/** Header + separator above, separator + footer below. */
-const CHROME_LINES = 4
+/** Border, header, separators, and footer outside the scroll viewport. */
+const VIEWER_CHROME_LINES = 6
 /** Overlay width as a percentage of the terminal. */
 const OVERLAY_WIDTH_PCT = '90%'
 
@@ -44,12 +46,11 @@ export class WorkerViewer implements Component {
         render: (inner) => this.buildContentLines(inner),
         invalidate: () => {},
       },
-      // status + two separators + footer hint live outside the scroll view
       viewportHeight: () =>
         Math.max(
           3,
           Math.floor((tui.terminal.rows * VIEWPORT_HEIGHT_PCT) / 100) -
-            CHROME_LINES,
+            VIEWER_CHROME_LINES,
         ),
       autoFollow: true,
     })
@@ -90,20 +91,13 @@ export class WorkerViewer implements Component {
 
   render(width: number): string[] {
     if (width < 4) return []
-    const th = this.theme
-    const rows = this.#scroll.render(width)
-    const { total, viewportHeight, offset } = this.#scroll
-    const scrollPct =
-      total <= viewportHeight
-        ? '100%'
-        : `${Math.round(((offset + viewportHeight) / total) * 100)}%`
-    const sep = th.fg('dim', '─'.repeat(width))
+    const separator = this.theme.fg('dim', '─'.repeat(width))
     return [
       this.headerLine(),
-      sep,
-      ...rows,
-      sep,
-      this.footerLine(scrollPct, total),
+      separator,
+      ...this.#scroll.render(width),
+      separator,
+      this.footerLine(),
     ]
   }
 
@@ -119,6 +113,7 @@ export class WorkerViewer implements Component {
 
   private headerLine(): string {
     const th = this.theme
+    // FIXME: 这个 icon 改用 record object
     const icon =
       this.worker.status === 'running'
         ? th.fg('accent', '●')
@@ -130,13 +125,13 @@ export class WorkerViewer implements Component {
     const tools = [...this.worker.activeTools]
     const activity =
       tools.length > 0 ? ` · ${th.fg('muted', tools.join(', '))}` : ''
-    return `${icon} ${th.fg('muted', `#${this.worker.id}`)} ${truncateToWidth(this.worker.text, 60)}${activity}`
+    return `${icon} ${th.fg('muted', `#${this.worker.id}`)} ${truncateToWidth(strInline(this.worker.text), 60)}${activity}`
   }
 
-  private footerLine(scrollPct: string, total: number): string {
+  private footerLine(): string {
     const th = this.theme
     const running = this.worker.status === 'running'
-    const left = th.fg('dim', `${total} lines · ${scrollPct}`)
+    const left = th.fg('dim', 'scroll')
     const right = running
       ? (this.#stopArmed
           ? th.fg('error', 'x again to STOP')
@@ -230,7 +225,9 @@ export async function openWorkerViewer(
   try {
     result = await ctx.ui.custom<ViewerResult>(
       (tui, theme, _keybindings, done) =>
-        new WorkerViewer(tui, theme, worker, manager, done),
+        new BorderView(theme, {
+          child: new WorkerViewer(tui, theme, worker, manager, done),
+        }),
       {
         overlay: true,
         overlayOptions: {
