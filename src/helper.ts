@@ -83,6 +83,9 @@ export function lastAssistantText(
   return undefined
 }
 
+/** Command prefixes that are stripped before checking read-only safety (e.g., 'rtk ls'). */
+const FORWARD_PREFIX = ['rtk'] as const
+
 const DESTRUCTIVE_BASH_PATTERNS = [
   /\brm\b/i,
   /\brmdir\b/i,
@@ -128,6 +131,16 @@ const READONLY_BASH_PATTERNS = [
 ] as const
 
 export function isReadOnlyBashCommand(command: string): boolean {
+  // Remove allowed forward prefix if present
+  for (const prefix of FORWARD_PREFIX) {
+    const pattern = new RegExp(`^\\s*${prefix}\\s+`, 'i')
+    const match = command.match(pattern)
+    if (match) {
+      command = command.slice(match[0].length).trim()
+      break
+    }
+  }
+
   const destructive = DESTRUCTIVE_BASH_PATTERNS.some((p) => p.test(command))
   const readonly = READONLY_BASH_PATTERNS.some((p) => p.test(command))
   return !destructive && readonly

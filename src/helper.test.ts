@@ -11,12 +11,23 @@ describe('isReadOnlyBashCommand', () => {
     expect(isReadOnlyBashCommand('rg "foo" src/')).toBe(true)
   })
 
+  it('allows read-only commands with forward prefix', () => {
+    expect(isReadOnlyBashCommand('rtk ls -la')).toBe(true)
+    expect(isReadOnlyBashCommand('rtk git status')).toBe(true)
+  })
+
   it('blocks destructive commands', () => {
     expect(isReadOnlyBashCommand('rm -rf /')).toBe(false)
     expect(isReadOnlyBashCommand('npm install')).toBe(false)
     expect(isReadOnlyBashCommand('git commit -m x')).toBe(false)
     expect(isReadOnlyBashCommand('echo hi > out.txt')).toBe(false)
     expect(isReadOnlyBashCommand('sudo apt-get install evil')).toBe(false)
+  })
+
+  it('blocks destructive commands even with forward prefix', () => {
+    expect(isReadOnlyBashCommand('rtk rm -rf /')).toBe(false)
+    expect(isReadOnlyBashCommand('rtk npm install')).toBe(false)
+    expect(isReadOnlyBashCommand('rtk git commit -m x')).toBe(false)
   })
 })
 
