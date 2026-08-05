@@ -113,13 +113,22 @@ export class CustomSelectComponent extends Container implements Focusable {
   }
 
   handleInput(keyData: string): void {
-    if (matchesKey(keyData, Key.up)) {
+    if (matchesKey(keyData, Key.up) || matchesKey(keyData, Key.ctrl('p'))) {
       this.#move(-1)
-    } else if (matchesKey(keyData, Key.down)) {
+    } else if (
+      matchesKey(keyData, Key.down) ||
+      matchesKey(keyData, Key.ctrl('n'))
+    ) {
       this.#move(1)
-    } else if (matchesKey(keyData, Key.pageUp)) {
+    } else if (
+      matchesKey(keyData, Key.pageUp) ||
+      matchesKey(keyData, Key.ctrl('u'))
+    ) {
       this.#move(-this.#maxVisible)
-    } else if (matchesKey(keyData, Key.pageDown)) {
+    } else if (
+      matchesKey(keyData, Key.pageDown) ||
+      matchesKey(keyData, Key.ctrl('d'))
+    ) {
       this.#move(this.#maxVisible)
     } else if (matchesKey(keyData, Key.enter)) {
       this.#confirm()
