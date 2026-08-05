@@ -30,6 +30,7 @@ Manager mode turns on automatically when you execute a plan "via manager". Leave
 `/modes-model` configures which model each role uses — `plan`, `manager`, and `worker`. Settings persist to `<agentDir>/modes-models.json` as `"provider/modelId"` references.
 
 - `/modes-model` — pick a role, then pick a model interactively.
+- `/modes-model show` — show the model configured for each role.
 - `/modes-model worker anthropic/claude-sonnet-4-5` — set a role directly.
 - `/modes-model manager off` — clear a role (it falls back to the session's current model).
 

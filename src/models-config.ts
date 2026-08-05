@@ -91,6 +91,22 @@ async function pickModel(ctx: ExtensionContext): Promise<string | undefined> {
   return await ctx.ui.select('Choose model', options)
 }
 
+/** Resolve a role from an explicit arg, otherwise prompt the user. */
+async function pickRole(
+  ctx: ExtensionContext,
+  arg?: string,
+): Promise<ModeRole | undefined> {
+  if (arg) {
+    if (isRole(arg)) return arg
+    ctx.ui.notify(`Invalid role ${arg}`, 'warning')
+    return undefined
+  }
+  const picked = await ctx.ui.select('Select role to configure', [
+    ...MODES_ROLES,
+  ])
+  return picked && isRole(picked) ? picked : undefined
+}
+
 export async function switchToRoleModel(
   pi: ExtensionAPI,
   state: ModesState,
@@ -128,15 +144,43 @@ export async function restoreMainModel(
 export function setupModesConfig(pi: ExtensionAPI, state: ModesState): void {
   pi.registerCommand('modes-model', {
     description:
-      'Configure the model. Usage: /modes-model <plan|manager|worker>',
+      'Configure role models. Usage: /modes-model [show] · /modes-model <plan|manager|worker>',
     getArgumentCompletions: (prefix: string) => {
-      const items = [...MODES_ROLES]
+      const items = [...MODES_ROLES, 'show']
         .filter((candidate) => candidate.startsWith(prefix))
         .map((candidate) => ({ value: candidate, label: candidate }))
       return items.length > 0 ? items : null
     },
     handler: async (args, ctx) => {
-      await runModelsConfigCommand(pi, state, args, ctx)
+      const arg = args.trim()
+      if (arg === 'show') {
+        showModelsConfig(ctx)
+        return
+      }
+
+      const role = await pickRole(ctx, arg || undefined)
+      if (!role) return
+      const model = await pickModel(ctx)
+      if (!model) {
+        ctx.ui.notify('No model selected', 'warning')
+        return
+      }
+
+      const isDefaultModel = model === MODEL_DEFAULT
+      if (!isDefaultModel && !resolveModelRef(ctx, model)) {
+        ctx.ui.notify(`Unknown model "${model}"`, 'warning')
+        return
+      }
+
+      if (isDefaultModel) modelsConfig[role] = undefined
+      else modelsConfig[role] = model
+      await saveModelsConfig()
+
+      showModelsConfig(ctx)
+
+      if (role === state.mode) {
+        await switchToRoleModel(pi, state, role, ctx)
+      }
     },
   })
 }
@@ -149,57 +193,4 @@ function showModelsConfig(ctx: ExtensionContext): void {
     items.push(`${role}: ${model}`)
   }
   ctx.ui.notify(items.join('\n'), 'info')
-}
-
-/** `/modes-model` command: view/set/clear a role's model. */
-async function runModelsConfigCommand(
-  pi: ExtensionAPI,
-  state: ModesState,
-  args: string,
-  ctx: ExtensionContext,
-): Promise<void> {
-  const roleArg = args
-  const getRole = async (arg: string | undefined): Promise<ModeRole | null> => {
-    if (arg) {
-      if (isRole(arg)) return arg
-      else {
-        ctx.ui.notify(`Invalid role ${arg}`, 'warning')
-        return null
-      }
-    } else {
-      const rolePicked = await ctx.ui.select('Select role to configure', [
-        ...MODES_ROLES,
-      ])
-      if (!rolePicked || !isRole(rolePicked)) return null
-      return rolePicked
-    }
-  }
-  const getModel = async (): Promise<string | null> => {
-    const modelPicked = await pickModel(ctx)
-    if (modelPicked === undefined) {
-      ctx.ui.notify('No model selected', 'warning')
-      return null
-    }
-    return modelPicked
-  }
-
-  const role = await getRole(roleArg)
-  const model = await getModel()
-  if (!role || !model) return
-
-  const isDefaultModel = model === MODEL_DEFAULT
-  if (!isDefaultModel && !resolveModelRef(ctx, model)) {
-    ctx.ui.notify(`Unknown model "${model}"`, 'warning')
-    return
-  }
-
-  if (isDefaultModel) modelsConfig[role] = undefined
-  else modelsConfig[role] = model
-  await saveModelsConfig()
-
-  showModelsConfig(ctx)
-
-  if (role === state.mode) {
-    await switchToRoleModel(pi, state, role, ctx)
-  }
 }

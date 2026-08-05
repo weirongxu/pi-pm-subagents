@@ -20,8 +20,6 @@ const MAX_WORKER_OUTPUT_BYTES = 50 * 1024
 /** Max follow-up tasks per worker before requiring a fresh worker. */
 export const MAX_FOLLOWUPS = 5
 
-// TODO: REVIEW
-
 /** Worker status values:
  * - running: Worker is actively executing a task
  * - done: Worker finished naturally (completed task successfully)
