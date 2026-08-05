@@ -61,6 +61,12 @@ export async function resumeManagerMode(
     color: 'accent',
     render: () => {
       fleet.update()
+      ctx.ui.setWidget('manager-mode', [
+        ctx.ui.theme.fg(
+          'accent',
+          ctx.ui.theme.bold('👥 MANAGER MODE — read-only'),
+        ),
+      ])
     },
   })
 }
@@ -74,6 +80,7 @@ export async function exitManagerMode(
   state.mode = undefined
   fleet.dispose()
   manager.disposeAll()
+  ctx.ui.setWidget('manager-mode', undefined)
   await exitReadOnly(pi, state, ctx, 'manager', { restoreModel: true })
 }
 

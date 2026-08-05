@@ -9,7 +9,7 @@
   "type": "module",
   "pi": {
     "extensions": [
-      "./src"
+      "./src/index.ts"
     ]
   },
   "scripts": {

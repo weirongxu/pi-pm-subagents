@@ -35,7 +35,7 @@ export async function readPrompt(name: ModeRole): Promise<string> {
     override ??
     (await readFile(join(here, '..', 'prompts', `${name}.md`), 'utf8')).trim()
   const extra = await readOptional(
-    join(agentDir, 'prompts', `${name}-append.md`),
+    join(agentDir, 'modes-prompts', `${name}-append.md`),
   )
 
   const text = extra ? `${base}\n\n${extra}` : base
