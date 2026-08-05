@@ -88,7 +88,7 @@ function initialDemoWorkers(): LiveWorker[] {
     },
     {
       id: 3,
-      text: 'Update dependencies and fix breaking changes',
+      text: 'Update dependencies and fix breaking changes\nClean local cache',
       status: 'failed',
       startedAt: now - 1200000,
       completedAt: now - 900000,

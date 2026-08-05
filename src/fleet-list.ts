@@ -268,7 +268,8 @@ export class FleetList {
     width: number,
     theme: Theme,
   ): string {
-    const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${item.text}`
+    const textInline = item.text.split('\n').join('; ')
+    const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${textInline}`
     const right = `${item.status} ${theme.fg('dim', formatElapsed(item))}`
     const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
     return rightAlign(truncateToWidth(left, leftMaxWidth), right, width)
