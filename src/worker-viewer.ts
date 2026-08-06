@@ -61,7 +61,7 @@ export class WorkerViewer implements Component {
   ) {
     this.#scroll = new ScrollView(tui, theme, {
       child: {
-        render: (width) => this.buildContentLines(width),
+        render: (width) => this.renderContent(width),
         invalidate: () => {},
       },
       viewportHeight: () =>
@@ -151,7 +151,7 @@ export class WorkerViewer implements Component {
     return `${left}  ${right}`
   }
 
-  private buildContentLines(width: number): string[] {
+  private renderContent(width: number): string[] {
     if (width <= 0) return []
     const th = this.theme
     const messages = this.worker.session.messages
@@ -170,18 +170,27 @@ export class WorkerViewer implements Component {
         lines.push(...wrapTextWithAnsi(text.trim(), width))
       } else if (message.role === 'assistant') {
         const text: string[] = []
-        const tools: string[] = []
+        const tools: { name: string; params: string }[] = []
         for (const block of message.content) {
           if (block.type === 'text' && block.text) text.push(block.text)
-          else if (block.type === 'toolCall') tools.push(block.name)
+          else if (block.type === 'toolCall')
+            tools.push({
+              name: block.name,
+              params: JSON.stringify(block.arguments),
+            })
         }
         if (text.length === 0 && tools.length === 0) continue
         if (separator) lines.push(separatorLine)
         lines.push(th.bold('[assistant]'))
         if (text.length > 0)
           lines.push(...wrapTextWithAnsi(text.join('\n').trim(), width))
-        for (const name of tools) {
-          lines.push(truncateToWidth(th.fg('muted', `🔧 ${name}`), width))
+        for (const { name, params } of tools) {
+          lines.push(
+            truncateToWidth(
+              `${th.fg('muted', `🔧 ${name}`)} ${th.fg('dim', params)}`,
+              width,
+            ),
+          )
         }
       } else if (message.role === 'toolResult') {
         const raw = message.content
