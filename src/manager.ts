@@ -105,7 +105,7 @@ export async function resumeManagerMode(
   ctx: ExtensionContext,
 ): Promise<void> {
   const { manager, fleet } = requiredRuntime()
-  ensureManagerTools(pi, state, manager)
+  ensureManagerTools(pi, state, manager, fleet)
   fleet.setContext(ctx)
   await applyModeSetup(pi, state, 'manager', ctx, {
     extraTools: Object.values(MANAGER_TOOLS),
@@ -138,7 +138,8 @@ export async function exitManagerMode(
 function ensureManagerTools(
   pi: ExtensionAPI,
   state: ModesState,
-  workers: WorkerManager,
+  manager: WorkerManager,
+  fleet: FleetList,
 ): void {
   if (managerToolsRegistered) return
   managerToolsRegistered = true
@@ -149,7 +150,7 @@ function ensureManagerTools(
     description: `List all background workers with their status, don't use tool call to waiting workers finished just idle`,
     parameters: Type.Object({}),
     async execute() {
-      const allWorkers = workers.list()
+      const allWorkers = manager.list()
       if (allWorkers.length === 0) {
         return {
           content: [{ type: 'text', text: 'No workers.' }],
@@ -193,7 +194,7 @@ function ensureManagerTools(
       const workerModel = resolveModelRef(ctx, workerRef) ?? ctx.model
       let worker: LiveWorker
       try {
-        worker = await workers.spawn(params.requirements, {
+        worker = await manager.spawn(params.requirements, {
           cwd: ctx.cwd,
           model: workerModel,
           thinkingLevel: ctx.thinkingLevel,
@@ -201,6 +202,7 @@ function ensureManagerTools(
           systemPrompt: await readPrompt('worker'),
           followupOf: params.followupOf,
         })
+        fleet.update()
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         return {
@@ -211,7 +213,7 @@ function ensureManagerTools(
 
       if (signal) {
         const stop = (): void => {
-          void workers.abort(worker.id)
+          void manager.abort(worker.id)
         }
         if (signal.aborted) stop()
         else signal.addEventListener('abort', stop, { once: true })
