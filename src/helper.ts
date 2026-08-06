@@ -4,6 +4,7 @@ import type {
   ExtensionAPI,
   SessionEntry,
 } from '@earendil-works/pi-coding-agent'
+import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui'
 import { parse as parseShell } from 'shell-quote'
 
 import type { ModeType } from './types.js'
@@ -171,4 +172,13 @@ export function isReadOnlyBashCommand(command: string): boolean {
 
 export function strInline(s: string) {
   return s.split('\n').join('⮒ ')
+}
+
+/** Place `right` flush to `width`, truncating `left` first so the stats survive. */
+export function rightAlign(left: string, right: string, width: number): string {
+  const rightW = visibleWidth(right)
+  const maxLeft = Math.max(0, width - rightW - 1)
+  const leftClamped = truncateToWidth(left, maxLeft)
+  const gap = Math.max(1, width - visibleWidth(leftClamped) - rightW)
+  return truncateToWidth(leftClamped + ' '.repeat(gap) + right, width)
 }

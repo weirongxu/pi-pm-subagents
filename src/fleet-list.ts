@@ -9,7 +9,7 @@ import {
 } from '@earendil-works/pi-tui'
 import { orderBy } from 'lodash-es'
 
-import { strInline } from './helper.js'
+import { rightAlign, strInline } from './helper.js'
 
 /** Widget key for the below-editor fleet list. */
 const FLEET_KEY = 'pi-modes:fleet'
@@ -273,7 +273,7 @@ export class FleetList {
     width: number,
     theme: Theme,
   ): string {
-    const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${strInline(item.text)}`
+    const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${strInline(item.title)}`
     const right = `${theme.fg('accent', item.status)} ${theme.fg('dim', formatElapsed(item))}`
     const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
     return rightAlign(truncateToWidth(left, leftMaxWidth), right, width)
@@ -297,13 +297,4 @@ export class FleetList {
 export function formatElapsed(item: FleetEntry): string {
   const end = item.completedAt ?? Date.now()
   return `${Math.max(0, Math.round((end - item.startedAt) / 1000))}s`
-}
-
-/** Place `right` flush to `width`, truncating `left` first so the stats survive. */
-function rightAlign(left: string, right: string, width: number): string {
-  const rightW = visibleWidth(right)
-  const maxLeft = Math.max(0, width - rightW - 1)
-  const leftClamped = truncateToWidth(left, maxLeft)
-  const gap = Math.max(1, width - visibleWidth(leftClamped) - rightW)
-  return truncateToWidth(leftClamped + ' '.repeat(gap) + right, width)
 }

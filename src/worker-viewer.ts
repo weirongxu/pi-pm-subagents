@@ -15,7 +15,7 @@ import {
 } from '@earendil-works/pi-tui'
 
 import { BorderView } from './border-view.js'
-import { strInline } from './helper.js'
+import { rightAlign, strInline } from './helper.js'
 import { ScrollView } from './scroll-view.js'
 import type {
   LiveWorker,
@@ -134,9 +134,13 @@ export class WorkerViewer implements Component {
     const th = this.theme
     const status = this.worker.status
     const color = STATUS_COLOR[status]
-    const prefix = `${th.fg(color, status)} ${th.fg('muted', `#${this.worker.id}`)} `
-    const titleMaxWidth = width - visibleWidth(prefix) - 1
-    return `${prefix}${truncateToWidth(strInline(this.worker.title), titleMaxWidth)}`
+    const id = `#${this.worker.id}`
+    const titleMaxWidth = width - visibleWidth(status + id) - 1
+    return rightAlign(
+      `${th.fg('muted', `#${this.worker.id}`)} ${truncateToWidth(strInline(this.worker.title), titleMaxWidth)}`,
+      th.fg(color, status),
+      width,
+    )
   }
 
   private footerLine(width: number): string {
