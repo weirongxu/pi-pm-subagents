@@ -10,6 +10,7 @@ import {
   Key,
   matchesKey,
   truncateToWidth,
+  visibleWidth,
   wrapTextWithAnsi,
 } from '@earendil-works/pi-tui'
 
@@ -22,12 +23,12 @@ import type {
   WorkerStatus,
 } from './worker-manager.js'
 
-const STATUS_INDICATOR = {
-  running: { icon: '●', color: 'accent' },
-  done: { icon: '✓', color: 'success' },
-  failed: { icon: '✗', color: 'error' },
-  stopped: { icon: '■', color: 'dim' },
-} satisfies Record<WorkerStatus, { icon: string; color: ThemeColor }>
+const STATUS_COLOR = {
+  running: 'accent',
+  done: 'success',
+  failed: 'error',
+  stopped: 'dim',
+} satisfies Record<WorkerStatus, ThemeColor>
 
 /** Handle to the active worker viewer overlay so a new open can close it first. */
 let openedViewerHandle: OverlayHandle | undefined
@@ -111,11 +112,11 @@ export class WorkerViewer implements Component {
     if (width < 4) return []
     const separator = this.theme.fg('dim', '─'.repeat(width))
     return [
-      this.headerLine(),
+      this.headerLine(width),
       separator,
       ...this.#scroll.render(width),
       separator,
-      this.footerLine(),
+      this.footerLine(width),
     ]
   }
 
@@ -129,16 +130,16 @@ export class WorkerViewer implements Component {
 
   // ---- private ----
 
-  private headerLine(): string {
+  private headerLine(width: number): string {
     const th = this.theme
-    const { icon, color } = STATUS_INDICATOR[this.worker.status]
-    const tools = [...this.worker.activeTools]
-    const activity =
-      tools.length > 0 ? ` · ${th.fg('muted', tools.join(', '))}` : ''
-    return `${th.fg(color, icon)} ${th.fg('muted', `#${this.worker.id}`)} ${truncateToWidth(strInline(this.worker.text), 60)}${activity}`
+    const status = this.worker.status
+    const color = STATUS_COLOR[status]
+    const prefix = `${th.fg(color, status)} ${th.fg('muted', `#${this.worker.id}`)} `
+    const titleMaxWidth = width - visibleWidth(prefix) - 1
+    return `${prefix}${truncateToWidth(strInline(this.worker.title), titleMaxWidth)}`
   }
 
-  private footerLine(): string {
+  private footerLine(width: number): string {
     const th = this.theme
     const running = this.worker.status === 'running'
     const left = th.fg('dim', 'scroll')
@@ -148,7 +149,7 @@ export class WorkerViewer implements Component {
           : th.fg('dim', 'x stop')) +
         th.fg('dim', ' · enter steer · ↑↓ scroll · esc close')
       : th.fg('dim', '↑↓ scroll · esc close')
-    return `${left}  ${right}`
+    return truncateToWidth(`${left}  ${right}`, width)
   }
 
   private renderContent(width: number): string[] {

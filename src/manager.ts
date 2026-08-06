@@ -179,6 +179,7 @@ function ensureManagerTools(
     label: 'Delegate Worker',
     description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; the worker's summary when it finishes. Max concurrency ${MAX_CONCURRENCY_WORKER} running workers`,
     parameters: Type.Object({
+      title: Type.String(),
       requirements: Type.String({
         description:
           'A self-contained description of the work the worker should do.',
@@ -194,7 +195,7 @@ function ensureManagerTools(
       const workerModel = resolveModelRef(ctx, workerRef) ?? ctx.model
       let worker: LiveWorker
       try {
-        worker = await manager.spawn(params.requirements, {
+        worker = await manager.spawn(params.title, params.requirements, {
           cwd: ctx.cwd,
           model: workerModel,
           thinkingLevel: ctx.thinkingLevel,

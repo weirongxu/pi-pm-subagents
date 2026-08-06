@@ -53,6 +53,7 @@ export interface SpawnOptions {
  */
 export interface LiveWorker {
   id: number
+  title: string
   text: string
   status: WorkerStatus
   session: AgentSession
@@ -63,8 +64,6 @@ export interface LiveWorker {
   followUpCount: number
   /** Tool names enabled for this worker (from session configuration). */
   enabledTools: Set<string>
-  /** Tool names with an in-flight execution (live widget activity). */
-  activeTools: Set<string>
   /** Latest streaming assistant narration (live widget activity). */
   responseText?: string
 }
@@ -104,14 +103,19 @@ export class WorkerManager {
     return latest
   }
 
-  async spawn(task: string, options: SpawnOptions): Promise<LiveWorker> {
+  async spawn(
+    title: string,
+    task: string,
+    options: SpawnOptions,
+  ): Promise<LiveWorker> {
     if (options.followupOf != null) {
-      return this.handleFollowup(task, options.followupOf)
+      return this.handleFollowup(title, task, options.followupOf)
     }
-    return this.createNewWorker(task, options)
+    return this.createNewWorker(title, task, options)
   }
 
   private async handleFollowup(
+    title: string,
     task: string,
     followupOf: number,
   ): Promise<LiveWorker> {
@@ -130,6 +134,7 @@ export class WorkerManager {
       )
     }
 
+    followupWorker.title = title
     followupWorker.text = task
     followupWorker.status = 'running'
     followupWorker.startedAt = Date.now()
@@ -160,6 +165,7 @@ export class WorkerManager {
   }
 
   private async createNewWorker(
+    title: string,
     task: string,
     options: SpawnOptions,
   ): Promise<LiveWorker> {
@@ -185,13 +191,13 @@ export class WorkerManager {
       : new Set()
     const worker: LiveWorker = {
       id,
+      title,
       text: task,
       status: 'running',
       session: created.session,
       startedAt: Date.now(),
       followUpCount: 0,
       enabledTools,
-      activeTools: new Set<string>(),
     }
 
     this.workers.set(id, worker)
@@ -221,7 +227,6 @@ export class WorkerManager {
   disposeAll(): void {
     const disposedSessions = new Set<AgentSession>()
     for (const worker of this.workers.values()) {
-      worker.activeTools.clear()
       if (!disposedSessions.has(worker.session)) {
         worker.session.dispose()
         disposedSessions.add(worker.session)
@@ -233,12 +238,6 @@ export class WorkerManager {
   private subscribe(worker: LiveWorker): void {
     worker.session.subscribe((event) => {
       switch (event.type) {
-        case 'tool_execution_start':
-          worker.activeTools.add(event.toolName)
-          break
-        case 'tool_execution_end':
-          worker.activeTools.delete(event.toolName)
-          break
         case 'message_update':
           if (event.assistantMessageEvent.type === 'text_delta') {
             worker.responseText = messageText(event.message)
@@ -272,7 +271,6 @@ export class WorkerManager {
     } finally {
       worker.completedAt = Date.now()
       worker.responseText = undefined
-      worker.activeTools.clear()
       this.options.onStatusChange?.()
       this.options.onDone?.(worker)
     }
