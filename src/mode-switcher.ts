@@ -56,8 +56,6 @@ export interface ModeSetupOptions {
   extraTools?: readonly string[]
   /** Theme color role used for the mode's status indicator. */
   color: ThemeColor
-  /** Mode-specific UI update (plan banner or worker widget). */
-  render: (ctx: ExtensionContext, state: ModesState) => void
 }
 
 export async function applyModeSetup(
@@ -70,5 +68,4 @@ export async function applyModeSetup(
   enterReadOnly(pi, state, options.extraTools ?? [])
   await switchToRoleModel(pi, state, mode, ctx)
   ctx.ui.setStatus(mode, ctx.ui.theme.fg(options.color, mode))
-  options.render(ctx, state)
 }

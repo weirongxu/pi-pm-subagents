@@ -31,19 +31,6 @@ const CHROME_LINES = PLAN_CHOICES.length + 3
 const OVERLAY_WIDTH_PCT = '90%'
 const PLAN_MODE_WIDGET_KEY = 'pi-modes:plan-mode'
 
-export function renderPlanBanner(
-  ctx: ExtensionContext,
-  state: ModesState,
-): void {
-  if (state.mode !== 'plan') {
-    ctx.ui.setWidget(PLAN_MODE_WIDGET_KEY, undefined)
-    return
-  }
-  ctx.ui.setWidget(PLAN_MODE_WIDGET_KEY, [
-    ctx.ui.theme.fg('warning', ctx.ui.theme.bold('📋 PLAN MODE ')),
-  ])
-}
-
 export async function enterPlanMode(
   pi: ExtensionAPI,
   state: ModesState,
@@ -64,8 +51,10 @@ export async function resumePlanMode(
 ): Promise<void> {
   await applyModeSetup(pi, state, 'plan', ctx, {
     color: 'warning',
-    render: renderPlanBanner,
   })
+  ctx.ui.setWidget(PLAN_MODE_WIDGET_KEY, [
+    ctx.ui.theme.fg('warning', ctx.ui.theme.bold('📋 PLAN MODE ')),
+  ])
 }
 
 export async function exitPlanMode(
@@ -78,7 +67,7 @@ export async function exitPlanMode(
   const clearMarkdown = options.clearMarkdown ?? true
   state.mode = undefined
   if (clearMarkdown) state.planMarkdown = undefined
-  renderPlanBanner(ctx, state)
+  ctx.ui.setWidget(PLAN_MODE_WIDGET_KEY, undefined)
   await exitReadOnly(pi, state, ctx, 'plan', { restoreModel })
 }
 

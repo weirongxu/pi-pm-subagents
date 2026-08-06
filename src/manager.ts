@@ -67,13 +67,15 @@ export async function resumeManagerMode(
   await applyModeSetup(pi, state, 'manager', ctx, {
     extraTools: Object.values(MANAGER_TOOLS),
     color: 'accent',
-    render: () => {
-      fleet.update()
-      ctx.ui.setWidget(MANAGER_MODE_WIDGET_KEY, [
-        ctx.ui.theme.fg('accent', ctx.ui.theme.bold('👥 MANAGER MODE')),
-      ])
-    },
   })
+  fleet.update()
+  const workerModel = getModelsConfig().worker
+  ctx.ui.setWidget(MANAGER_MODE_WIDGET_KEY, [
+    ctx.ui.theme.fg(
+      'accent',
+      `${ctx.ui.theme.bold('👥 MANAGER MODE')} - worker model ${workerModel}`,
+    ),
+  ])
 }
 
 export async function exitManagerMode(
@@ -148,9 +150,7 @@ function ensureManagerTools(
     }),
     async execute(_toolCallId, params, signal, _onUpdate, ctx) {
       const workerRef = getModelsConfig().worker
-      const workerModel = workerRef
-        ? (resolveModelRef(ctx, workerRef) ?? ctx.model)
-        : ctx.model
+      const workerModel = resolveModelRef(ctx, workerRef) ?? ctx.model
       let worker: LiveWorker
       try {
         worker = await workers.spawn(params.task, {

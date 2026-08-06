@@ -75,8 +75,9 @@ export function parseModelRef(
 
 export function resolveModelRef(
   ctx: ExtensionContext,
-  ref: string,
+  ref?: string,
 ): Model<Api> | undefined {
+  if (!ref) return undefined
   const parsed = parseModelRef(ref)
   if (!parsed) return undefined
   return ctx.modelRegistry.find(parsed.provider, parsed.id)
