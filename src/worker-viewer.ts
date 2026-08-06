@@ -1,6 +1,10 @@
 import type { UserMessage } from '@earendil-works/pi-ai'
-import type { ExtensionContext, Theme } from '@earendil-works/pi-coding-agent'
-import type { Component, TUI } from '@earendil-works/pi-tui'
+import type {
+  ExtensionContext,
+  Theme,
+  ThemeColor,
+} from '@earendil-works/pi-coding-agent'
+import type { Component, OverlayHandle, TUI } from '@earendil-works/pi-tui'
 import {
   isKeyRelease,
   Key,
@@ -12,7 +16,21 @@ import {
 import { BorderView } from './border-view.js'
 import { strInline } from './helper.js'
 import { ScrollView } from './scroll-view.js'
-import type { LiveWorker, WorkerManager } from './worker-manager.js'
+import type {
+  LiveWorker,
+  WorkerManager,
+  WorkerStatus,
+} from './worker-manager.js'
+
+const STATUS_INDICATOR = {
+  running: { icon: '●', color: 'accent' },
+  done: { icon: '✓', color: 'success' },
+  failed: { icon: '✗', color: 'error' },
+  stopped: { icon: '■', color: 'dim' },
+} satisfies Record<WorkerStatus, { icon: string; color: ThemeColor }>
+
+/** Handle to the active worker viewer overlay so a new open can close it first. */
+let openedViewerHandle: OverlayHandle | undefined
 
 /** Result text preview length in the viewer (keeps one verbose call from drowning the rest). */
 const TOOL_RESULT_PREVIEW = 500
@@ -113,19 +131,11 @@ export class WorkerViewer implements Component {
 
   private headerLine(): string {
     const th = this.theme
-    // FIXME: 这个 icon 改用 record object
-    const icon =
-      this.worker.status === 'running'
-        ? th.fg('accent', '●')
-        : this.worker.status === 'done'
-          ? th.fg('success', '✓')
-          : this.worker.status === 'failed'
-            ? th.fg('error', '✗')
-            : th.fg('dim', '■')
+    const { icon, color } = STATUS_INDICATOR[this.worker.status]
     const tools = [...this.worker.activeTools]
     const activity =
       tools.length > 0 ? ` · ${th.fg('muted', tools.join(', '))}` : ''
-    return `${icon} ${th.fg('muted', `#${this.worker.id}`)} ${truncateToWidth(strInline(this.worker.text), 60)}${activity}`
+    return `${th.fg(color, icon)} ${th.fg('muted', `#${this.worker.id}`)} ${truncateToWidth(strInline(this.worker.text), 60)}${activity}`
   }
 
   private footerLine(): string {
@@ -220,6 +230,7 @@ export async function openWorkerViewer(
     ctx.ui.notify(`Worker #${id} not found.`, 'warning')
     return
   }
+  openedViewerHandle?.hide()
   ctx.ui.setWorkingVisible(false)
   let result: ViewerResult
   try {
@@ -235,9 +246,13 @@ export async function openWorkerViewer(
           width: OVERLAY_WIDTH_PCT,
           maxHeight: `${VIEWPORT_HEIGHT_PCT}%`,
         },
+        onHandle: (handle) => {
+          openedViewerHandle = handle
+        },
       },
     )
   } finally {
+    openedViewerHandle = undefined
     ctx.ui.setWorkingVisible(true)
   }
 

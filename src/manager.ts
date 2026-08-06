@@ -138,7 +138,7 @@ function ensureManagerTools(
       `Use ${MANAGER_TOOLS.delegate} to execute task through background worker`,
     ],
     parameters: Type.Object({
-      task: Type.String({
+      requirements: Type.String({
         description:
           'A self-contained description of the work the worker should do.',
       }),
@@ -153,7 +153,7 @@ function ensureManagerTools(
       const workerModel = resolveModelRef(ctx, workerRef) ?? ctx.model
       let worker: LiveWorker
       try {
-        worker = await workers.spawn(params.task, {
+        worker = await workers.spawn(params.requirements, {
           cwd: ctx.cwd,
           model: workerModel,
           thinkingLevel: ctx.thinkingLevel,
@@ -216,7 +216,6 @@ export async function setupManager(
     list: () => runtime?.demoManager?.list() ?? manager.list(),
     onOpen: async (ctx, id) => {
       const activeManager = runtime?.demoManager ?? manager
-      // FIXME: 打开 worker viewer 时，要关闭之前的
       return openWorkerViewer(ctx, activeManager, id)
     },
   })

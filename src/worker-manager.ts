@@ -117,7 +117,7 @@ export class WorkerManager {
   ): Promise<LiveWorker> {
     const followupWorker = this.workers.get(followupOf)
     if (!followupWorker) {
-      throw new Error(`Parent worker #${followupOf} not found`)
+      throw new Error(`Worker #${followupOf} not found`)
     }
     if (followupWorker.status === 'running') {
       throw new Error(
