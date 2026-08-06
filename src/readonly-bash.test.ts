@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { isReadOnlyBashCommand } from '../src/helper.js'
 import { readOnlyToolSet } from '../src/mode-switcher.js'
+import { isReadOnlyBashCommand } from '../src/readonly-bash.js'
 
 describe('isReadOnlyBashCommand', () => {
   it('allows read-only commands', () => {

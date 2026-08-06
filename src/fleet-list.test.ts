@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { type FleetEntry, formatElapsed } from '../src/fleet-list.js'
 
 describe('formatElapsed', () => {
-  const base = (overrides: Partial<FleetEntry>): FleetEntry => ({
+  const base = (
+    overrides: Partial<FleetEntry> & { title?: never },
+  ): FleetEntry => ({
     id: 1,
-    text: '',
+    title: '',
     startedAt: 1000,
     status: 'running',
     ...overrides,

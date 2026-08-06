@@ -1,13 +1,10 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
-import {
-  createState,
-  getLastModesState,
-  isReadOnlyBashCommand,
-} from './helper.js'
+import { createState, getLastModesState } from './helper.js'
 import { resumeManagerMode, setupManager } from './manager.js'
 import { loadModelsConfig, setupModesConfig } from './models-config.js'
 import { resumePlanMode, setupPlan } from './plan.js'
+import { isReadOnlyBashCommand } from './readonly-bash.js'
 
 export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
   const state = createState()

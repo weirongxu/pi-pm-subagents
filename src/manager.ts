@@ -1,4 +1,5 @@
 import type {
+  AgentToolResult,
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
@@ -228,6 +229,41 @@ function ensureManagerTools(
           },
         ],
         details: { workerId: worker.id, status: worker.status },
+      }
+    },
+  })
+
+  pi.registerTool({
+    name: MANAGER_TOOLS.kill,
+    label: 'Kill Worker',
+    description:
+      'Stop a running worker by id. Only running workers can be killed.',
+    parameters: Type.Object({
+      id: Type.Number({ description: 'Worker id to stop.' }),
+    }),
+    async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+      const worker = manager.get(params.id)
+      if (!worker) {
+        return {
+          content: [{ type: 'text', text: `Worker #${params.id} not found.` }],
+          details: {},
+        }
+      }
+      try {
+        const stopped = await manager.abort(params.id)
+        const message = stopped
+          ? `Worker #${params.id} stopped.`
+          : `Worker #${params.id} is not running (status: ${worker.status}).`
+        return {
+          content: [{ type: 'text', text: message }],
+          details: { workerId: params.id, status: worker.status },
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return {
+          content: [{ type: 'text', text: message }],
+          details: { workerId: params.id, status: worker.status },
+        }
       }
     },
   })
