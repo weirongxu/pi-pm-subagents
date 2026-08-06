@@ -22,7 +22,7 @@ export type FleetEntryStatus = 'running' | 'done' | 'failed' | 'stopped'
 
 export interface FleetEntry {
   id: number
-  text: string
+  title: string
   status: FleetEntryStatus
   startedAt: number
   completedAt?: number

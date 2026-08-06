@@ -43,6 +43,7 @@ export class DemoWorkerManager extends WorkerManager {
   add(text?: string): void {
     this.#workers.push({
       id: this.#workers.length + 1,
+      title: text ?? 'Review and fix authentication flow',
       text: text ?? 'Review and fix authentication flow',
       status: 'running',
       startedAt: Date.now() - 600000,
@@ -50,7 +51,6 @@ export class DemoWorkerManager extends WorkerManager {
       summary: undefined,
       followUpCount: 0,
       enabledTools: new Set(['read', 'write', 'bash']),
-      activeTools: new Set(['bash']),
       responseText: undefined,
       session: mockSession(),
     })
