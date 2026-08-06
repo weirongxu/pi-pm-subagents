@@ -61,7 +61,7 @@ export class WorkerViewer implements Component {
   ) {
     this.#scroll = new ScrollView(tui, theme, {
       child: {
-        render: (inner) => this.buildContentLines(inner),
+        render: (width) => this.buildContentLines(width),
         invalidate: () => {},
       },
       viewportHeight: () =>
@@ -158,13 +158,14 @@ export class WorkerViewer implements Component {
     if (messages.length === 0)
       return [th.fg('dim', '(waiting for first message…)')]
 
+    const separatorLine = th.fg('dim', '─'.repeat(width))
     const lines: string[] = []
     let separator = false
     for (const message of messages) {
       if (message.role === 'user') {
         const text = userText(message)
         if (!text.trim()) continue
-        if (separator) lines.push(th.fg('dim', '───'))
+        if (separator) lines.push(separatorLine)
         lines.push(th.fg('accent', th.bold('[user]')))
         lines.push(...wrapTextWithAnsi(text.trim(), width))
       } else if (message.role === 'assistant') {
@@ -175,7 +176,7 @@ export class WorkerViewer implements Component {
           else if (block.type === 'toolCall') tools.push(block.name)
         }
         if (text.length === 0 && tools.length === 0) continue
-        if (separator) lines.push(th.fg('dim', '───'))
+        if (separator) lines.push(separatorLine)
         lines.push(th.bold('[assistant]'))
         if (text.length > 0)
           lines.push(...wrapTextWithAnsi(text.join('\n').trim(), width))
@@ -196,7 +197,7 @@ export class WorkerViewer implements Component {
           raw.length > TOOL_RESULT_PREVIEW
             ? `${raw.slice(0, TOOL_RESULT_PREVIEW)}…`
             : raw
-        if (separator) lines.push(th.fg('dim', '───'))
+        if (separator) lines.push(separatorLine)
         lines.push(th.fg('dim', '[result]'))
         lines.push(
           ...wrapTextWithAnsi(preview, width).map((line) => th.fg('dim', line)),

@@ -146,8 +146,7 @@ function ensureManagerTools(
   pi.registerTool({
     name: MANAGER_TOOLS.list,
     label: 'List Workers',
-    description: 'List all background workers with their status',
-    promptSnippet: 'Check status of all background workers',
+    description: `List all background workers with their status, don't use tool call to waiting workers finished just idle`,
     parameters: Type.Object({}),
     async execute() {
       const allWorkers = workers.list()
