@@ -26,10 +26,53 @@ const MANAGER_MODE_WIDGET_KEY = 'pi-modes:manager-mode'
 
 export type { LiveWorker, WorkerStatus } from './worker-manager.js'
 
+export class CompletionBatcher {
+  private pendingWorkers: LiveWorker[] = []
+  private timer: ReturnType<typeof setTimeout> | undefined
+
+  constructor(
+    private readonly flush: (workers: LiveWorker[]) => void,
+    private readonly windowMs = 10000,
+  ) {}
+
+  get pending(): readonly LiveWorker[] {
+    return [...this.pendingWorkers]
+  }
+
+  add(worker: LiveWorker): void {
+    this.pendingWorkers.push(worker)
+    if (this.timer !== undefined) return
+    this.timer = setTimeout(() => {
+      this.flushNow()
+    }, this.windowMs)
+  }
+
+  flushNow(): void {
+    if (this.timer !== undefined) {
+      clearTimeout(this.timer)
+      this.timer = undefined
+    }
+    if (this.pendingWorkers.length === 0) return
+
+    const workers = this.pendingWorkers
+    this.pendingWorkers = []
+    this.flush(workers)
+  }
+
+  clear(): void {
+    if (this.timer !== undefined) {
+      clearTimeout(this.timer)
+      this.timer = undefined
+    }
+    this.pendingWorkers = []
+  }
+}
+
 interface ManagerRuntime {
   manager: WorkerManager
   demoManager: DemoWorkerManager | undefined
   fleet: FleetList
+  batcher: CompletionBatcher
 }
 
 let runtime: ManagerRuntime | undefined
@@ -83,7 +126,8 @@ export async function exitManagerMode(
   state: ModesState,
   ctx: ExtensionContext,
 ): Promise<void> {
-  const { manager, fleet } = requiredRuntime()
+  const { manager, fleet, batcher } = requiredRuntime()
+  batcher.clear()
   state.mode = undefined
   fleet.dispose()
   manager.disposeAll()
@@ -133,10 +177,7 @@ function ensureManagerTools(
   pi.registerTool({
     name: MANAGER_TOOLS.delegate,
     label: 'Delegate Worker',
-    description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; the worker's summary when it finishes. Fails immediately if ${MAX_CONCURRENCY_WORKER} workers are already running — wait for one to finish or abort it before retrying.`,
-    promptGuidelines: [
-      `Use ${MANAGER_TOOLS.delegate} to execute task through background worker`,
-    ],
+    description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; the worker's summary when it finishes. Max concurrency ${MAX_CONCURRENCY_WORKER} running workers`,
     parameters: Type.Object({
       requirements: Type.String({
         description:
@@ -204,12 +245,17 @@ export async function setupManager(
   pi: ExtensionAPI,
   state: ModesState,
 ): Promise<void> {
+  const batcher = new CompletionBatcher((workers) => {
+    if (state.mode !== 'manager') return
+    pi.sendUserMessage(workers.map(doneMessage).join('\n\n'), {
+      deliverAs: 'steer',
+    })
+  })
   const manager = new WorkerManager({
     onStatusChange: () => runtime?.fleet.update(),
     onDone: (worker) => {
       if (state.mode !== 'manager') return
-      // FIXME: 有没有办法获取 followUp 的所有消息，然后一次发送，不然会响应多次
-      pi.sendUserMessage(doneMessage(worker), { deliverAs: 'steer' })
+      batcher.add(worker)
     },
   })
   const fleet = new FleetList({
@@ -219,7 +265,7 @@ export async function setupManager(
       return openWorkerViewer(ctx, activeManager, id)
     },
   })
-  runtime = { manager, demoManager: undefined, fleet }
+  runtime = { manager, demoManager: undefined, fleet, batcher }
 
   const managerPrompt = await readPrompt('manager')
   pi.on('before_agent_start', async (event) => {

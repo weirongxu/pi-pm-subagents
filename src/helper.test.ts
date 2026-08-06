@@ -11,6 +11,19 @@ describe('isReadOnlyBashCommand', () => {
     expect(isReadOnlyBashCommand('rg "foo" src/')).toBe(true)
   })
 
+  it('validates each shell subcommand independently', () => {
+    expect(isReadOnlyBashCommand('cat README.md && echo done')).toBe(true)
+    expect(isReadOnlyBashCommand('cat README.md; rm file')).toBe(false)
+    expect(isReadOnlyBashCommand('ls || rm -rf /')).toBe(false)
+    expect(isReadOnlyBashCommand('cat foo | grep bar')).toBe(true)
+    expect(isReadOnlyBashCommand('cat README.md; echo "rm -rf /"')).toBe(true)
+  })
+
+  it('rejects empty shell subcommands', () => {
+    expect(isReadOnlyBashCommand('')).toBe(false)
+    expect(isReadOnlyBashCommand('cat README.md &&')).toBe(false)
+  })
+
   it('allows read-only commands with forward prefix', () => {
     expect(isReadOnlyBashCommand('rtk ls -la')).toBe(true)
     expect(isReadOnlyBashCommand('rtk git status')).toBe(true)
