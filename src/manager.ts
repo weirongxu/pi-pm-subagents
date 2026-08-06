@@ -131,7 +131,7 @@ function ensureManagerTools(
   pi.registerTool({
     name: MANAGER_TOOLS.delegate,
     label: 'Delegate Worker',
-    description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; the worker's summary when it finishes, max concurrency worker ${MAX_CONCURRENCY_WORKER}`,
+    description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; the worker's summary when it finishes. Fails immediately if ${MAX_CONCURRENCY_WORKER} workers are already running — wait for one to finish or abort it before retrying.`,
     promptGuidelines: [
       `Use ${MANAGER_TOOLS.delegate} to execute task through background worker`,
     ],
@@ -151,14 +151,23 @@ function ensureManagerTools(
       const workerModel = workerRef
         ? (resolveModelRef(ctx, workerRef) ?? ctx.model)
         : ctx.model
-      const worker = await workers.spawn(params.task, {
-        cwd: ctx.cwd,
-        model: workerModel,
-        thinkingLevel: ctx.thinkingLevel,
-        tools: state.toolsBackup,
-        systemPrompt: await readPrompt('worker'),
-        followupOf: params.followupOf,
-      })
+      let worker: LiveWorker
+      try {
+        worker = await workers.spawn(params.task, {
+          cwd: ctx.cwd,
+          model: workerModel,
+          thinkingLevel: ctx.thinkingLevel,
+          tools: state.toolsBackup,
+          systemPrompt: await readPrompt('worker'),
+          followupOf: params.followupOf,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return {
+          content: [{ type: 'text', text: message }],
+          details: {},
+        }
+      }
 
       if (signal) {
         const stop = (): void => {

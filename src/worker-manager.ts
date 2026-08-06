@@ -82,6 +82,12 @@ export class WorkerManager {
 
   constructor(private options: WorkerManagerOptions = {}) {}
 
+  private countRunning(): number {
+    return [...this.workers.values()].filter(
+      (worker) => worker.status === 'running',
+    ).length
+  }
+
   list(): LiveWorker[] {
     return [...this.workers.values()]
   }
@@ -157,7 +163,11 @@ export class WorkerManager {
     task: string,
     options: SpawnOptions,
   ): Promise<LiveWorker> {
-    // FIXME: 根据 MAX_CONCURRENCY_WORKER 限制并发的数量
+    if (this.countRunning() >= MAX_CONCURRENCY_WORKER) {
+      throw new Error(
+        `Worker concurrency limit reached (${MAX_CONCURRENCY_WORKER}). Wait for an existing worker to finish, or abort one.`,
+      )
+    }
     const loader = await this.createLoader(options)
     const created = await createAgentSession({
       cwd: options.cwd,
