@@ -6,6 +6,9 @@ import type {
 import { truncateToWidth } from '@earendil-works/pi-tui'
 import { Type } from 'typebox'
 
+const JOB_START_EVENT = 'desktop-notify:job:start'
+const JOB_END_EVENT = 'desktop-notify:job:end'
+
 import { MANAGER_TOOLS } from './consts.js'
 import { DemoWorkerManager } from './demo-worker-manager.js'
 import { FleetList } from './fleet-list.js'
@@ -151,7 +154,7 @@ function ensureManagerTools(
   pi.registerTool({
     name: MANAGER_TOOLS.list,
     label: 'List Workers',
-    description: `List all background workers with their status, don't use tool call to waiting workers finished just idle`,
+    description: `List all background workers with their status, don't use ${MANAGER_TOOLS.list} to wait workers finished just idle`,
     parameters: Type.Object({}),
     async execute() {
       const allWorkers = manager.list()
@@ -171,8 +174,18 @@ function ensureManagerTools(
           `${worker.status} #${worker.id} ${truncateToWidth(worker.title, 30)} ${elapsed}`,
         )
       }
+
+      const text = lines.join('\n')
+      const hasRunning = sorted.some((worker) => worker.status === 'running')
       return {
-        content: [{ type: 'text', text: lines.join('\n') }],
+        content: [
+          {
+            type: 'text',
+            text: hasRunning
+              ? `${text}\n\nDo not poll worker_list to wait for completion - just idle — you will be notified when workers finish.`
+              : text,
+          },
+        ],
         details: {},
       }
     },
@@ -289,7 +302,15 @@ export async function setupManager(
   })
   const manager = new WorkerManager({
     onStatusChange: () => runtime?.fleet.update(),
-    onDone: (worker) => {
+    onStart: (worker) => {
+      pi.events.emit(JOB_START_EVENT, {
+        id: `pi-modes:session:${worker.id}`,
+      })
+    },
+    onEnd: (worker) => {
+      pi.events.emit(JOB_END_EVENT, {
+        id: `pi-modes:session:${worker.id}`,
+      })
       if (state.mode !== 'manager') return
       batcher.add(worker)
     },

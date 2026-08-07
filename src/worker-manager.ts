@@ -71,8 +71,10 @@ export interface LiveWorker {
 export interface WorkerManagerOptions {
   /** Fired on spawn / completion / status change (re-render the widget + fleet). */
   onStatusChange?: () => void
-  /** Fired once when a worker finishes (the manager turns this into a followUp). */
-  onDone?: (worker: LiveWorker) => void
+  /** Fired once when a worker enters running state. */
+  onStart?: (worker: LiveWorker) => void
+  /** Fired once when a worker exits running state (done/failed/stopped/disposed). */
+  onEnd?: (worker: LiveWorker) => void
 }
 
 export class WorkerManager {
@@ -138,6 +140,7 @@ export class WorkerManager {
     followupWorker.message = undefined
     followupWorker.followUpCount += 1
     this.options.onStatusChange?.()
+    this.options.onStart?.(followupWorker)
     void this.run(followupWorker, task)
     return followupWorker
   }
@@ -198,6 +201,7 @@ export class WorkerManager {
 
     this.workers.set(id, worker)
     this.subscribe(worker)
+    this.options.onStart?.(worker)
     this.options.onStatusChange?.()
     void this.run(worker, task)
     return worker
@@ -223,6 +227,11 @@ export class WorkerManager {
   disposeAll(): void {
     const disposedSessions = new Set<AgentSession>()
     for (const worker of this.workers.values()) {
+      if (worker.status === 'running') {
+        worker.status = 'stopped'
+        worker.message = '(Worker disposed.)'
+        this.options.onEnd?.(worker)
+      }
       if (!disposedSessions.has(worker.session)) {
         worker.session.dispose()
         disposedSessions.add(worker.session)
@@ -269,7 +278,7 @@ export class WorkerManager {
       worker.completedAt = Date.now()
       worker.responseText = undefined
       this.options.onStatusChange?.()
-      this.options.onDone?.(worker)
+      this.options.onEnd?.(worker)
     }
   }
 }
