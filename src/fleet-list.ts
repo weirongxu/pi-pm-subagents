@@ -276,7 +276,7 @@ export class FleetList {
   ): string {
     const isRunning = item.status === 'running'
     let title = strInline(item.title)
-    if (isRunning) title = theme.strikethrough(title)
+    if (!isRunning) title = theme.strikethrough(title)
     const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${title}`
     const right = `${theme.fg('accent', item.status)} ${theme.fg('dim', formatElapsed(item))}`
     const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
