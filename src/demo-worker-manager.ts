@@ -36,7 +36,7 @@ export class DemoWorkerManager extends WorkerManager {
     if (!worker || worker.status !== 'running') return false
     worker.status = 'stopped'
     worker.completedAt = Date.now()
-    worker.summary = '(Worker stopped.)'
+    worker.message = '(Worker stopped.)'
     return true
   }
 
@@ -48,7 +48,7 @@ export class DemoWorkerManager extends WorkerManager {
       status: 'running',
       startedAt: Date.now() - 600000,
       completedAt: undefined,
-      summary: undefined,
+      message: undefined,
       followUpCount: 0,
       enabledTools: new Set(['read', 'write', 'bash']),
       responseText: undefined,
@@ -67,7 +67,7 @@ function initialDemoWorkers(): LiveWorker[] {
       status: 'done',
       startedAt: now - 3600000,
       completedAt: now - 3000000,
-      summary: 'Fixed JWT token validation and updated error handling.',
+      message: 'Fixed JWT token validation and updated error handling.',
       followUpCount: 0,
       enabledTools: new Set(['read', 'edit', 'bash']),
       responseText: undefined,
@@ -80,7 +80,7 @@ function initialDemoWorkers(): LiveWorker[] {
       status: 'running',
       startedAt: now - 600000,
       completedAt: undefined,
-      summary: undefined,
+      message: undefined,
       followUpCount: 0,
       enabledTools: new Set(['read', 'write', 'bash']),
       responseText: undefined,
@@ -93,7 +93,7 @@ function initialDemoWorkers(): LiveWorker[] {
       status: 'failed',
       startedAt: now - 1200000,
       completedAt: now - 900000,
-      summary: 'Error: Peer dependency conflict with React 19.',
+      message: 'Error: Peer dependency conflict with React 19.',
       followUpCount: 2,
       enabledTools: new Set(['read', 'bash']),
       responseText: undefined,
@@ -106,7 +106,7 @@ function initialDemoWorkers(): LiveWorker[] {
       status: 'stopped',
       startedAt: now - 1800000,
       completedAt: now - 1500000,
-      summary: 'Worker stopped by user.',
+      message: 'Worker stopped by user.',
       followUpCount: 1,
       enabledTools: new Set(['read', 'edit']),
       responseText: undefined,
@@ -119,7 +119,7 @@ function initialDemoWorkers(): LiveWorker[] {
       status: 'done',
       startedAt: now - 7200000,
       completedAt: now - 6000000,
-      summary: 'Updated README and added API reference docs.',
+      message: 'Updated README and added API reference docs.',
       followUpCount: 0,
       enabledTools: new Set(['read', 'write']),
       responseText: undefined,

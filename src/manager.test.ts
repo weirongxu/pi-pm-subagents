@@ -8,7 +8,7 @@ const makeWorker = (id: number): LiveWorker =>
     id,
     text: `task-${id}`,
     status: 'done',
-    summary: `summary-${id}`,
+    message: `summary-${id}`,
   }) as LiveWorker
 
 describe('CompletionBatcher', () => {

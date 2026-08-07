@@ -18,7 +18,7 @@ const SELF_DIR = fileURLToPath(new URL('../', import.meta.url))
 const MAX_WORKER_OUTPUT_BYTES = 50 * 1024
 
 /** Max follow-up tasks per worker before requiring a fresh worker. */
-export const MAX_RETRY_FOLLOWUPS = 5
+export const MAX_REUSE_FOLLOWUPS = 5
 export const MAX_CONCURRENCY_WORKER = 5
 
 /** Worker status values:
@@ -59,7 +59,7 @@ export interface LiveWorker {
   session: AgentSession
   startedAt: number
   completedAt?: number
-  summary?: string
+  message?: string
   /** Number of follow-up tasks executed on this worker. */
   followUpCount: number
   /** Tool names enabled for this worker (from session configuration). */
@@ -120,26 +120,22 @@ export class WorkerManager {
     followupOf: number,
   ): Promise<LiveWorker> {
     const followupWorker = this.workers.get(followupOf)
-    if (!followupWorker) {
-      throw new Error(`Worker #${followupOf} not found`)
-    }
-    if (followupWorker.status === 'running') {
+    if (!followupWorker) throw new Error(`Worker #${followupOf} not found`)
+    if (followupWorker.status === 'running')
       throw new Error(
         `Cannot follow-up worker #${followupOf} while it is still running`,
       )
-    }
-    if (followupWorker.followUpCount >= MAX_RETRY_FOLLOWUPS) {
+    if (followupWorker.followUpCount >= MAX_REUSE_FOLLOWUPS)
       throw new Error(
-        `Worker #${followupOf} follow-up budget exhausted (${MAX_RETRY_FOLLOWUPS}/${MAX_RETRY_FOLLOWUPS}). Start a fresh worker instead.`,
+        `Worker #${followupOf} follow-up budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh worker instead.`,
       )
-    }
 
     followupWorker.title = title
     followupWorker.text = task
     followupWorker.status = 'running'
     followupWorker.startedAt = Date.now()
     followupWorker.completedAt = undefined
-    followupWorker.summary = undefined
+    followupWorker.message = undefined
     followupWorker.followUpCount += 1
     this.options.onStatusChange?.()
     void this.run(followupWorker, task)
@@ -218,7 +214,7 @@ export class WorkerManager {
     const worker = this.workers.get(id)
     if (!worker || worker.status !== 'running') return false
     worker.status = 'stopped'
-    worker.summary = '(Worker stopped.)'
+    worker.message = '(Worker stopped.)'
     this.options.onStatusChange?.()
     await worker.session.abort()
     return true
@@ -252,20 +248,21 @@ export class WorkerManager {
   private async run(worker: LiveWorker, task: string): Promise<void> {
     try {
       await worker.session.prompt(`Task: ${task}`)
-      const summary = lastAssistantText(worker.session.messages)
-      if (!summary) {
-        worker.summary =
-          '(Worker finished without a final summary. Verify the result with read-only tools.)'
-      } else if (Buffer.byteLength(summary, 'utf8') > MAX_WORKER_OUTPUT_BYTES) {
-        worker.summary = `${summary.slice(0, MAX_WORKER_OUTPUT_BYTES)}\n\n[Output truncated. Verify remaining details with read-only tools.]`
+      const lastMessage = lastAssistantText(worker.session.messages)
+      if (!lastMessage) {
+        worker.message = '(Worker finished without a final message.)'
+      } else if (
+        Buffer.byteLength(lastMessage, 'utf8') > MAX_WORKER_OUTPUT_BYTES
+      ) {
+        worker.message = `${lastMessage.slice(0, MAX_WORKER_OUTPUT_BYTES)}\n\n[Output truncated. Verify remaining details with read-only tools.]`
       } else {
-        worker.summary = summary
+        worker.message = lastMessage
       }
       if (worker.status === 'running') worker.status = 'done'
     } catch (error) {
       // Aborted workers are already marked 'stopped' with their own summary.
       if (worker.status === 'running') {
-        worker.summary = error instanceof Error ? error.message : String(error)
+        worker.message = error instanceof Error ? error.message : String(error)
         worker.status = 'failed'
       }
     } finally {

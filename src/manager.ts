@@ -21,6 +21,7 @@ import type { ModesState } from './types.js'
 import {
   type LiveWorker,
   MAX_CONCURRENCY_WORKER,
+  MAX_REUSE_FOLLOWUPS,
   WorkerManager,
 } from './worker-manager.js'
 import { openWorkerViewer } from './worker-viewer.js'
@@ -188,7 +189,7 @@ function ensureManagerTools(
       }),
       followupOf: Type.Optional(
         Type.Number({
-          description: 'Worker id to follow up. Omit for a fresh task.',
+          description: `Reuse worker id to follow up. Omit for a fresh task. Max reuse ${MAX_REUSE_FOLLOWUPS} times`,
         }),
       ),
     }),
@@ -272,13 +273,7 @@ function ensureManagerTools(
 }
 
 function doneMessage(worker: LiveWorker): string {
-  const label =
-    worker.status === 'failed'
-      ? 'failed'
-      : worker.status === 'stopped'
-        ? 'stopped'
-        : 'finished'
-  return `Worker #${worker.id} (${worker.text}) ${label}.\n\n<summary>\n${worker.summary ?? '(no summary)'}\n</summary>`
+  return `Worker #${worker.id} work done.\n\n<message>\n${worker.message ?? '(no message)'}\n</message>`
 }
 
 export async function setupManager(
