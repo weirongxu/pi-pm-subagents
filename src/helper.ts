@@ -6,7 +6,7 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui'
 
-import type { ModeType } from './types.js'
+import type { ModeUserType } from './types.js'
 
 /** Built-in tools that mutate the filesystem — disabled in read-only modes. */
 export const WRITE_TOOLS = new Set(['edit', 'write'])
@@ -21,7 +21,7 @@ export const MANAGER_TOOLS = {
 export const STATE_KEY = 'modes'
 
 export interface ModesState {
-  mode: ModeType | undefined
+  mode: ModeUserType | undefined
   planMarkdown?: string
   /** Active tools captured before entering a read-only mode, restored on exit. */
   toolsBackup?: string[]

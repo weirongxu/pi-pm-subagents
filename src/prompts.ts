@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url'
 
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
-import type { ModeRole } from './types.js'
+import type { ModeUserType } from './types.js'
 
-const cache = new Map<ModeRole, string>()
+const cache = new Map<ModeUserType, string>()
 
 /** Read and trim a file, returning undefined when it does not exist. */
 async function readOptional(path: string): Promise<string | undefined> {
@@ -24,7 +24,7 @@ async function readOptional(path: string): Promise<string | undefined> {
  * `<agentDir>/prompts/<name>.md`. Optional append content from
  * `<agentDir>/prompts/<name>-append.md` is concatenated after the base.
  */
-export async function readPrompt(name: ModeRole): Promise<string> {
+export async function readPrompt(name: ModeUserType): Promise<string> {
   const cached = cache.get(name)
   if (cached !== undefined) return cached
 

@@ -34,7 +34,23 @@ const READONLY_BASH_PATTERNS = [
 
 const HARMLESS_SUB_COMMAND = /^\s*export\s+[\w]+\s*=\s*\S+\s*$/
 
-function splitShellSubCommands(command: string): string[] {
+const SUB_COMMAND_OPS = new Set(['|', '||', '|&', '&&', ';'])
+const REDIRECT_OPS = new Set([
+  '>',
+  '>>',
+  '<',
+  '<>',
+  '>&',
+  '<&',
+  '&>',
+  '>|',
+  '&>>',
+])
+const OUTPUT_REDIRECT_OPS = new Set(['>', '>>', '&>', '>|', '&>>'])
+
+type SubCommand = { tokens: string[]; hasRedirect: boolean }
+
+function splitShellSubCommands(command: string): SubCommand[] {
   let parsed: ReturnType<typeof parseShell>
   try {
     parsed = parseShell(command)
@@ -42,19 +58,47 @@ function splitShellSubCommands(command: string): string[] {
     return []
   }
 
-  const subCommands: string[][] = []
+  const subCommands: SubCommand[] = []
   let current: string[] = []
-  for (const token of parsed) {
+  let hasRedirect = false
+
+  for (let i = 0; i < parsed.length; i++) {
+    const token = parsed[i]
+    const nextToken = parsed[i + 1]
+    const prevToken = i > 0 ? parsed[i - 1] : null
+
     if (typeof token === 'object' && 'op' in token) {
-      subCommands.push(current)
-      current = []
+      const op = token.op as string
+      if (SUB_COMMAND_OPS.has(op)) {
+        subCommands.push({ tokens: current, hasRedirect })
+        current = []
+        hasRedirect = false
+      } else if (OUTPUT_REDIRECT_OPS.has(op)) {
+        hasRedirect = true
+      }
     } else if (typeof token === 'string') {
-      current.push(token)
+      const isRedirectTarget =
+        prevToken &&
+        typeof prevToken === 'object' &&
+        'op' in prevToken &&
+        REDIRECT_OPS.has(prevToken.op as string)
+
+      const isRedirectFd =
+        /^\d+$/.test(token) &&
+        nextToken &&
+        typeof nextToken === 'object' &&
+        'op' in nextToken &&
+        REDIRECT_OPS.has(nextToken.op)
+
+      if (!isRedirectTarget && !isRedirectFd) {
+        current.push(token)
+      }
     }
   }
-  if (current.length > 0 || subCommands.length > 0) subCommands.push(current)
+  if (current.length > 0 || subCommands.length > 0)
+    subCommands.push({ tokens: current, hasRedirect })
 
-  return subCommands.map((tokens) => tokens.join(' '))
+  return subCommands
 }
 
 export function isReadOnlyBashCommand(command: string): boolean {
@@ -62,9 +106,11 @@ export function isReadOnlyBashCommand(command: string): boolean {
   if (subCommands.length === 0) return false
 
   return subCommands.every((subCommand) => {
-    if (HARMLESS_SUB_COMMAND.test(subCommand)) return true
+    if (HARMLESS_SUB_COMMAND.test(subCommand.tokens.join(' '))) return true
 
-    let normalizedCommand = subCommand
+    if (subCommand.hasRedirect) return false
+
+    let normalizedCommand = subCommand.tokens.join(' ')
     for (const prefix of FORWARD_PREFIX) {
       const pattern = new RegExp(`^\\s*${prefix}\\s+`, 'i')
       const match = normalizedCommand.match(pattern)

@@ -201,7 +201,6 @@ function ensureManagerTools(
           model: workerModel,
           thinkingLevel: ctx.thinkingLevel,
           tools: state.toolsBackup,
-          systemPrompt: await readPrompt('worker'),
           followupOf: params.followupOf,
         })
         fleet.update()

@@ -9,6 +9,12 @@ describe('isReadOnlyBashCommand', () => {
     expect(isReadOnlyBashCommand('git status')).toBe(true)
     expect(isReadOnlyBashCommand('cat README.md')).toBe(true)
     expect(isReadOnlyBashCommand('rg "foo" src/')).toBe(true)
+    expect(isReadOnlyBashCommand('pnpm test')).toBe(true)
+    expect(isReadOnlyBashCommand('npm test')).toBe(true)
+    expect(isReadOnlyBashCommand('yarn test')).toBe(true)
+    expect(isReadOnlyBashCommand('pnpm run test')).toBe(true)
+    expect(isReadOnlyBashCommand('pnpm test:unit')).toBe(true)
+    expect(isReadOnlyBashCommand('yarn run test')).toBe(true)
   })
 
   it('validates each shell subcommand independently', () => {
@@ -17,6 +23,10 @@ describe('isReadOnlyBashCommand', () => {
     expect(isReadOnlyBashCommand('ls || rm -rf /')).toBe(false)
     expect(isReadOnlyBashCommand('cat foo | grep bar')).toBe(true)
     expect(isReadOnlyBashCommand('cat README.md; echo "rm -rf /"')).toBe(true)
+    expect(isReadOnlyBashCommand('pnpm test | tail')).toBe(true)
+    expect(isReadOnlyBashCommand('pnpm test 2>&1 | tail -60')).toBe(true)
+    expect(isReadOnlyBashCommand('pnpm test | grep FAIL')).toBe(true)
+    expect(isReadOnlyBashCommand('pnpm test | rm file')).toBe(false)
   })
 
   it('rejects empty shell subcommands', () => {

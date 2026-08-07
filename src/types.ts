@@ -1,3 +1,3 @@
-export type ModeType = 'plan' | 'manager'
+export type ModeUserType = 'plan' | 'manager'
 
-export type ModeRole = ModeType | 'worker'
+export type ModeRole = ModeUserType | 'worker'

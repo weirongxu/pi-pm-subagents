@@ -132,7 +132,7 @@ export class FleetList {
   private roster(): RosterEntry[] {
     const items = orderBy(
       this.options.list(),
-      (it) => (it.status === 'done' ? Number.MAX_VALUE : it.id),
+      (it) => (it.status !== 'running' ? Number.MAX_VALUE : it.id),
       'asc',
     )
     return [

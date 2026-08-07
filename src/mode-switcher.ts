@@ -11,9 +11,12 @@ import {
   WRITE_TOOLS,
 } from './helper.js'
 import { restoreMainModel, switchToRoleModel } from './models-config.js'
-import type { ModeType } from './types.js'
+import type { ModeUserType } from './types.js'
 
-export function assertModeIdle(state: ModesState, entering: ModeType): void {
+export function assertModeIdle(
+  state: ModesState,
+  entering: ModeUserType,
+): void {
   if (state.mode !== undefined) {
     throw new Error(
       `Cannot enter ${entering} mode while in ${state.mode} mode — exit the current mode first.`,
@@ -42,7 +45,7 @@ export async function exitReadOnly(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
-  name: ModeType,
+  name: ModeUserType,
   options: { restoreModel?: boolean } = {},
 ): Promise<void> {
   restoreTools(pi, state)
@@ -61,7 +64,7 @@ export interface ModeSetupOptions {
 export async function applyModeSetup(
   pi: ExtensionAPI,
   state: ModesState,
-  mode: ModeType,
+  mode: ModeUserType,
   ctx: ExtensionContext,
   options: ModeSetupOptions,
 ): Promise<void> {

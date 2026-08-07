@@ -20,9 +20,9 @@ Let the agent delegate some subagents to work and supervise them.
 
 ## Customizing prompts
 
-Each mode's prompt is a Markdown file under `<agentDir>/modes-prompts/` (`plan.md`, `manager.md`, `worker.md`).
+Each mode's prompt is a Markdown file under `<agentDir>/modes-prompts/` (`plan.md`, `manager.md`).
 
-To add extra rules without replacing the whole prompt, drop an append file under `<agentDir>/modes-prompts/` (`plan-append.md`, `manager-append.md`, `worker-append.md`).
+To add extra rules without replacing the whole prompt, drop an append file under `<agentDir>/modes-prompts/` (`plan-append.md`, `manager-append.md`).
 
 ## Install
 
