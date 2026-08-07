@@ -1,5 +1,8 @@
 import { parse as parseShell } from 'shell-quote'
 
+export type BashSafetyIssue =
+  { allowed: true } | { allowed: false; subCommand: string }
+
 const FORWARD_PREFIX = ['rtk'] as const
 
 const DESTRUCTIVE_BASH_PATTERNS = [
@@ -17,7 +20,7 @@ const DESTRUCTIVE_BASH_PATTERNS = [
 ] as const
 
 const READONLY_BASH_PATTERNS = [
-  /^\s*(cat|head|tail|less|more|grep|find|ls|pwd|echo|printf|wc|sort|uniq|diff|file|stat|du|df|tree|which|whereis|type|env|printenv|uname|whoami|id|date|uptime|ps|free)\b/,
+  /^\s*(cat|head|tail|less|more|grep|find|ls|cd|pwd|echo|printf|wc|sort|uniq|diff|file|stat|du|df|tree|which|whereis|type|env|printenv|uname|whoami|id|date|uptime|ps|free)\b/,
   /^\s*git\s+(status|log|diff|show|branch|remote|ls-)/i,
   /^\s*(npm|yarn|pnpm)\s+(list|ls|view|info|outdated|audit)\b/i,
   /^\s*(npm|yarn|pnpm)\s+(run\s+)?(test|test:.*)\b/i,
@@ -101,31 +104,55 @@ function splitShellSubCommands(command: string): SubCommand[] {
   return subCommands
 }
 
-export function isReadOnlyBashCommand(command: string): boolean {
-  const subCommands = splitShellSubCommands(command)
-  if (subCommands.length === 0) return false
+function checkSubCommandSafety(
+  subCommand: SubCommand,
+): { ok: true } | { ok: false; subCommand: string } {
+  const text = subCommand.tokens.join(' ').trim()
 
-  return subCommands.every((subCommand) => {
-    if (HARMLESS_SUB_COMMAND.test(subCommand.tokens.join(' '))) return true
+  if (HARMLESS_SUB_COMMAND.test(text)) return { ok: true }
 
-    if (subCommand.hasRedirect) return false
-
-    let normalizedCommand = subCommand.tokens.join(' ')
-    for (const prefix of FORWARD_PREFIX) {
-      const pattern = new RegExp(`^\\s*${prefix}\\s+`, 'i')
-      const match = normalizedCommand.match(pattern)
-      if (match) {
-        normalizedCommand = normalizedCommand.slice(match[0].length).trim()
-        break
-      }
+  let normalizedCommand = text
+  for (const prefix of FORWARD_PREFIX) {
+    const pattern = new RegExp(`^\\s*${prefix}\\s+`, 'i')
+    const match = normalizedCommand.match(pattern)
+    if (match) {
+      normalizedCommand = normalizedCommand.slice(match[0].length).trim()
+      break
     }
+  }
 
-    const destructive = DESTRUCTIVE_BASH_PATTERNS.some((p) =>
-      p.test(normalizedCommand),
-    )
-    const readonly = READONLY_BASH_PATTERNS.some((p) =>
-      p.test(normalizedCommand),
-    )
-    return !destructive && readonly
-  })
+  if (subCommand.hasRedirect)
+    return { ok: false, subCommand: normalizedCommand }
+
+  const destructive = DESTRUCTIVE_BASH_PATTERNS.some((p) =>
+    p.test(normalizedCommand),
+  )
+  const readonly = READONLY_BASH_PATTERNS.some((p) => p.test(normalizedCommand))
+
+  if (destructive) return { ok: false, subCommand: normalizedCommand }
+  if (!readonly) return { ok: false, subCommand: normalizedCommand }
+  return { ok: true }
+}
+
+export function checkBashSafety(command: string): BashSafetyIssue {
+  const subCommands = splitShellSubCommands(command)
+  if (subCommands.length === 0) {
+    return { allowed: false, subCommand: command }
+  }
+
+  for (const subCommand of subCommands) {
+    if (subCommand.tokens.length === 0) {
+      return { allowed: false, subCommand: '(empty)' }
+    }
+    const result = checkSubCommandSafety(subCommand)
+    if (!result.ok) {
+      return { allowed: false, subCommand: result.subCommand }
+    }
+  }
+
+  return { allowed: true }
+}
+
+export function isReadOnlyBashCommand(command: string): boolean {
+  return checkBashSafety(command).allowed
 }

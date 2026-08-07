@@ -108,7 +108,7 @@ export class WorkerManager {
     task: string,
     options: SpawnOptions,
   ): Promise<LiveWorker> {
-    if (options.followupOf != null) {
+    if (options.followupOf) {
       return this.handleFollowup(title, task, options.followupOf)
     }
     return this.createNewWorker(title, task, options)

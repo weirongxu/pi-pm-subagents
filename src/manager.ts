@@ -3,6 +3,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
+import { truncateToWidth } from '@earendil-works/pi-tui'
 import { Type } from 'typebox'
 
 import { MANAGER_TOOLS } from './consts.js'
@@ -167,7 +168,7 @@ function ensureManagerTools(
         const end = worker.completedAt ?? Date.now()
         const elapsed = `${Math.max(0, Math.round((end - worker.startedAt) / 1000))}s`
         lines.push(
-          `${worker.status} #${worker.id} ${worker.text.slice(0, 10)} ${elapsed}`,
+          `${worker.status} #${worker.id} ${truncateToWidth(worker.title, 30)} ${elapsed}`,
         )
       }
       return {

@@ -4,7 +4,8 @@ import { createState, getLastModesState } from './helper.js'
 import { resumeManagerMode, setupManager } from './manager.js'
 import { loadModelsConfig, setupModesConfig } from './models-config.js'
 import { resumePlanMode, setupPlan } from './plan.js'
-import { isReadOnlyBashCommand } from './readonly-bash.js'
+import { checkBashSafety } from './readonly-bash.js'
+import type { ModeUserType } from './types.js'
 
 export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
   const state = createState()
@@ -18,10 +19,16 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
   pi.on('tool_call', async (event) => {
     if (!state.mode || event.toolName !== 'bash') return
     const command = (event.input as { command?: string }).command ?? ''
-    if (!isReadOnlyBashCommand(command)) {
+    const result = checkBashSafety(command)
+    const REASON_DICT: Record<ModeUserType, string> = {
+      manager: 'manager is readonly, delegate worker to do',
+      plan: 'plan is readonly',
+    }
+    if (!result.allowed) {
       return {
         block: true,
-        reason: `Read-only mode (plan/manager): command not allowed.\n  ${command}`,
+        reason: `${REASON_DICT[state.mode]}: not allowed: "${result.subCommand}"
+  ${command}`,
       }
     }
   })
