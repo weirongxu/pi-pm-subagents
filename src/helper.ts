@@ -6,28 +6,8 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui'
 
-import type { ModeUserType } from './types.js'
-
-/** Built-in tools that mutate the filesystem — disabled in read-only modes. */
-export const WRITE_TOOLS = new Set(['edit', 'write'])
-
-export const MANAGER_TOOLS = {
-  delegate: 'worker_delegate',
-  kill: 'worker_kill',
-  list: 'worker_list',
-}
-
-/** Key under which the modes' state is persisted in the session. */
-export const STATE_KEY = 'modes'
-
-export interface ModesState {
-  mode: ModeUserType | undefined
-  planMarkdown?: string
-  /** Active tools captured before entering a read-only mode, restored on exit. */
-  toolsBackup?: string[]
-  /** Main-session model ref captured before switching to a role model, restored on exit. */
-  modelBackup?: string
-}
+import { STATE_KEY } from './consts.js'
+import type { ModesState } from './types.js'
 
 export function createState(): ModesState {
   return { mode: undefined }

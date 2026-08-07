@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { readOnlyToolSet } from '../src/mode-switcher.js'
-import { isReadOnlyBashCommand } from '../src/readonly-bash.js'
+import { readOnlyToolSet } from './mode-switcher.js'
+import { isReadOnlyBashCommand } from './readonly-bash.js'
 
 describe('isReadOnlyBashCommand', () => {
   it('allows read-only commands', () => {
@@ -37,6 +37,7 @@ describe('isReadOnlyBashCommand', () => {
   it('allows read-only commands with forward prefix', () => {
     expect(isReadOnlyBashCommand('rtk ls -la')).toBe(true)
     expect(isReadOnlyBashCommand('rtk git status')).toBe(true)
+    expect(isReadOnlyBashCommand('rtk git diff path/to')).toBe(true)
     expect(
       isReadOnlyBashCommand(
         `export RTK_DB_PATH='/tmp/pi-rtk-optimizer/history.db'; rtk ls -la`,

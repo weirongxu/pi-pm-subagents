@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { LiveWorker } from '../src/manager.js'
-import { CompletionBatcher } from '../src/manager.js'
+import type { LiveWorker } from './manager.js'
+import { CompletionBatcher } from './manager.js'
 
 const makeWorker = (id: number): LiveWorker =>
   ({

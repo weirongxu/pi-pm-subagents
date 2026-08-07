@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { type FleetEntry, formatElapsed } from '../src/fleet-list.js'
+import { type FleetEntry, formatElapsed } from './fleet-list.js'
 
 describe('formatElapsed', () => {
   const base = (

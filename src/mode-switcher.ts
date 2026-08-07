@@ -4,14 +4,10 @@ import type {
   ThemeColor,
 } from '@earendil-works/pi-coding-agent'
 
-import {
-  type ModesState,
-  persist,
-  restoreTools,
-  WRITE_TOOLS,
-} from './helper.js'
+import { WRITE_TOOLS } from './consts.js'
+import { persist, restoreTools } from './helper.js'
 import { restoreMainModel, switchToRoleModel } from './models-config.js'
-import type { ModeUserType } from './types.js'
+import type { ModesState, ModeUserType } from './types.js'
 
 export function assertModeIdle(
   state: ModesState,

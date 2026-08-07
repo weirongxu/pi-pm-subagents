@@ -6,7 +6,7 @@ import {
 import { Markdown, matchesKey, truncateToWidth } from '@earendil-works/pi-tui'
 
 import { BorderView } from './border-view.js'
-import { lastAssistantText, type ModesState, persist } from './helper.js'
+import { lastAssistantText, persist } from './helper.js'
 import { enterManagerMode, exitManagerMode } from './manager.js'
 import {
   applyModeSetup,
@@ -15,6 +15,7 @@ import {
 } from './mode-switcher.js'
 import { readPrompt } from './prompts.js'
 import { ScrollView } from './scroll-view.js'
+import type { ModesState } from './types.js'
 
 const PLAN_CHOICES = [
   'Execute directly',

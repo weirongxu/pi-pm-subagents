@@ -5,9 +5,10 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import { Type } from 'typebox'
 
+import { MANAGER_TOOLS } from './consts.js'
 import { DemoWorkerManager } from './demo-worker-manager.js'
 import { FleetList } from './fleet-list.js'
-import { MANAGER_TOOLS, type ModesState, persist } from './helper.js'
+import { persist } from './helper.js'
 import {
   applyModeSetup,
   assertModeIdle,
@@ -16,6 +17,7 @@ import {
 import { getModelsConfig, resolveModelRef } from './models-config.js'
 import { exitPlanMode } from './plan.js'
 import { readPrompt } from './prompts.js'
+import type { ModesState } from './types.js'
 import {
   type LiveWorker,
   MAX_CONCURRENCY_WORKER,
@@ -33,7 +35,7 @@ export class CompletionBatcher {
 
   constructor(
     private readonly flush: (workers: LiveWorker[]) => void,
-    private readonly windowMs = 10000,
+    private readonly windowMs = 5000,
   ) {}
 
   get pending(): readonly LiveWorker[] {
@@ -143,7 +145,6 @@ function ensureManagerTools(
   fleet: FleetList,
 ): void {
   if (managerToolsRegistered) return
-  managerToolsRegistered = true
 
   pi.registerTool({
     name: MANAGER_TOOLS.list,
@@ -266,6 +267,8 @@ function ensureManagerTools(
       }
     },
   })
+
+  managerToolsRegistered = true
 }
 
 function doneMessage(worker: LiveWorker): string {
@@ -303,6 +306,10 @@ export async function setupManager(
     },
   })
   runtime = { manager, demoManager: undefined, fleet, batcher }
+
+  pi.on('session_start', () => {
+    managerToolsRegistered = false
+  })
 
   const managerPrompt = await readPrompt('manager')
   pi.on('before_agent_start', async (event) => {

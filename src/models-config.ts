@@ -11,8 +11,7 @@ import { Type } from 'typebox'
 import { Parse } from 'typebox/value'
 
 import { customSelect } from './custom-select.js'
-import type { ModesState } from './helper.js'
-import type { ModeRole } from './types.js'
+import type { ModeRole, ModesState } from './types.js'
 
 export const MODES_ROLES: readonly ModeRole[] = ['plan', 'manager', 'worker']
 

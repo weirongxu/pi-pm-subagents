@@ -2,7 +2,7 @@ import type { Theme } from '@earendil-works/pi-coding-agent'
 import type { TUI } from '@earendil-works/pi-tui'
 import { describe, expect, it } from 'vitest'
 
-import { CustomSelectComponent } from '../src/custom-select.js'
+import { CustomSelectComponent } from './custom-select.js'
 
 const DOWN = '\x1b[B'
 
