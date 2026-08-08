@@ -146,13 +146,21 @@ export class WorkerViewer implements Component {
   private footerLine(width: number): string {
     const th = this.theme
     const running = this.worker.status === 'running'
-    const left = th.fg('dim', 'scroll')
+    const sep = th.fg('dim', ' · ')
+    const left = th.fg('dim', running ? 'worker' : 'scroll')
+    const navLine = th.fg('dim', 'j/k ↑/↓ line')
+    const navPage = th.fg('dim', 'u/d ␣ PageUp/Dn page')
+    const navJump = th.fg('dim', 'g/G Home/End jump')
+    const navClose = th.fg('dim', 'q/esc close')
+
     const right = running
-      ? (this.#stopArmed
-          ? th.fg('error', 'x again to STOP')
-          : th.fg('dim', 'x stop')) +
-        th.fg('dim', ' · enter steer · ↑↓ scroll · esc close')
-      : th.fg('dim', '↑↓ scroll · esc close')
+      ? `${
+          this.#stopArmed
+            ? th.fg('error', 'x again to STOP')
+            : th.fg('dim', 'x stop')
+        }${sep}${th.fg('dim', 'enter steer')}${sep}${navLine}${sep}${navPage}${sep}${navJump}${sep}${navClose}`
+      : `${navLine}${sep}${navPage}${sep}${navJump}${sep}${navClose}`
+
     return truncateToWidth(`${left}  ${right}`, width)
   }
 

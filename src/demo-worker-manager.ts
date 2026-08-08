@@ -1,13 +1,27 @@
-import type { AgentSession } from '@earendil-works/pi-coding-agent'
+import type {
+  AssistantMessage,
+  ImageContent,
+  Message,
+  TextContent,
+  ToolCall,
+  ToolResultMessage,
+  Usage,
+  UserMessage,
+} from '@earendil-works/pi-ai'
+import type {
+  AgentSession,
+  AgentSessionEventListener,
+  PromptOptions,
+} from '@earendil-works/pi-coding-agent'
 
 import type { LiveWorker } from './worker-manager.js'
 import { WorkerManager } from './worker-manager.js'
 
-/**
- * DemoWorkerManager inherits WorkerManager so it can be used wherever a
- * WorkerManager is expected (e.g. openWorkerViewer), but backs itself with
- * fake data instead of real agent sessions.
- */
+type MockAgentSession = Pick<
+  AgentSession,
+  'messages' | 'dispose' | 'abort' | 'steer' | 'subscribe' | 'prompt'
+>
+
 export class DemoWorkerManager extends WorkerManager {
   readonly #workers: LiveWorker[] = initialDemoWorkers()
 
@@ -52,7 +66,7 @@ export class DemoWorkerManager extends WorkerManager {
       followUpCount: 0,
       enabledTools: new Set(['read', 'write', 'bash']),
       responseText: undefined,
-      session: mockSession(),
+      session: mockSessionFor('2'),
     })
   }
 }
@@ -71,7 +85,7 @@ function initialDemoWorkers(): LiveWorker[] {
       followUpCount: 0,
       enabledTools: new Set(['read', 'edit', 'bash']),
       responseText: undefined,
-      session: mockSession(),
+      session: mockSessionFor('1', 6),
     },
     {
       id: 2,
@@ -84,7 +98,7 @@ function initialDemoWorkers(): LiveWorker[] {
       followUpCount: 0,
       enabledTools: new Set(['read', 'write', 'bash']),
       responseText: undefined,
-      session: mockSession(),
+      session: mockSessionFor('2', 6),
     },
     {
       id: 3,
@@ -97,7 +111,7 @@ function initialDemoWorkers(): LiveWorker[] {
       followUpCount: 2,
       enabledTools: new Set(['read', 'bash']),
       responseText: undefined,
-      session: mockSession(),
+      session: mockSessionFor('3', 6),
     },
     {
       id: 4,
@@ -110,7 +124,7 @@ function initialDemoWorkers(): LiveWorker[] {
       followUpCount: 1,
       enabledTools: new Set(['read', 'edit']),
       responseText: undefined,
-      session: mockSession(),
+      session: mockSessionFor('4', 6),
     },
     {
       id: 5,
@@ -123,18 +137,342 @@ function initialDemoWorkers(): LiveWorker[] {
       followUpCount: 0,
       enabledTools: new Set(['read', 'write']),
       responseText: undefined,
-      session: mockSession(),
+      session: mockSessionFor('5', 6),
     },
   ]
 }
 
-function mockSession(): AgentSession {
+const MOCK_USAGE: Usage = {
+  input: 1000,
+  output: 500,
+  cacheRead: 0,
+  cacheWrite: 0,
+  totalTokens: 1500,
+  cost: {
+    input: 0.001,
+    output: 0.002,
+    cacheRead: 0,
+    cacheWrite: 0,
+    total: 0.003,
+  },
+}
+
+function userMessage(text: string): UserMessage {
   return {
-    messages: [],
+    role: 'user',
+    content: text,
+    timestamp: Date.now(),
+  }
+}
+
+function assistantMessage(
+  text: string,
+  toolCalls: ToolCall[] = [],
+): AssistantMessage {
+  const content: (TextContent | ToolCall)[] = [
+    { type: 'text', text },
+    ...toolCalls,
+  ]
+  return {
+    role: 'assistant',
+    content,
+    api: 'anthropic-messages',
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-20250514',
+    usage: MOCK_USAGE,
+    stopReason: 'stop',
+    timestamp: Date.now(),
+  }
+}
+
+function toolResultMessage(
+  toolCallId: string,
+  toolName: string,
+  text: string,
+  isError = false,
+): ToolResultMessage {
+  return {
+    role: 'toolResult',
+    toolCallId,
+    toolName,
+    content: [{ type: 'text', text }],
+    isError,
+    timestamp: Date.now(),
+  }
+}
+
+function mockSessionFor(key: string, repeat: number = 1): AgentSession {
+  const baseMessages = MOCK_MESSAGES[key]
+  if (!baseMessages) {
+    throw new Error(`Unknown mock key: ${key}`)
+  }
+
+  const messages: Message[] = []
+
+  for (let r = 1; r <= repeat; r++) {
+    let isFirstUserOfRound = true
+
+    for (const msg of baseMessages) {
+      if (msg.role === 'user') {
+        const userContent =
+          typeof msg.content === 'string' && isFirstUserOfRound && r > 1
+            ? `${msg.content} (run ${r})`
+            : msg.content
+        const cloned: UserMessage = {
+          role: 'user',
+          content: userContent,
+          timestamp: msg.timestamp,
+        }
+        messages.push(cloned)
+        isFirstUserOfRound = false
+      } else if (msg.role === 'assistant') {
+        const content: (TextContent | ToolCall)[] = []
+        for (const item of msg.content) {
+          if (item.type === 'toolCall') {
+            content.push({
+              type: 'toolCall',
+              id: r > 1 ? `${item.id}_r${r}` : item.id,
+              name: item.name,
+              arguments: item.arguments,
+            })
+          } else if (item.type === 'text') {
+            content.push({ type: 'text', text: item.text })
+          }
+        }
+
+        const cloned: AssistantMessage = {
+          role: 'assistant',
+          content,
+          api: msg.api,
+          provider: msg.provider,
+          model: msg.model,
+          usage: msg.usage,
+          stopReason: msg.stopReason,
+          timestamp: msg.timestamp,
+        }
+        messages.push(cloned)
+      } else {
+        const cloned: ToolResultMessage = {
+          role: 'toolResult',
+          toolCallId: r > 1 ? `${msg.toolCallId}_r${r}` : msg.toolCallId,
+          toolName: msg.toolName,
+          content: msg.content.map((block) => {
+            if (block.type === 'text') {
+              return { type: 'text' as const, text: block.text }
+            }
+            return { type: 'image' as const, image: block.image }
+          }),
+          isError: msg.isError,
+          timestamp: msg.timestamp,
+        }
+        messages.push(cloned)
+      }
+    }
+  }
+
+  const session: MockAgentSession = {
+    messages,
     dispose: () => {},
     abort: async () => {},
-    steer: async () => false,
-    subscribe: () => () => {},
-    prompt: async () => '',
-  } as unknown as AgentSession
+    steer: async (_text: string, _images?: ImageContent[]) => {},
+    subscribe: (_listener: AgentSessionEventListener) => () => {},
+    prompt: async (_text: string, _options?: PromptOptions) => {},
+  }
+
+  return session as AgentSession
+}
+
+const MOCK_MESSAGES: Record<string, Message[]> = {
+  '1': [
+    userMessage('Review and fix authentication flow'),
+    assistantMessage(
+      'Looking at the auth code to identify potential issues...',
+    ),
+    assistantMessage("I'll read the authentication module first.", [
+      {
+        type: 'toolCall',
+        id: 'call_001',
+        name: 'read',
+        arguments: { path: 'src/auth/jwt.ts' },
+      },
+    ]),
+    toolResultMessage(
+      'call_001',
+      'read',
+      `export function validateToken(token: string): boolean {
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY)
+    return decoded.exp > Date.now() / 1000
+  } catch (error) {
+    console.error('Token validation failed:', error)
+    return false
+  }
+}
+
+// TODO: Add proper error types and logging`,
+    ),
+    assistantMessage(
+      'Found the issue. The error handling needs improvement and the expiration check should be more explicit. Let me fix it.',
+    ),
+    assistantMessage('Fixed JWT token validation and updated error handling.'),
+  ],
+  '2': [
+    userMessage('Add unit tests for API endpoints'),
+    assistantMessage(
+      "I'll write unit tests for the API endpoints. Let me check what's already covered.",
+    ),
+    assistantMessage(
+      'Running the existing tests to see the current coverage.',
+      [
+        {
+          type: 'toolCall',
+          id: 'call_002',
+          name: 'bash',
+          arguments: {
+            command: 'pnpm test -- --coverage',
+          },
+        },
+      ],
+    ),
+    toolResultMessage(
+      'call_002',
+      'bash',
+      `PASS src/api/user.test.ts
+  User endpoints
+    ✓ GET /api/users (45ms)
+    ✓ POST /api/users (62ms)
+
+Coverage Report:
+-----------------
+File                     | % Stmts | % Branch | % Funcs | % Lines
+------------------------|---------|----------|---------|--------
+src/api/user.ts         |   78.95 |    66.67 |     100 |   77.78
+src/api/auth.ts         |   45.00 |        0 |      50 |   45.00
+------------------------|---------|----------|---------|--------
+All files               |   61.98 |    33.33 |      75 |   61.38`,
+    ),
+    assistantMessage(
+      "Good coverage on user endpoints but auth tests are missing. I'll add those now...",
+    ),
+  ],
+  '3': [
+    userMessage('Update dependencies and fix breaking changes'),
+    assistantMessage(
+      "I'll update the dependencies to the latest versions and check for breaking changes.",
+    ),
+    assistantMessage('Running npm update...', [
+      {
+        type: 'toolCall',
+        id: 'call_003',
+        name: 'bash',
+        arguments: {
+          command: 'npm update',
+        },
+      },
+    ]),
+    toolResultMessage(
+      'call_003',
+      'bash',
+      `npm ERR! code ERESOLVE
+npm ERR! ERESOLVE unable to resolve dependency tree
+npm ERR!
+npm ERR! While resolving: pi-modes@1.0.0
+npm ERR! Found: react@19.0.0
+npm ERR! node_modules/react
+npm ERR!   react@"^19.0.0" from the root project
+npm ERR!
+npm ERR! Could not resolve dependency:
+npm ERR! peer react@"^18.0.0" from some-library@2.5.0
+npm ERR! node_modules/some-library
+npm ERR!   some-library@"^2.5.0" from the root project
+npm ERR!
+npm ERR! Fix the upstream dependency conflict, or retry`,
+      true,
+    ),
+    assistantMessage(
+      "There's a peer dependency conflict with React 19. The library `some-library` requires React 18 but we're using React 19. We need to either downgrade React or find a compatible version of the library.",
+    ),
+  ],
+  '4': [
+    userMessage('Optimize database queries for dashboard'),
+    assistantMessage(
+      "I'll analyze the database queries used in the dashboard and optimize them for better performance.",
+    ),
+    assistantMessage(
+      'Reading the query files to identify optimization opportunities.',
+      [
+        {
+          type: 'toolCall',
+          id: 'call_004',
+          name: 'read',
+          arguments: { path: 'src/queries/dashboard.sql' },
+        },
+      ],
+    ),
+    toolResultMessage(
+      'call_004',
+      'read',
+      `-- Dashboard analytics query
+SELECT 
+  users.id,
+  users.name,
+  COUNT(sessions.id) as session_count,
+  AVG(sessions.duration) as avg_duration
+FROM users
+LEFT JOIN sessions ON users.id = sessions.user_id
+LEFT JOIN events ON sessions.id = events.session_id
+WHERE users.created_at > NOW() - INTERVAL '30 days'
+GROUP BY users.id
+ORDER BY session_count DESC
+LIMIT 100;`,
+    ),
+    assistantMessage(
+      'I can see several optimization opportunities here. The query could benefit from proper indexing on user_id and created_at columns, and the LEFT JOIN with events is unnecessary for the current metrics. Let me create an optimized version...',
+    ),
+  ],
+  '5': [
+    userMessage('Write documentation for new features'),
+    assistantMessage(
+      "I'll write comprehensive documentation for the new features, including usage examples and API references.",
+    ),
+    assistantMessage('Creating the main README file.', [
+      {
+        type: 'toolCall',
+        id: 'call_005',
+        name: 'write',
+        arguments: {
+          path: 'docs/FEATURES.md',
+          content: `# New Features
+
+## Worker Mode
+Worker mode allows you to delegate complex tasks to autonomous agents.
+
+### Usage
+
+\`\`\`typescript
+const worker = await workerManager.spawn(
+  'Analyze performance',
+  'Profile the main loop and identify bottlenecks',
+  { cwd: '/path/to/project' }
+)
+\`\`\`
+
+### Features
+- Async task execution
+- Real-time progress tracking
+- Automatic tool selection
+- Error handling and retry
+
+## API Reference
+
+See [API.md](./API.md) for detailed documentation.
+`,
+        },
+      },
+    ]),
+    toolResultMessage('call_005', 'write', 'OK'),
+    assistantMessage(
+      "Documentation written successfully. I've also updated the README with a quick start guide and added the API reference section.",
+    ),
+  ],
 }
