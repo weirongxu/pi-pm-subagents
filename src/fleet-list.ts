@@ -155,14 +155,14 @@ export class FleetList {
     const ctx = this.ctx
     if (!ctx) return undefined
     if (isKeyRelease(data)) return undefined
+    if (this.tui?.hasOverlay()) return
 
     if (!this.activeSelect) {
       const activator = matchesKey(data, 'down') || matchesKey(data, 'left')
       if (
         activator &&
         this.options.list().length > 0 &&
-        ctx.ui.getEditorText() === '' &&
-        !this.tui?.hasOverlay()
+        ctx.ui.getEditorText() === ''
       ) {
         this.activeSelect = true
         this.selectedIndex = 0
@@ -216,7 +216,6 @@ export class FleetList {
       return
     }
     const id = entry.item.id
-    this.deactivate()
     await this.options.onOpen(ctx, id)
     this.update()
   }
