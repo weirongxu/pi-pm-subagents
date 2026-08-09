@@ -6,8 +6,8 @@ import type {
 import { truncateToWidth } from '@earendil-works/pi-tui'
 import { Type } from 'typebox'
 
-const JOB_START_EVENT = 'desktop-notify:job:start'
-const JOB_END_EVENT = 'desktop-notify:job:end'
+const JOB_START_EVENT = 'pi-notify:job:start'
+const JOB_END_EVENT = 'pi-notify:job:end'
 
 import { MANAGER_TOOLS } from './consts.js'
 import { DemoWorkerManager } from './demo-worker-manager.js'

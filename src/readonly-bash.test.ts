@@ -18,7 +18,7 @@ describe('isReadOnlyBashCommand', () => {
     expect(isReadOnlyBashCommand('cd /some/path')).toBe(true)
     expect(
       isReadOnlyBashCommand(
-        'cd /home/raidou/repos/raidou/pi-desktop-notify && pnpm test 2>&1 | tail -30',
+        'cd /home/raidou/repos/raidou/pi-notify && pnpm test 2>&1 | tail -30',
       ),
     ).toBe(true)
     expect(isReadOnlyBashCommand('cd .. && ls')).toBe(true)
