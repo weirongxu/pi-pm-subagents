@@ -172,4 +172,25 @@ describe('checkBashSafety', () => {
       allowed: true,
     })
   })
+
+  it('allows stderr redirects but blocks stdout redirects', () => {
+    expect(
+      checkBashSafety("find /home/raidou -name 'foo' 2>/dev/null"),
+    ).toEqual({ allowed: true })
+    expect(checkBashSafety('rtk find . 2>/dev/null')).toEqual({
+      allowed: true,
+    })
+    expect(checkBashSafety('ls > out.txt')).toEqual({
+      allowed: false,
+      subCommand: 'ls',
+    })
+    expect(checkBashSafety('ls 1>/dev/null')).toEqual({ allowed: true })
+    expect(checkBashSafety('ls 2>&1 | grep x')).toEqual({ allowed: true })
+    expect(checkBashSafety('cat foo 2>&1')).toEqual({
+      allowed: false,
+      subCommand: 'cat foo',
+    })
+    expect(checkBashSafety('ls &> out.txt')).toEqual({ allowed: false, subCommand: 'ls' })
+    expect(checkBashSafety('ls &>> out.txt')).toEqual({ allowed: false, subCommand: 'ls' })
+  })
 })

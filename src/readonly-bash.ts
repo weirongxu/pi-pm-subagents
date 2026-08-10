@@ -38,6 +38,9 @@ const READONLY_BASH_PATTERNS = [
 const HARMLESS_SUB_COMMAND = /^\s*export\s+[\w]+\s*=\s*\S+\s*$/
 
 const SUB_COMMAND_OPS = new Set(['|', '||', '|&', '&&', ';'])
+
+const isFd = (token: unknown, n: number): token is string => token === `${n}`
+
 const REDIRECT_OPS = new Set([
   '>',
   '>>',
@@ -45,13 +48,11 @@ const REDIRECT_OPS = new Set([
   '<>',
   '>&',
   '<&',
-  '&>',
   '>|',
   '&>>',
 ])
-const OUTPUT_REDIRECT_OPS = new Set(['>', '>>', '&>', '>|', '&>>'])
 
-type SubCommand = { tokens: string[]; hasRedirect: boolean }
+type SubCommand = { tokens: string[]; hasStdoutRedirect: boolean }
 
 function splitShellSubCommands(command: string): SubCommand[] {
   let parsed: ReturnType<typeof parseShell>
@@ -63,7 +64,7 @@ function splitShellSubCommands(command: string): SubCommand[] {
 
   const subCommands: SubCommand[] = []
   let current: string[] = []
-  let hasRedirect = false
+  let hasStdoutRedirect = false
 
   for (let i = 0; i < parsed.length; i++) {
     const token = parsed[i]
@@ -73,11 +74,16 @@ function splitShellSubCommands(command: string): SubCommand[] {
     if (typeof token === 'object' && 'op' in token) {
       const op = token.op as string
       if (SUB_COMMAND_OPS.has(op)) {
-        subCommands.push({ tokens: current, hasRedirect })
+        subCommands.push({ tokens: current, hasStdoutRedirect })
         current = []
-        hasRedirect = false
-      } else if (OUTPUT_REDIRECT_OPS.has(op)) {
-        hasRedirect = true
+        hasStdoutRedirect = false
+      } else if (op === '>&' && isFd(prevToken, 2) && isFd(nextToken, 1)) {
+        const tokenAfterNext = parsed[i + 2]
+        const hasPipeAfter =
+          typeof tokenAfterNext === 'object' && 'op' in tokenAfterNext && tokenAfterNext.op === '|'
+        if (!hasPipeAfter) hasStdoutRedirect = true
+      } else if ((op === '>' || op === '>>' || op === '>|') && !isFd(prevToken, 1) && !isFd(prevToken, 2)) {
+        hasStdoutRedirect = true
       }
     } else if (typeof token === 'string') {
       const isRedirectTarget =
@@ -99,7 +105,7 @@ function splitShellSubCommands(command: string): SubCommand[] {
     }
   }
   if (current.length > 0 || subCommands.length > 0)
-    subCommands.push({ tokens: current, hasRedirect })
+    subCommands.push({ tokens: current, hasStdoutRedirect })
 
   return subCommands
 }
@@ -121,7 +127,7 @@ function checkSubCommandSafety(
     }
   }
 
-  if (subCommand.hasRedirect)
+  if (subCommand.hasStdoutRedirect)
     return { ok: false, subCommand: normalizedCommand }
 
   const destructive = DESTRUCTIVE_BASH_PATTERNS.some((p) =>
