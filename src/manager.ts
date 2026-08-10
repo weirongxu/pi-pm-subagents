@@ -194,7 +194,7 @@ function ensureManagerTools(
   pi.registerTool({
     name: MANAGER_TOOLS.delegate,
     label: 'Delegate Worker',
-    description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; the worker's summary when it finishes. Max concurrency ${MAX_CONCURRENCY_WORKER} running workers`,
+    description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; I'll send you last message when worker finishes. Max concurrency ${MAX_CONCURRENCY_WORKER} running workers`,
     parameters: Type.Object({
       title: Type.String(),
       requirements: Type.String({
@@ -240,7 +240,7 @@ function ensureManagerTools(
         content: [
           {
             type: 'text',
-            text: `Worker id #${worker.id} background. Received summary when it finishes.`,
+            text: `Worker id #${worker.id} background. I'll send you last message when it finishes.`,
           },
         ],
         details: { workerId: worker.id, status: worker.status },

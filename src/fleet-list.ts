@@ -295,8 +295,11 @@ export class FleetList {
   }
 }
 
-/** `12s` — integer seconds, no suffix. */
 export function formatElapsed(item: FleetEntry): string {
   const end = item.completedAt ?? Date.now()
-  return `${Math.max(0, Math.round((end - item.startedAt) / 1000))}s`
+  const seconds = Math.max(0, Math.floor((end - item.startedAt) / 1000))
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m`
+  return `${Math.floor(minutes / 60)}h`
 }

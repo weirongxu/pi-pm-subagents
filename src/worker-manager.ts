@@ -269,7 +269,7 @@ export class WorkerManager {
       }
       if (worker.status === 'running') worker.status = 'done'
     } catch (error) {
-      // Aborted workers are already marked 'stopped' with their own summary.
+      // Aborted workers are already marked 'stopped' with their own last message.
       if (worker.status === 'running') {
         worker.message = error instanceof Error ? error.message : String(error)
         worker.status = 'failed'
