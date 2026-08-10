@@ -22,7 +22,7 @@ type MockAgentSession = Pick<
   'messages' | 'dispose' | 'abort' | 'steer' | 'subscribe' | 'prompt'
 >
 
-export class DemoWorkerManager extends WorkerManager {
+export class WorkerManagerDemo extends WorkerManager {
   readonly #workers: LiveWorker[] = initialDemoWorkers()
 
   override list(): LiveWorker[] {
@@ -260,7 +260,7 @@ function mockSessionFor(key: string, repeat: number = 1): AgentSession {
             if (block.type === 'text') {
               return { type: 'text' as const, text: block.text }
             }
-            return { type: 'image' as const, image: block.image }
+            return { type: 'image' as const, data: block.data, mimeType: block.mimeType }
           }),
           isError: msg.isError,
           timestamp: msg.timestamp,

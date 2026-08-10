@@ -10,7 +10,7 @@ const JOB_START_EVENT = 'pi-notify:job:start'
 const JOB_END_EVENT = 'pi-notify:job:end'
 
 import { MANAGER_TOOLS } from './consts.js'
-import { DemoWorkerManager } from './demo-worker-manager.js'
+import { WorkerManagerDemo } from './worker-manager-demo.js'
 import { FleetList } from './fleet-list.js'
 import { persist } from './helper.js'
 import {
@@ -78,7 +78,7 @@ export class CompletionBatcher {
 
 interface ManagerRuntime {
   manager: WorkerManager
-  demoManager: DemoWorkerManager | undefined
+  demoManager: WorkerManagerDemo | undefined
   fleet: FleetList
   batcher: CompletionBatcher
 }
@@ -367,7 +367,7 @@ export async function setupManager(
       const { fleet } = runtime
 
       if (argList[0] === 'add') {
-        runtime.demoManager ??= new DemoWorkerManager()
+        runtime.demoManager ??= new WorkerManagerDemo()
         runtime.demoManager.add(argList.slice(1).join(' '))
         fleet.update()
         ctx.ui.notify(
@@ -379,7 +379,7 @@ export async function setupManager(
         fleet.update()
         ctx.ui.notify('Demo mode exited.', 'info')
       } else {
-        runtime.demoManager = new DemoWorkerManager()
+        runtime.demoManager = new WorkerManagerDemo()
         fleet.update()
         ctx.ui.notify(
           'Demo mode active: fake workers loaded. Use /workers demo to exit.',
