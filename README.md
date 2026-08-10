@@ -14,6 +14,14 @@ Let the agent write a plan; then you can review the plan and execute it directly
 
 Let the agent delegate some subagents to work and supervise them.
 
+## Demo commands
+
+`/plan-demo` and `/workers-demo` are UI fixtures for development. They are only registered when pi is launched with `--demo`:
+
+```bash
+pi --demo
+```
+
 ## Model configuration
 
 `/modes-model` configures which model each role uses

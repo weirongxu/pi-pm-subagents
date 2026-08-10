@@ -11,8 +11,15 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
   const state = createState()
   await loadModelsConfig()
 
-  await setupPlan(pi, state)
-  await setupManager(pi, state)
+  pi.registerFlag('demo', {
+    description: 'Enable /plan-demo and /workers-demo demo commands',
+    type: 'boolean',
+    default: false,
+  })
+  const demoEnabled = Boolean(pi.getFlag('demo'))
+
+  await setupPlan(pi, state, { demoEnabled })
+  await setupManager(pi, state, { demoEnabled })
   setupModesConfig(pi, state)
 
   // Shared read-only bash gate for both plan and manager modes.

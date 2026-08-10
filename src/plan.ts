@@ -219,6 +219,7 @@ async function askHowToProceed(
 export async function setupPlan(
   pi: ExtensionAPI,
   state: ModesState,
+  { demoEnabled }: { demoEnabled: boolean },
 ): Promise<void> {
   let reviewInFlight = false
   const planPrompt = await readPrompt('plan')
@@ -272,5 +273,7 @@ export async function setupPlan(
     }
   })
 
-  setupPlanDemo(pi, state)
+  if (demoEnabled) {
+    setupPlanDemo(pi, state)
+  }
 }

@@ -293,6 +293,7 @@ function doneMessage(worker: LiveWorker): string {
 export async function setupManager(
   pi: ExtensionAPI,
   state: ModesState,
+  { demoEnabled }: { demoEnabled: boolean },
 ): Promise<void> {
   const batcher = new CompletionBatcher((workers) => {
     if (state.mode !== 'manager') return
@@ -350,42 +351,44 @@ export async function setupManager(
     },
   })
 
-  pi.registerCommand('workers-demo', {
-    description: 'Browse a worker live demo (manager mode)',
-    handler: async (args, ctx) => {
-      const argList = args.split(/\s+/)
-      if (!ctx.hasUI) return
-      if (state.mode !== 'manager') {
-        ctx.ui.notify(
-          'Workers browser is only available in manager mode.',
-          'info',
-        )
-        return
-      }
+  if (demoEnabled) {
+    pi.registerCommand('workers-demo', {
+      description: 'Browse a worker live demo (manager mode)',
+      handler: async (args, ctx) => {
+        const argList = args.split(/\s+/)
+        if (!ctx.hasUI) return
+        if (state.mode !== 'manager') {
+          ctx.ui.notify(
+            'Workers browser is only available in manager mode.',
+            'info',
+          )
+          return
+        }
 
-      const runtime = requiredRuntime()
-      const { fleet } = runtime
+        const runtime = requiredRuntime()
+        const { fleet } = runtime
 
-      if (argList[0] === 'add') {
-        runtime.demoManager ??= new WorkerManagerDemo()
-        runtime.demoManager.add(argList.slice(1).join(' '))
-        fleet.update()
-        ctx.ui.notify(
-          'Added a demo worker. Use /workers demo to exit demo mode.',
-          'info',
-        )
-      } else if (runtime.demoManager) {
-        runtime.demoManager = undefined
-        fleet.update()
-        ctx.ui.notify('Demo mode exited.', 'info')
-      } else {
-        runtime.demoManager = new WorkerManagerDemo()
-        fleet.update()
-        ctx.ui.notify(
-          'Demo mode active: fake workers loaded. Use /workers demo to exit.',
-          'info',
-        )
-      }
-    },
-  })
+        if (argList[0] === 'add') {
+          runtime.demoManager ??= new WorkerManagerDemo()
+          runtime.demoManager.add(argList.slice(1).join(' '))
+          fleet.update()
+          ctx.ui.notify(
+            'Added a demo worker. Use /workers demo to exit demo mode.',
+            'info',
+          )
+        } else if (runtime.demoManager) {
+          runtime.demoManager = undefined
+          fleet.update()
+          ctx.ui.notify('Demo mode exited.', 'info')
+        } else {
+          runtime.demoManager = new WorkerManagerDemo()
+          fleet.update()
+          ctx.ui.notify(
+            'Demo mode active: fake workers loaded. Use /workers demo to exit.',
+            'info',
+          )
+        }
+      },
+    })
+  }
 }
