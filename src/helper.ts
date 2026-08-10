@@ -63,6 +63,7 @@ function isToolResultMessage(
 /** Concatenate all text blocks of an assistant or toolResult message. */
 export function messageText(message: AgentMessage | undefined): string {
   if (!message) return ''
+  // FIXME: 如果是 toolResult, 可以再加上 tool 参数
   if (isAssistantMessage(message) || isToolResultMessage(message)) {
     return message.content
       .filter((block): block is TextContent => block.type === 'text')

@@ -265,6 +265,7 @@ export class WorkerManager {
       ) {
         worker.message = `${lastMessage.slice(0, MAX_WORKER_OUTPUT_BYTES)}\n\n[Output truncated. Verify remaining details with read-only tools.]`
       } else {
+        // FIXME: MAX_WORKER_OUTPUT_BYTES 应该优化到这里来用一个函数判断
         worker.message = lastMessage
       }
       if (worker.status === 'running') worker.status = 'done'

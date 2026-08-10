@@ -1,5 +1,6 @@
 import type { ExtensionContext, Theme } from '@earendil-works/pi-coding-agent'
 import type { TUI } from '@earendil-works/pi-tui'
+import { Editor } from '@earendil-works/pi-tui'
 import {
   isKeyRelease,
   Key,
@@ -117,6 +118,14 @@ export class FleetList {
     this.selectedIndex = 0
   }
 
+  private editorHasFocus(): boolean {
+    if (!this.tui) return true
+    const focused = (this.tui as unknown as { focusedComponent?: unknown })
+      .focusedComponent
+    if (focused == null) return true
+    return focused instanceof Editor
+  }
+
   dispose(): void {
     this.stopTimer()
     this.inputUnsub?.()
@@ -155,6 +164,12 @@ export class FleetList {
     if (!ctx) return undefined
     if (isKeyRelease(data)) return undefined
     if (this.tui?.hasOverlay()) return
+    if (!this.editorHasFocus()) {
+      if (this.activeSelect) {
+        this.deactivate()
+      }
+      return undefined
+    }
 
     if (!this.activeSelect) {
       const activator = matchesKey(data, 'down') || matchesKey(data, 'left')
