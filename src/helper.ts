@@ -1,5 +1,9 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
-import type { AssistantMessage, TextContent } from '@earendil-works/pi-ai'
+import type {
+  AssistantMessage,
+  TextContent,
+  ToolResultMessage,
+} from '@earendil-works/pi-ai'
 import type {
   ExtensionAPI,
   SessionEntry,
@@ -41,29 +45,59 @@ export function restoreTools(pi: ExtensionAPI, state: ModesState): void {
 }
 
 function isAssistantMessage(
-  message: AgentMessage,
+  message: AgentMessage | undefined,
 ): message is AssistantMessage {
-  return message.role === 'assistant' && Array.isArray(message.content)
+  return message?.role === 'assistant' && Array.isArray(message.content)
 }
 
-/** Concatenate all text blocks of an assistant message. */
+function isToolResultMessage(
+  message: AgentMessage | undefined,
+): message is ToolResultMessage {
+  return (
+    message?.role === 'toolResult' &&
+    'content' in message &&
+    Array.isArray(message.content)
+  )
+}
+
+/** Concatenate all text blocks of an assistant or toolResult message. */
 export function messageText(message: AgentMessage | undefined): string {
-  if (!message || !isAssistantMessage(message)) return ''
-  return message.content
-    .filter((block): block is TextContent => block.type === 'text')
-    .map((block) => block.text)
-    .join('\n')
-    .trim()
+  if (!message) return ''
+  if (isAssistantMessage(message) || isToolResultMessage(message)) {
+    return message.content
+      .filter((block): block is TextContent => block.type === 'text')
+      .map((block) => block.text)
+      .join('\n')
+      .trim()
+  }
+  return ''
 }
 
-/** Last non-empty assistant text across the whole conversation. */
 export function lastAssistantText(
   messages: readonly AgentMessage[],
 ): string | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {
-    const text = messageText(messages[i])
-    if (text) return text
+    const message = messages[i]
+    if (isAssistantMessage(message)) {
+      const text = messageText(message)
+      return text || undefined
+    }
   }
+  return undefined
+}
+
+export function lastMessageText(
+  messages: readonly AgentMessage[],
+): string | undefined {
+  if (messages.length === 0) return undefined
+
+  const lastMessage = messages[messages.length - 1]
+
+  if (isAssistantMessage(lastMessage) || isToolResultMessage(lastMessage)) {
+    const text = messageText(lastMessage)
+    return text || undefined
+  }
+
   return undefined
 }
 

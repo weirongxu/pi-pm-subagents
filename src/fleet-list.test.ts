@@ -33,20 +33,20 @@ describe('formatElapsed', () => {
 
   it('shows minutes for >= 60s', () => {
     expect(formatElapsed(base({ startedAt: 0, completedAt: 5 * 60_000 }))).toBe(
-      '5m',
+      '5m 0s',
     )
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 10 * 60_000 })),
-    ).toBe('10m')
+    ).toBe('10m 0s')
   })
 
   it('shows hours for >= 60min', () => {
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 2 * 60 * 60_000 })),
-    ).toBe('2h')
+    ).toBe('2h 0m 0s')
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 24 * 60 * 60_000 })),
-    ).toBe('24h')
+    ).toBe('24h 0m 0s')
   })
 
   it('handles boundary values', () => {
@@ -54,25 +54,53 @@ describe('formatElapsed', () => {
       '59s',
     )
     expect(formatElapsed(base({ startedAt: 0, completedAt: 60_000 }))).toBe(
-      '1m',
+      '1m 0s',
     )
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 59 * 60_000 })),
-    ).toBe('59m')
+    ).toBe('59m 0s')
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 60 * 60_000 })),
-    ).toBe('1h')
+    ).toBe('1h 0m 0s')
   })
 
   it('rounds down minutes', () => {
     expect(formatElapsed(base({ startedAt: 0, completedAt: 89_999 }))).toBe(
-      '1m',
+      '1m 29s',
     )
     expect(formatElapsed(base({ startedAt: 0, completedAt: 119_999 }))).toBe(
-      '1m',
+      '1m 59s',
     )
     expect(formatElapsed(base({ startedAt: 0, completedAt: 120_000 }))).toBe(
-      '2m',
+      '2m 0s',
     )
+  })
+
+  it('shows remainder seconds when >= 1 minute', () => {
+    expect(
+      formatElapsed(base({ startedAt: 0, completedAt: 5 * 60_000 + 30_000 })),
+    ).toBe('5m 30s')
+    expect(
+      formatElapsed(base({ startedAt: 0, completedAt: 1 * 60_000 + 59_999 })),
+    ).toBe('1m 59s')
+  })
+
+  it('shows remainder minutes and seconds when >= 1 hour', () => {
+    expect(
+      formatElapsed(
+        base({
+          startedAt: 0,
+          completedAt: 2 * 60 * 60_000 + 5 * 60_000 + 30_000,
+        }),
+      ),
+    ).toBe('2h 5m 30s')
+    expect(
+      formatElapsed(
+        base({
+          startedAt: 0,
+          completedAt: 1 * 60 * 60_000 + 30 * 60_000 + 45_000,
+        }),
+      ),
+    ).toBe('1h 30m 45s')
   })
 })

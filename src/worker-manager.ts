@@ -10,7 +10,7 @@ import {
   SessionManager,
 } from '@earendil-works/pi-coding-agent'
 
-import { lastAssistantText, messageText } from './helper.js'
+import { lastMessageText, messageText } from './helper.js'
 
 const SELF_DIR = fileURLToPath(new URL('../', import.meta.url))
 
@@ -257,8 +257,7 @@ export class WorkerManager {
   private async run(worker: LiveWorker, task: string): Promise<void> {
     try {
       await worker.session.prompt(`Task: ${task}`)
-      // FIXME: 不能只获取最后一条 assistant 消息，因为它可能是 assistant 和 toolResult 一起出现的
-      const lastMessage = lastAssistantText(worker.session.messages)
+      const lastMessage = lastMessageText(worker.session.messages)
       if (!lastMessage) {
         worker.message = '(Worker finished without a final message.)'
       } else if (
