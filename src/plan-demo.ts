@@ -1,7 +1,6 @@
-import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent'
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 import { renderPlanPager } from './plan.js'
-import type { ModesState } from './types.js'
 
 const DEMO_PLAN = `# Refactor the worker pool
 
@@ -26,10 +25,7 @@ worker farm with a job queue to cut startup latency.
 3. Emit \`worker:reused\` events for telemetry
 `
 
-export async function setupPlanDemo(
-  pi: ExtensionAPI,
-  state: ModesState,
-): Promise<void> {
+export function setupPlanDemo(pi: ExtensionAPI): void {
   pi.registerCommand('plan-demo', {
     description:
       'Open the plan pager on a sample plan for UI/footer testing. No side effects.',
@@ -38,7 +34,7 @@ export async function setupPlanDemo(
         ctx.ui.notify('plan-demo requires a TTY UI.', 'warning')
         return
       }
-      const choice = await renderPlanPager(ctx, DEMO_PLAN)
+      const choice = await renderPlanPager(ctx, DEMO_PLAN.repeat(10))
       ctx.ui.notify(
         choice ? `plan-demo: would do "${choice}"` : 'plan-demo: cancelled',
         'info',

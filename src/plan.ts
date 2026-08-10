@@ -13,10 +13,10 @@ import {
   assertModeIdle,
   exitReadOnly,
 } from './mode-switcher.js'
+import { setupPlanDemo } from './plan-demo.js'
 import { readPrompt } from './prompts.js'
 import { ScrollView } from './scroll-view.js'
 import type { ModesState } from './types.js'
-import { setupPlanDemo } from './plan-demo.js'
 
 const PLAN_CHOICES = [
   'Execute directly',
@@ -73,7 +73,7 @@ export async function exitPlanMode(
   await exitReadOnly(pi, state, ctx, 'plan', { restoreModel })
 }
 
-export async function renderPlanPager(
+export function renderPlanPager(
   ctx: ExtensionContext,
   plan: string,
 ): Promise<string | undefined> {
@@ -90,7 +90,8 @@ export async function renderPlanPager(
           Math.max(
             3,
             Math.floor((tui.terminal.rows * VIEWPORT_HEIGHT_PCT) / 100) -
-              CHROME_LINES,
+              CHROME_LINES -
+              3,
           ),
       })
 
@@ -106,25 +107,33 @@ export async function renderPlanPager(
                 ? theme.fg('accent', `→ ${choice}`)
                 : `  ${choice}`,
             ),
+            theme.fg('muted', '─'.repeat(width)),
             this.footerLine(width),
           ]
         },
         footerLine(width: number) {
           const th = theme
           const sep = th.fg('dim', ' · ')
-          const left = th.fg('dim', 'plan')
-          const start = scroll.offset
-          const last = Math.min(start + scroll.viewportHeight, scroll.total)
-          const scrollPos = th.fg('dim', `${start + 1}-${last}/${scroll.total}`)
-          const navSelect = th.fg('dim', '↑↓ select')
-          const navJump = th.fg('dim', `1-${choices.length} jump`)
-          const navLine = th.fg('dim', 'j/k line')
-          const navPage = th.fg('dim', 'u/d ␣ PageUp/Dn page')
-          const navJumpScroll = th.fg('dim', 'g/G Home/End jump')
-          const navConfirm = th.fg('dim', 'Enter confirm')
-          const navCancel = th.fg('dim', 'q/esc cancel')
-          const right = `${scrollPos}${sep}${navSelect}${sep}${navJump}${sep}${navLine}${sep}${navPage}${sep}${navJumpScroll}${sep}${navConfirm}${sep}${navCancel}`
-          return truncateToWidth(`${left}  ${right}`, width)
+          const keys: [string, string][] = []
+
+          keys.push(
+            ['↑↓', 'select'],
+            [`1-${choices.length}`, 'jump'],
+            ['j/k line', 'line'],
+            ['u/d ␣', 'PageUp/Dn page'],
+            ['g/G', 'Home/End jump'],
+            ['Enter', 'confirm'],
+            ['q/esc', 'cancel'],
+          )
+          return truncateToWidth(
+            keys
+              .map(
+                ([key, desc]) =>
+                  `${th.fg('syntaxKeyword', key)} ${th.fg('success', desc)}`,
+              )
+              .join(sep),
+            width,
+          )
         },
         handleInput(data: string) {
           const index = /^[1-9]$/.test(data) ? Number(data) - 1 : -1
@@ -274,6 +283,6 @@ export async function setupPlan(
   })
 
   if (demoEnabled) {
-    setupPlanDemo(pi, state)
+    setupPlanDemo(pi)
   }
 }

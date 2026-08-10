@@ -147,21 +147,28 @@ export class WorkerViewer implements Component {
     const th = this.theme
     const running = this.worker.status === 'running'
     const sep = th.fg('dim', ' · ')
-    const left = th.fg('dim', running ? 'worker' : 'scroll')
-    const navLine = th.fg('dim', 'j/k ↑/↓ line')
-    const navPage = th.fg('dim', 'u/d ␣ PageUp/Dn page')
-    const navJump = th.fg('dim', 'g/G Home/End jump')
-    const navClose = th.fg('dim', 'q/esc close')
-
-    const right = running
-      ? `${
-          this.#stopArmed
-            ? th.fg('error', 'x again to STOP')
-            : th.fg('dim', 'x stop')
-        }${sep}${th.fg('dim', 'enter steer')}${sep}${navLine}${sep}${navPage}${sep}${navJump}${sep}${navClose}`
-      : `${navLine}${sep}${navPage}${sep}${navJump}${sep}${navClose}`
-
-    return truncateToWidth(`${left}  ${right}`, width)
+    const keys: [string, string][] = []
+    if (running) {
+      keys.push(this.#stopArmed ? ['x', 'again to STOP'] : ['x', 'stop'], [
+        'enter',
+        'steer',
+      ])
+    }
+    keys.push(
+      ['j/k ↑/↓', 'line'],
+      ['u/d ␣', 'PageUp/Dn page'],
+      ['g/G', 'Home/End jump'],
+      ['q/esc', 'close'],
+    )
+    return truncateToWidth(
+      keys
+        .map(
+          ([key, desc]) =>
+            `${th.fg('syntaxKeyword', key)} ${th.fg('success', desc)}`,
+        )
+        .join(sep),
+      width,
+    )
   }
 
   private renderContent(width: number): string[] {

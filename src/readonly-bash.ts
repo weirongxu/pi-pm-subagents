@@ -41,16 +41,7 @@ const SUB_COMMAND_OPS = new Set(['|', '||', '|&', '&&', ';'])
 
 const isFd = (token: unknown, n: number): token is string => token === `${n}`
 
-const REDIRECT_OPS = new Set([
-  '>',
-  '>>',
-  '<',
-  '<>',
-  '>&',
-  '<&',
-  '>|',
-  '&>>',
-])
+const REDIRECT_OPS = new Set(['>', '>>', '<', '<>', '>&', '<&', '>|', '&>>'])
 
 type SubCommand = { tokens: string[]; hasStdoutRedirect: boolean }
 
@@ -80,9 +71,15 @@ function splitShellSubCommands(command: string): SubCommand[] {
       } else if (op === '>&' && isFd(prevToken, 2) && isFd(nextToken, 1)) {
         const tokenAfterNext = parsed[i + 2]
         const hasPipeAfter =
-          typeof tokenAfterNext === 'object' && 'op' in tokenAfterNext && tokenAfterNext.op === '|'
+          typeof tokenAfterNext === 'object' &&
+          'op' in tokenAfterNext &&
+          tokenAfterNext.op === '|'
         if (!hasPipeAfter) hasStdoutRedirect = true
-      } else if ((op === '>' || op === '>>' || op === '>|') && !isFd(prevToken, 1) && !isFd(prevToken, 2)) {
+      } else if (
+        (op === '>' || op === '>>' || op === '>|') &&
+        !isFd(prevToken, 1) &&
+        !isFd(prevToken, 2)
+      ) {
         hasStdoutRedirect = true
       }
     } else if (typeof token === 'string') {

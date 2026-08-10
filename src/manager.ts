@@ -10,7 +10,6 @@ const JOB_START_EVENT = 'pi-notify:job:start'
 const JOB_END_EVENT = 'pi-notify:job:end'
 
 import { MANAGER_TOOLS } from './consts.js'
-import { WorkerManagerDemo } from './worker-manager-demo.js'
 import { FleetList } from './fleet-list.js'
 import { persist } from './helper.js'
 import {
@@ -28,6 +27,7 @@ import {
   MAX_REUSE_FOLLOWUPS,
   WorkerManager,
 } from './worker-manager.js'
+import { WorkerManagerDemo } from './worker-manager-demo.js'
 import { openWorkerViewer } from './worker-viewer.js'
 
 const MANAGER_MODE_WIDGET_KEY = 'pi-modes:manager-mode'

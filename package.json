@@ -16,8 +16,7 @@
     "test": "pnpm test:types && pnpm test:lint && pnpm test:unit",
     "test:types": "tsc --noEmit",
     "test:lint": "eslint --fix .",
-    "test:unit": "vitest run",
-    "format": "prettier --write ."
+    "test:unit": "vitest run"
   },
   "devDependencies": {
     "@earendil-works/pi-agent-core": "0.83.0",

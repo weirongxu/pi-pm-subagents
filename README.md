@@ -14,14 +14,6 @@ Let the agent write a plan; then you can review the plan and execute it directly
 
 Let the agent delegate some subagents to work and supervise them.
 
-## Demo commands
-
-`/plan-demo` and `/workers-demo` are UI fixtures for development. They are only registered when pi is launched with `--demo`:
-
-```bash
-pi --demo
-```
-
 ## Model configuration
 
 `/modes-model` configures which model each role uses
@@ -36,4 +28,12 @@ To add extra rules without replacing the whole prompt, drop an append file under
 
 ```bash
 pi install git:github.com/raidou/pi-modes     # adjust to your repo
+```
+
+## Demo commands
+
+`/plan-demo` and `/workers-demo` are UI fixtures for development. They are only registered when pi is launched with `DEMO=1`:
+
+```bash
+DEMO=1 pi
 ```

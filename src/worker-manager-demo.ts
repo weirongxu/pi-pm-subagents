@@ -260,7 +260,11 @@ function mockSessionFor(key: string, repeat: number = 1): AgentSession {
             if (block.type === 'text') {
               return { type: 'text' as const, text: block.text }
             }
-            return { type: 'image' as const, data: block.data, mimeType: block.mimeType }
+            return {
+              type: 'image' as const,
+              data: block.data,
+              mimeType: block.mimeType,
+            }
           }),
           isError: msg.isError,
           timestamp: msg.timestamp,
@@ -274,9 +278,18 @@ function mockSessionFor(key: string, repeat: number = 1): AgentSession {
     messages,
     dispose: () => {},
     abort: async () => {},
-    steer: async (_text: string, _images?: ImageContent[]) => {},
-    subscribe: (_listener: AgentSessionEventListener) => () => {},
-    prompt: async (_text: string, _options?: PromptOptions) => {},
+    steer: async (_text: string, _images?: ImageContent[]) => {
+      void _text
+      void _images
+    },
+    subscribe: (_listener: AgentSessionEventListener) => {
+      void _listener
+      return () => {}
+    },
+    prompt: async (_text: string, _options?: PromptOptions) => {
+      void _text
+      void _options
+    },
   }
 
   return session as AgentSession

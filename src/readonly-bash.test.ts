@@ -190,7 +190,13 @@ describe('checkBashSafety', () => {
       allowed: false,
       subCommand: 'cat foo',
     })
-    expect(checkBashSafety('ls &> out.txt')).toEqual({ allowed: false, subCommand: 'ls' })
-    expect(checkBashSafety('ls &>> out.txt')).toEqual({ allowed: false, subCommand: 'ls' })
+    expect(checkBashSafety('ls &> out.txt')).toEqual({
+      allowed: false,
+      subCommand: 'ls',
+    })
+    expect(checkBashSafety('ls &>> out.txt')).toEqual({
+      allowed: false,
+      subCommand: 'ls',
+    })
   })
 })

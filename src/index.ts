@@ -11,12 +11,7 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
   const state = createState()
   await loadModelsConfig()
 
-  pi.registerFlag('demo', {
-    description: 'Enable /plan-demo and /workers-demo demo commands',
-    type: 'boolean',
-    default: false,
-  })
-  const demoEnabled = Boolean(pi.getFlag('demo'))
+  const demoEnabled = process.env.DEMO === '1'
 
   await setupPlan(pi, state, { demoEnabled })
   await setupManager(pi, state, { demoEnabled })

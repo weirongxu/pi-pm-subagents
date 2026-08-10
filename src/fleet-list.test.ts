@@ -35,9 +35,9 @@ describe('formatElapsed', () => {
     expect(formatElapsed(base({ startedAt: 0, completedAt: 5 * 60_000 }))).toBe(
       '5m',
     )
-    expect(formatElapsed(base({ startedAt: 0, completedAt: 10 * 60_000 }))).toBe(
-      '10m',
-    )
+    expect(
+      formatElapsed(base({ startedAt: 0, completedAt: 10 * 60_000 })),
+    ).toBe('10m')
   })
 
   it('shows hours for >= 60min', () => {
@@ -56,9 +56,9 @@ describe('formatElapsed', () => {
     expect(formatElapsed(base({ startedAt: 0, completedAt: 60_000 }))).toBe(
       '1m',
     )
-    expect(formatElapsed(base({ startedAt: 0, completedAt: 59 * 60_000 }))).toBe(
-      '59m',
-    )
+    expect(
+      formatElapsed(base({ startedAt: 0, completedAt: 59 * 60_000 })),
+    ).toBe('59m')
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 60 * 60_000 })),
     ).toBe('1h')
