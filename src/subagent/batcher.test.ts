@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { MessageBatcher } from './batcher.js'
-import type { LiveWorker } from './worker.js'
+import type { LiveSubagent } from './manager.js'
 
-const makeWorker = (id: number, title: string, status: string): LiveWorker =>
+const makeSubagent = (
+  id: number,
+  title: string,
+  status: string,
+): LiveSubagent =>
   ({
     id,
     title,
@@ -13,7 +17,7 @@ const makeWorker = (id: number, title: string, status: string): LiveWorker =>
     session: { messages: [] as never },
     followUpCount: 0,
     enabledTools: new Set(),
-  }) as unknown as LiveWorker
+  }) as unknown as LiveSubagent
 
 describe('MessageBatcher', () => {
   afterEach(() => {
@@ -24,9 +28,9 @@ describe('MessageBatcher', () => {
     vi.useFakeTimers()
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
-    const worker = makeWorker(1, 'task-1', 'done')
+    const subagent = makeSubagent(1, 'task-1', 'done')
 
-    batcher.add(worker, 'done', 'Task completed')
+    batcher.add(subagent, 'done', 'Task completed')
     expect(batcher.pending.length).toBe(1)
 
     vi.advanceTimersByTime(99)
@@ -46,12 +50,12 @@ describe('MessageBatcher', () => {
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
 
-    const worker1 = makeWorker(1, 'task-1', 'done')
-    const worker2 = makeWorker(2, 'task-2', 'failed')
+    const subagent1 = makeSubagent(1, 'task-1', 'done')
+    const subagent2 = makeSubagent(2, 'task-2', 'failed')
 
-    batcher.add(worker1, 'done', 'Task 1 completed')
+    batcher.add(subagent1, 'done', 'Task 1 completed')
     vi.advanceTimersByTime(50)
-    batcher.add(worker2, 'failed', 'Task 2 failed')
+    batcher.add(subagent2, 'failed', 'Task 2 failed')
     vi.advanceTimersByTime(50)
 
     expect(flushed).toHaveLength(1)
@@ -69,13 +73,13 @@ describe('MessageBatcher', () => {
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
 
-    const worker1 = makeWorker(1, 'task-1', 'done')
-    batcher.add(worker1, 'done', 'Task 1 completed')
+    const subagent1 = makeSubagent(1, 'task-1', 'done')
+    batcher.add(subagent1, 'done', 'Task 1 completed')
     batcher.flushNow()
     expect(batcher.pending).toEqual([])
 
-    const worker2 = makeWorker(2, 'task-2', 'done')
-    batcher.add(worker2, 'done', 'Task 2 completed')
+    const subagent2 = makeSubagent(2, 'task-2', 'done')
+    batcher.add(subagent2, 'done', 'Task 2 completed')
     batcher.flushNow()
 
     expect(flushed).toHaveLength(2)
@@ -89,8 +93,8 @@ describe('MessageBatcher', () => {
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
 
-    const worker = makeWorker(1, 'task-1', 'done')
-    batcher.add(worker, 'done', 'Task completed')
+    const subagent = makeSubagent(1, 'task-1', 'done')
+    batcher.add(subagent, 'done', 'Task completed')
     batcher.flushNow()
 
     expect(flushed).toHaveLength(1)
@@ -105,8 +109,8 @@ describe('MessageBatcher', () => {
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
 
-    const worker = makeWorker(1, 'task-1', 'done')
-    batcher.add(worker, 'done', 'Task completed')
+    const subagent = makeSubagent(1, 'task-1', 'done')
+    batcher.add(subagent, 'done', 'Task completed')
     batcher.clear()
     vi.advanceTimersByTime(100)
 
@@ -119,19 +123,19 @@ describe('MessageBatcher', () => {
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
 
-    const worker1 = makeWorker(1, 'task-1', 'done')
-    const worker2 = makeWorker(2, 'task-2', 'running')
+    const subagent1 = makeSubagent(1, 'task-1', 'done')
+    const subagent2 = makeSubagent(2, 'task-2', 'running')
 
-    batcher.add(worker1, 'done', 'Worker #1 work done.')
-    batcher.add(worker2, 'activity', 'Worker activity update')
+    batcher.add(subagent1, 'done', 'Subagent #1 work done.')
+    batcher.add(subagent2, 'activity', 'Subagent activity update')
     vi.advanceTimersByTime(100)
 
     expect(flushed).toHaveLength(1)
     const firstFlush = flushed[0]
     expect(firstFlush?.length).toBe(2)
     expect(firstFlush?.[0]).toContain('done #1')
-    expect(firstFlush?.[0]).toContain('Worker #1 work done.')
+    expect(firstFlush?.[0]).toContain('Subagent #1 work done.')
     expect(firstFlush?.[1]).toContain('running #2')
-    expect(firstFlush?.[1]).toContain('Worker activity update')
+    expect(firstFlush?.[1]).toContain('Subagent activity update')
   })
 })

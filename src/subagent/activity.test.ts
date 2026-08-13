@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { ActivityReporter } from './activity.js'
-import type { LiveWorker } from './worker.js'
+import type { LiveSubagent } from './manager.js'
 
-const makeWorker = (id: number, messages: unknown[]): LiveWorker =>
+const makeSubagent = (id: number, messages: unknown[]): LiveSubagent =>
   ({
     id,
     title: `task-${id}`,
@@ -13,7 +13,7 @@ const makeWorker = (id: number, messages: unknown[]): LiveWorker =>
     session: { messages: messages as never },
     followUpCount: 0,
     enabledTools: new Set(),
-  }) as unknown as LiveWorker
+  }) as unknown as LiveSubagent
 
 const assistant = (text: string) =>
   ({
@@ -25,22 +25,22 @@ const assistant = (text: string) =>
 describe('ActivityReporter.formatActivityReport', () => {
   it('returns last assistant message text', () => {
     const messages = [assistant('Working on it')]
-    const worker = makeWorker(1, messages)
-    const report = ActivityReporter.formatActivityReport(worker)
+    const subagent = makeSubagent(1, messages)
+    const report = ActivityReporter.formatActivityReport(subagent)
     expect(report).toBe('Working on it')
   })
 
-  it('returns fallback for worker with no valid last message', () => {
-    const worker = makeWorker(1, [])
-    const report = ActivityReporter.formatActivityReport(worker)
+  it('returns fallback for subagent with no valid last message', () => {
+    const subagent = makeSubagent(1, [])
+    const report = ActivityReporter.formatActivityReport(subagent)
     expect(report).toBe('(Just started, waiting for first message)')
   })
 
   it('truncates long message text to MAX_ACTIVITY_BYTES', () => {
     const longText = 'a'.repeat(1000)
     const messages = [assistant(longText)]
-    const worker = makeWorker(1, messages)
-    const report = ActivityReporter.formatActivityReport(worker)
+    const subagent = makeSubagent(1, messages)
+    const report = ActivityReporter.formatActivityReport(subagent)
     expect(report).toContain('[Output truncated')
   })
 })
@@ -64,17 +64,17 @@ describe('ActivityReporter integration', () => {
     expect(reportCount).toBe(0)
   })
 
-  it('does not call onActivity when no running workers', () => {
+  it('does not call onActivity when no running subagents', () => {
     vi.useFakeTimers()
-    const reports: { worker: LiveWorker; report: string }[] = []
+    const reports: { subagent: LiveSubagent; report: string }[] = []
 
     const activityReporter = new ActivityReporter({
       list: () =>
         [
           { id: 1, status: 'done', title: 'Task 1' },
           { id: 2, status: 'failed', title: 'Task 2' },
-        ] as LiveWorker[],
-      onActivity: (worker, report) => reports.push({ worker, report }),
+        ] as LiveSubagent[],
+      onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 100,
     })
 
@@ -84,15 +84,15 @@ describe('ActivityReporter integration', () => {
     expect(reports).toHaveLength(0)
   })
 
-  it('calls onActivity with worker and report when running workers exist', () => {
+  it('calls onActivity with subagent and report when running subagents exist', () => {
     vi.useFakeTimers()
-    const reports: { worker: LiveWorker; report: string }[] = []
-    const worker = makeWorker(1, [assistant('Doing task')])
-    worker.startedAt = Date.now() - 60000
+    const reports: { subagent: LiveSubagent; report: string }[] = []
+    const subagent = makeSubagent(1, [assistant('Doing task')])
+    subagent.startedAt = Date.now() - 60000
 
     const activityReporter = new ActivityReporter({
-      list: () => [worker],
-      onActivity: (worker, report) => reports.push({ worker, report }),
+      list: () => [subagent],
+      onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 100,
       notificationIntervalMs: 1000,
     })
@@ -101,19 +101,19 @@ describe('ActivityReporter integration', () => {
     vi.advanceTimersByTime(100)
 
     expect(reports).toHaveLength(1)
-    expect(reports[0]?.worker.id).toBe(1)
+    expect(reports[0]?.subagent.id).toBe(1)
     expect(reports[0]?.report).toBe('Doing task')
   })
 
   it('respects custom checkIntervalMs', () => {
     vi.useFakeTimers()
-    const reports: { worker: LiveWorker; report: string }[] = []
-    const worker = makeWorker(1, [])
-    worker.startedAt = Date.now() - 60000
+    const reports: { subagent: LiveSubagent; report: string }[] = []
+    const subagent = makeSubagent(1, [])
+    subagent.startedAt = Date.now() - 60000
 
     const activityReporter = new ActivityReporter({
-      list: () => [worker],
-      onActivity: (worker, report) => reports.push({ worker, report }),
+      list: () => [subagent],
+      onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 200,
       notificationIntervalMs: 1000,
     })
@@ -129,11 +129,11 @@ describe('ActivityReporter integration', () => {
   it('does not leak timers on multiple starts', () => {
     vi.useFakeTimers()
     let reportCount = 0
-    const worker = makeWorker(1, [])
-    worker.startedAt = Date.now() - 60000
+    const subagent = makeSubagent(1, [])
+    subagent.startedAt = Date.now() - 60000
 
     const activityReporter = new ActivityReporter({
-      list: () => [worker],
+      list: () => [subagent],
       onActivity: () => {
         reportCount += 1
       },
@@ -154,16 +154,16 @@ describe('ActivityReporter integration', () => {
   })
 })
 
-describe('ActivityReporter per-worker throttling', () => {
-  it('throttles notifications per worker based on notificationIntervalMs', () => {
+describe('ActivityReporter per-subagent throttling', () => {
+  it('throttles notifications per subagent based on notificationIntervalMs', () => {
     vi.useFakeTimers()
-    const reports: { worker: LiveWorker; report: string }[] = []
-    const worker = makeWorker(1, [])
-    worker.startedAt = Date.now() - 60000
+    const reports: { subagent: LiveSubagent; report: string }[] = []
+    const subagent = makeSubagent(1, [])
+    subagent.startedAt = Date.now() - 60000
 
     const activityReporter = new ActivityReporter({
-      list: () => [worker],
-      onActivity: (worker, report) => reports.push({ worker, report }),
+      list: () => [subagent],
+      onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 100,
       notificationIntervalMs: 200,
     })
@@ -179,17 +179,17 @@ describe('ActivityReporter per-worker throttling', () => {
     expect(reports).toHaveLength(2)
   })
 
-  it('tracks per-worker throttling independently', () => {
+  it('tracks per-subagent throttling independently', () => {
     vi.useFakeTimers()
-    const reports: { worker: LiveWorker; report: string }[] = []
-    const w1 = makeWorker(1, [])
-    w1.startedAt = Date.now() - 60000
-    const w2 = makeWorker(2, [])
-    w2.startedAt = Date.now() - 60000
+    const reports: { subagent: LiveSubagent; report: string }[] = []
+    const s1 = makeSubagent(1, [])
+    s1.startedAt = Date.now() - 60000
+    const s2 = makeSubagent(2, [])
+    s2.startedAt = Date.now() - 60000
 
     const activityReporter = new ActivityReporter({
-      list: () => [w1, w2],
-      onActivity: (worker, report) => reports.push({ worker, report }),
+      list: () => [s1, s2],
+      onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 100,
       notificationIntervalMs: 200,
     })
@@ -198,24 +198,24 @@ describe('ActivityReporter per-worker throttling', () => {
     vi.advanceTimersByTime(100)
     expect(reports).toHaveLength(2)
 
-    w1.status = 'done'
+    s1.status = 'done'
     vi.advanceTimersByTime(100)
     expect(reports).toHaveLength(2)
 
     vi.advanceTimersByTime(100)
     expect(reports).toHaveLength(3)
-    expect(reports[2]?.worker.id).toBe(2)
+    expect(reports[2]?.subagent.id).toBe(2)
   })
 
-  it('does not send report when worker is not due yet', () => {
+  it('does not send report when subagent is not due yet', () => {
     vi.useFakeTimers()
-    const reports: { worker: LiveWorker; report: string }[] = []
-    const worker = makeWorker(1, [])
-    worker.startedAt = Date.now() - 1000
+    const reports: { subagent: LiveSubagent; report: string }[] = []
+    const subagent = makeSubagent(1, [])
+    subagent.startedAt = Date.now() - 1000
 
     const activityReporter = new ActivityReporter({
-      list: () => [worker],
-      onActivity: (worker, report) => reports.push({ worker, report }),
+      list: () => [subagent],
+      onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 100,
       notificationIntervalMs: 1500,
     })

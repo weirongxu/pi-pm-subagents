@@ -1,6 +1,6 @@
 export type ModeUserType = 'plan' | 'manager'
 
-export type ModeRole = ModeUserType | 'worker'
+export type ModeRole = ModeUserType | 'subagent'
 
 export interface ModesState {
   mode: ModeUserType | undefined

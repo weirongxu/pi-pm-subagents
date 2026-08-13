@@ -23,10 +23,10 @@ describe('formatElapsed', () => {
     )
   })
 
-  it('uses now when the worker is still running', () => {
+  it('uses now when the subagent is still running', () => {
     const now = Date.now()
-    const worker = base({ startedAt: now - 4_000 })
-    expect(formatElapsed(worker)).toBe('4s')
+    const subagent = base({ startedAt: now - 4_000 })
+    expect(formatElapsed(subagent)).toBe('4s')
   })
 
   it('never goes negative', () => {

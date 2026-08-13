@@ -17,34 +17,29 @@ import {
 import { BorderView } from '../border-view.js'
 import { rightAlign, strInline } from '../helper.js'
 import { ScrollView } from '../scroll-view.js'
-import type { LiveWorker, WorkerManager, WorkerStatus } from './worker.js'
+import type {
+  LiveSubagent,
+  SubagentManager,
+  SubagentStatus,
+} from './manager.js'
 
 const STATUS_COLOR = {
   running: 'accent',
   done: 'success',
   failed: 'error',
   stopped: 'dim',
-} satisfies Record<WorkerStatus, ThemeColor>
+} satisfies Record<SubagentStatus, ThemeColor>
 
-/** Handle to the active worker viewer overlay so a new open can close it first. */
 let openedViewerHandle: OverlayHandle | undefined
 
-/** Result text preview length in the viewer (keeps one verbose call from drowning the rest). */
 const TOOL_RESULT_PREVIEW = 500
-/** Terminal-row percentage the worker overlay occupies. */
 const VIEWPORT_HEIGHT_PCT = 80
-/** Border, header, separators, and footer outside the scroll viewport. */
 const VIEWER_CHROME_LINES = 6
-/** Overlay width as a percentage of the terminal. */
 const OVERLAY_WIDTH_PCT = '90%'
 
-/** Result reported when the viewer closes: plain close, or a request to steer. */
 export type ViewerResult = undefined | 'steer'
 
-/**
- * Live, auto-following overlay of a worker's conversation
- */
-export class WorkerViewer implements Component {
+export class SubagentViewer implements Component {
   #stopArmed = false
   readonly #scroll: ScrollView
   readonly #unsubscribe: () => void
@@ -52,8 +47,8 @@ export class WorkerViewer implements Component {
   constructor(
     private tui: TUI,
     private theme: Theme,
-    private worker: LiveWorker,
-    private manager: WorkerManager,
+    private subagent: LiveSubagent,
+    private manager: SubagentManager,
     private done: (result: ViewerResult) => void,
   ) {
     this.#scroll = new ScrollView(tui, theme, {
@@ -69,7 +64,7 @@ export class WorkerViewer implements Component {
         ),
       autoFollow: true,
     })
-    this.#unsubscribe = worker.session.subscribe(() => {
+    this.#unsubscribe = subagent.session.subscribe(() => {
       tui.requestRender()
     })
   }
@@ -82,10 +77,10 @@ export class WorkerViewer implements Component {
       return
     }
 
-    if (data === 'x' && this.worker.status === 'running') {
+    if (data === 'x' && this.subagent.status === 'running') {
       if (this.#stopArmed) {
         this.#stopArmed = false
-        void this.manager.abort(this.worker.id).then(() => {
+        void this.manager.abort(this.subagent.id).then(() => {
           this.tui.requestRender()
         })
       } else {
@@ -96,7 +91,7 @@ export class WorkerViewer implements Component {
     }
     if (this.#stopArmed) this.#stopArmed = false
 
-    if (matchesKey(data, Key.enter) && this.worker.status === 'running') {
+    if (matchesKey(data, Key.enter) && this.subagent.status === 'running') {
       this.done('steer')
       return
     }
@@ -124,16 +119,14 @@ export class WorkerViewer implements Component {
     this.#unsubscribe()
   }
 
-  // ---- private ----
-
   private headerLine(width: number): string {
     const th = this.theme
-    const status = this.worker.status
+    const status = this.subagent.status
     const color = STATUS_COLOR[status]
-    const id = `#${this.worker.id}`
+    const id = `#${this.subagent.id}`
     const titleMaxWidth = width - visibleWidth(status + id) - 1
     return rightAlign(
-      `${th.fg('muted', `#${this.worker.id}`)} ${truncateToWidth(strInline(this.worker.title), titleMaxWidth)}`,
+      `${th.fg('muted', `#${this.subagent.id}`)} ${truncateToWidth(strInline(this.subagent.title), titleMaxWidth)}`,
       th.fg(color, status),
       width,
     )
@@ -141,7 +134,7 @@ export class WorkerViewer implements Component {
 
   private footerLine(width: number): string {
     const th = this.theme
-    const running = this.worker.status === 'running'
+    const running = this.subagent.status === 'running'
     const sep = th.fg('dim', ' · ')
     const keys: [string, string][] = []
     if (running) {
@@ -170,7 +163,7 @@ export class WorkerViewer implements Component {
   private renderContent(width: number): string[] {
     if (width <= 0) return []
     const th = this.theme
-    const messages = this.worker.session.messages
+    const messages = this.subagent.session.messages
     if (messages.length === 0)
       return [th.fg('dim', '(waiting for first message…)')]
 
@@ -246,14 +239,14 @@ function userText(message: UserMessage): string {
         .join('\n')
 }
 
-export async function openWorkerViewer(
+export async function openSubagentViewer(
   ctx: ExtensionContext,
-  manager: WorkerManager,
+  manager: SubagentManager,
   id: number,
 ): Promise<void> {
-  const worker = manager.get(id)
-  if (!worker) {
-    ctx.ui.notify(`Worker #${id} not found.`, 'warning')
+  const subagent = manager.get(id)
+  if (!subagent) {
+    ctx.ui.notify(`Subagent #${id} not found.`, 'warning')
     return
   }
   openedViewerHandle?.hide()
@@ -263,7 +256,7 @@ export async function openWorkerViewer(
     result = await ctx.ui.custom<ViewerResult>(
       (tui, theme, _keybindings, done) =>
         new BorderView(theme, {
-          child: new WorkerViewer(tui, theme, worker, manager, done),
+          child: new SubagentViewer(tui, theme, subagent, manager, done),
         }),
       {
         overlay: true,
@@ -283,14 +276,14 @@ export async function openWorkerViewer(
   }
 
   if (result !== 'steer') return
-  const message = await ctx.ui.editor(`Steer worker #${id}:`, '')
+  const message = await ctx.ui.editor(`Steer subagent #${id}:`, '')
   const trimmed = message?.trim()
   if (trimmed) {
     const ok = await manager.steer(id, trimmed)
     ctx.ui.notify(
-      ok ? `Steered worker #${id}.` : `Worker #${id} is no longer running.`,
+      ok ? `Steered subagent #${id}.` : `Subagent #${id} is no longer running.`,
       ok ? 'info' : 'warning',
     )
   }
-  return openWorkerViewer(ctx, manager, id)
+  return openSubagentViewer(ctx, manager, id)
 }

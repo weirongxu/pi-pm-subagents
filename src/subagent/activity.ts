@@ -1,5 +1,5 @@
 import { lastMessageText } from '../helper.js'
-import type { LiveWorker } from './worker.js'
+import type { LiveSubagent } from './manager.js'
 
 const CHECK_INTERVAL_MS = 60 * 1000
 const NOTIFICATION_INTERVAL_MS = 5 * 60 * 1000
@@ -11,8 +11,8 @@ export class ActivityReporter {
 
   constructor(
     private readonly options: {
-      list: () => readonly LiveWorker[]
-      onActivity: (worker: LiveWorker, report: string) => void
+      list: () => readonly LiveSubagent[]
+      onActivity: (subagent: LiveSubagent, report: string) => void
       checkIntervalMs?: number
       notificationIntervalMs?: number
     },
@@ -38,20 +38,20 @@ export class ActivityReporter {
     const notificationMs =
       this.options.notificationIntervalMs ?? NOTIFICATION_INTERVAL_MS
     const running = this.options.list().filter((w) => w.status === 'running')
-    for (const worker of running) {
-      const last = this.lastSentAt.get(worker.id) ?? worker.startedAt
+    for (const subagent of running) {
+      const last = this.lastSentAt.get(subagent.id) ?? subagent.startedAt
       if (now - last < notificationMs) continue
       this.options.onActivity(
-        worker,
-        ActivityReporter.formatActivityReport(worker),
+        subagent,
+        ActivityReporter.formatActivityReport(subagent),
       )
-      this.lastSentAt.set(worker.id, now)
+      this.lastSentAt.set(subagent.id, now)
     }
   }
 
-  static formatActivityReport(worker: LiveWorker): string {
+  static formatActivityReport(subagent: LiveSubagent): string {
     return (
-      lastMessageText(worker.session.messages, MAX_ACTIVITY_BYTES) ??
+      lastMessageText(subagent.session.messages, MAX_ACTIVITY_BYTES) ??
       '(Just started, waiting for first message)'
     )
   }

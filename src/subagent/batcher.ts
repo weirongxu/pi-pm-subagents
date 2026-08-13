@@ -1,4 +1,4 @@
-import { formatWorkerSummary, type LiveWorker } from './worker.ts'
+import { formatSubagentSummary, type LiveSubagent } from './manager.ts'
 
 export class MessageBatcher {
   private items: string[] = []
@@ -13,9 +13,9 @@ export class MessageBatcher {
     return [...this.items]
   }
 
-  add(worker: LiveWorker, type: string, message: string): void {
+  add(subagent: LiveSubagent, type: string, message: string): void {
     const item = [
-      formatWorkerSummary(worker),
+      formatSubagentSummary(subagent),
       `<notify-type>${type}</notify-type>`,
       `<message>\n${message}\n</message>`,
     ].join('\n')

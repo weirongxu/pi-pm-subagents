@@ -13,7 +13,7 @@ import { Parse } from 'typebox/value'
 import { customSelect } from './custom-select.js'
 import type { ModeRole, ModesState } from './types.js'
 
-export const MODES_ROLES: readonly ModeRole[] = ['plan', 'manager', 'worker']
+export const MODES_ROLES: readonly ModeRole[] = ['plan', 'manager', 'subagent']
 
 export type ModelsConfig = Partial<Record<ModeRole, string>>
 
@@ -23,7 +23,7 @@ export const MODEL_DEFAULT = 'DEFAULT'
 const ModelsConfigSchema = Type.Object({
   plan: Type.Optional(Type.String()),
   manager: Type.Optional(Type.String()),
-  worker: Type.Optional(Type.String()),
+  subagent: Type.Optional(Type.String()),
 })
 
 let modelsConfig: ModelsConfig = {}
@@ -155,7 +155,7 @@ export async function restoreMainModel(
 export function setupModesConfig(pi: ExtensionAPI, state: ModesState): void {
   pi.registerCommand('modes-model', {
     description:
-      'Configure role models. Usage: /modes-model [show] · /modes-model <plan|manager|worker>',
+      'Configure role models. Usage: /modes-model [show] · /modes-model <plan|manager|subagent>',
     getArgumentCompletions: (prefix: string) => {
       const items = [...MODES_ROLES, 'show']
         .filter((candidate) => candidate.startsWith(prefix))

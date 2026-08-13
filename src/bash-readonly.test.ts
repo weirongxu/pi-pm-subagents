@@ -70,8 +70,8 @@ describe('isBashReadonlyCommand', () => {
 describe('readOnlyToolSet', () => {
   it('drops write tools, replaces bash, and merges extras', () => {
     expect(
-      readOnlyToolSet(['read', 'edit', 'write', 'bash'], ['delegate_worker']),
-    ).toEqual(['read', 'bash-readonly', 'delegate_worker'])
+      readOnlyToolSet(['read', 'edit', 'write', 'bash'], ['subagent_delegate']),
+    ).toEqual(['read', 'bash-readonly', 'subagent_delegate'])
   })
 
   it('deduplicates', () => {

@@ -2,16 +2,16 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 import { renderPlanPager } from './plan.js'
 
-const DEMO_PLAN = `# Refactor the worker pool
+const DEMO_PLAN = `# Refactor the subagent pool
 
-The worker pool currently spawns a child process per request. Move to a fixed
-worker farm with a job queue to cut startup latency.
+The subagent pool currently spawns a child process per request. Move to a fixed
+subagent farm with a job queue to cut startup latency.
 
 ## Goals
 
 - Reduce p95 startup under 200ms
-- Cap concurrent workers at 8
-- Preserve the existing \`WorkerManager\` API
+- Cap concurrent subagents at 8
+- Preserve the existing \`SubagentManager\` API
 
 ## Non-goals
 
@@ -20,9 +20,9 @@ worker farm with a job queue to cut startup latency.
 
 ## Approach
 
-1. Add a \`WorkerFarm\` class with a bounded queue
+1. Add a \`SubagentFarm\` class with a bounded queue
 2. Reuse warm processes via a round-robin pool
-3. Emit \`worker:reused\` events for telemetry
+3. Emit \`subagent:reused\` events for telemetry
 `
 
 export function setupPlanDemo(pi: ExtensionAPI): void {

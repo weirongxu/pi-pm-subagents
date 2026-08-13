@@ -14,19 +14,20 @@ import {
 import { getModelsConfig, resolveModelRef } from '../models-config.js'
 import { exitPlanMode } from '../plan/index.js'
 import { readPrompt } from '../prompts.js'
-import type { ModesState } from '../types.js'
-import { ActivityReporter } from './activity.js'
-import { MessageBatcher } from './batcher.js'
-import { FleetList } from './fleet.js'
-import { openWorkerViewer } from './viewer.js'
-import type { LiveWorker, WorkerStatus } from './worker.js'
+import { FleetList } from '../subagent/fleet.js'
 import {
-  formatWorkerSummary,
-  MAX_CONCURRENCY_WORKER,
+  ActivityReporter,
+  formatSubagentSummary,
+  type LiveSubagent,
+  MAX_CONCURRENCY_SUBAGENT,
   MAX_REUSE_FOLLOWUPS,
-  WorkerManager,
-} from './worker.js'
-import { WorkerManagerDemo } from './worker-demo.js'
+  MessageBatcher,
+  openSubagentViewer,
+  SubagentManager,
+  SubagentManagerDemo,
+  type SubagentStatus,
+} from '../subagent/index.js'
+import type { ModesState } from '../types.js'
 
 const MANAGER_MODE_WIDGET_KEY = 'pi-modes:manager-mode'
 
@@ -34,17 +35,17 @@ const JOB_START_EVENT = 'pi-notify:job:start'
 const JOB_END_EVENT = 'pi-notify:job:end'
 
 const MANAGER_TOOLS = {
-  delegate: 'worker_delegate',
-  kill: 'worker_kill',
-  list: 'worker_list',
+  delegate: 'subagent_delegate',
+  kill: 'subagent_kill',
+  list: 'subagent_list',
 }
 
-export type { LiveWorker, WorkerStatus }
+export type { LiveSubagent, SubagentStatus }
 
 interface ManagerRuntime {
-  manager: WorkerManager
+  manager: SubagentManager
   activityReporter: ActivityReporter
-  demoManager: WorkerManagerDemo | undefined
+  demoSubagentManager: SubagentManagerDemo | undefined
   fleet: FleetList
   batcher: MessageBatcher
 }
@@ -87,11 +88,11 @@ export async function resumeManagerMode(
   })
   fleet.update()
   activityReporter.start()
-  const workerModel = getModelsConfig().worker
+  const subagentModel = getModelsConfig().subagent
   ctx.ui.setWidget(MANAGER_MODE_WIDGET_KEY, [
     ctx.ui.theme.fg(
       'accent',
-      `${ctx.ui.theme.bold('👥 MANAGER MODE')} - worker model ${workerModel}`,
+      `${ctx.ui.theme.bold('👥 MANAGER MODE')} - subagent model ${subagentModel}`,
     ),
   ])
 }
@@ -114,36 +115,38 @@ export async function exitManagerMode(
 function ensureManagerTools(
   pi: ExtensionAPI,
   state: ModesState,
-  manager: WorkerManager,
+  manager: SubagentManager,
   fleet: FleetList,
 ): void {
   if (managerToolsRegistered) return
 
   pi.registerTool({
     name: MANAGER_TOOLS.list,
-    label: 'List Workers',
-    description: `List all background workers with their status, don't use ${MANAGER_TOOLS.list} to wait workers finished just idle`,
+    label: 'List Subagents',
+    description: `List all background subagents with their status, don't use ${MANAGER_TOOLS.list} to wait subagents finished just idle`,
     parameters: Type.Object({}),
     async execute() {
-      const allWorkers = manager.list()
-      if (allWorkers.length === 0) {
+      const allSubagents = manager.list()
+      if (allSubagents.length === 0) {
         return {
-          content: [{ type: 'text', text: 'No workers.' }],
+          content: [{ type: 'text', text: 'No subagents.' }],
           details: {},
         }
       }
 
-      const sorted = [...allWorkers].sort((a, b) => a.startedAt - b.startedAt)
-      const lines = [`Workers (${allWorkers.length}):`]
-      for (const worker of sorted) {
-        lines.push(formatWorkerSummary(worker))
+      const sorted = [...allSubagents].sort((a, b) => a.startedAt - b.startedAt)
+      const lines = [`Subagents (${allSubagents.length}):`]
+      for (const subagent of sorted) {
+        lines.push(formatSubagentSummary(subagent))
       }
 
-      const hasRunning = sorted.some((worker) => worker.status === 'running')
+      const hasRunning = sorted.some(
+        (subagent) => subagent.status === 'running',
+      )
       if (hasRunning)
         lines.push(
           '',
-          'Do not poll worker_list to wait for completion - just idle — you will be notified when workers finish.',
+          'Do not poll subagent_list to wait for completion - just idle — you will be notified when subagents finish.',
         )
       return {
         content: [
@@ -159,28 +162,28 @@ function ensureManagerTools(
 
   pi.registerTool({
     name: MANAGER_TOOLS.delegate,
-    label: 'Delegate Worker',
-    description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; I'll send you last message when worker finishes. Max concurrency ${MAX_CONCURRENCY_WORKER} running workers`,
+    label: 'Delegate Subagent',
+    description: `Delegate task to background with full tool access. The tool returns immediately with a subagent id; I'll send you last message when subagent finishes. Max concurrency ${MAX_CONCURRENCY_SUBAGENT} running subagents`,
     parameters: Type.Object({
       title: Type.String(),
       prompt: Type.String({
         description:
-          'A self-contained description of the work the worker should do.',
+          'A self-contained description of the work the subagent should do.',
       }),
       followupOf: Type.Optional(
         Type.Number({
-          description: `Reuse worker id to follow up. Omit for a fresh task. Max reuse ${MAX_REUSE_FOLLOWUPS} times`,
+          description: `Reuse subagent id to follow up. Omit for a fresh task. Max reuse ${MAX_REUSE_FOLLOWUPS} times`,
         }),
       ),
     }),
     async execute(_toolCallId, params, signal, _onUpdate, ctx) {
-      const workerRef = getModelsConfig().worker
-      const workerModel = resolveModelRef(ctx, workerRef) ?? ctx.model
-      let worker: LiveWorker
+      const subagentRef = getModelsConfig().subagent
+      const subagentModel = resolveModelRef(ctx, subagentRef) ?? ctx.model
+      let subagent: LiveSubagent
       try {
-        worker = await manager.spawn(params.title, params.prompt, {
+        subagent = await manager.spawn(params.title, params.prompt, {
           cwd: ctx.cwd,
-          model: workerModel,
+          model: subagentModel,
           thinkingLevel: ctx.thinkingLevel,
           tools: state.toolsBackup,
           followupOf: params.followupOf,
@@ -196,7 +199,7 @@ function ensureManagerTools(
 
       if (signal) {
         const stop = (): void => {
-          void manager.abort(worker.id)
+          void manager.abort(subagent.id)
         }
         if (signal.aborted) stop()
         else signal.addEventListener('abort', stop, { once: true })
@@ -206,44 +209,46 @@ function ensureManagerTools(
         content: [
           {
             type: 'text',
-            text: `Worker id #${worker.id} background. I'll send you last message when it finishes.`,
+            text: `Subagent id #${subagent.id} background. I'll send you last message when it finishes.`,
           },
         ],
-        details: { workerId: worker.id, status: worker.status },
+        details: { subagentId: subagent.id, status: subagent.status },
       }
     },
   })
 
   pi.registerTool({
     name: MANAGER_TOOLS.kill,
-    label: 'Kill Worker',
+    label: 'Kill Subagent',
     description:
-      'Stop a running worker by id. Only running workers can be killed.',
+      'Stop a running subagent by id. Only running subagents can be killed.',
     parameters: Type.Object({
-      id: Type.Number({ description: 'Worker id to stop.' }),
+      id: Type.Number({ description: 'Subagent id to stop.' }),
     }),
     async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
-      const worker = manager.get(params.id)
-      if (!worker) {
+      const subagent = manager.get(params.id)
+      if (!subagent) {
         return {
-          content: [{ type: 'text', text: `Worker #${params.id} not found.` }],
+          content: [
+            { type: 'text', text: `Subagent #${params.id} not found.` },
+          ],
           details: {},
         }
       }
       try {
         const stopped = await manager.abort(params.id)
         const message = stopped
-          ? `Worker #${params.id} stopped.`
-          : `Worker #${params.id} is not running (status: ${worker.status}).`
+          ? `Subagent #${params.id} stopped.`
+          : `Subagent #${params.id} is not running (status: ${subagent.status}).`
         return {
           content: [{ type: 'text', text: message }],
-          details: { workerId: params.id, status: worker.status },
+          details: { subagentId: params.id, status: subagent.status },
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         return {
           content: [{ type: 'text', text: message }],
-          details: { workerId: params.id, status: worker.status },
+          details: { subagentId: params.id, status: subagent.status },
         }
       }
     },
@@ -261,44 +266,44 @@ export async function setupManager(
     if (state.mode !== 'manager') return
     pi.sendUserMessage(messages.join('\n\n'), { deliverAs: 'steer' })
   })
-  const manager = new WorkerManager({
+  const manager = new SubagentManager({
     onStatusChange: () => runtime?.fleet.update(),
-    onStart: (worker) => {
+    onStart: (subagent) => {
       pi.events.emit(JOB_START_EVENT, {
-        id: `pi-modes:session:${worker.id}`,
+        id: `pi-modes:session:${subagent.id}`,
       })
     },
-    onEnd: (worker) => {
+    onEnd: (subagent) => {
       pi.events.emit(JOB_END_EVENT, {
-        id: `pi-modes:session:${worker.id}`,
+        id: `pi-modes:session:${subagent.id}`,
       })
       if (state.mode !== 'manager') return
       batcher.add(
-        worker,
+        subagent,
         'done',
-        `<message>\n${worker.message ?? '(no message)'}\n</message>`,
+        `<message>\n${subagent.message ?? '(no message)'}\n</message>`,
       )
     },
   })
   const activityReporter = new ActivityReporter({
     list: () => manager.list(),
-    onActivity: (worker, report) => {
-      batcher.add(worker, 'activity', report)
+    onActivity: (subagent, report) => {
+      batcher.add(subagent, 'activity', report)
     },
   })
 
   const fleet = new FleetList({
-    list: () => runtime?.demoManager?.list() ?? manager.list(),
+    list: () => runtime?.demoSubagentManager?.list() ?? manager.list(),
     onOpen: async (ctx, id) => {
-      const activeManager = runtime?.demoManager ?? manager
-      return openWorkerViewer(ctx, activeManager, id)
+      const activeManager = runtime?.demoSubagentManager ?? manager
+      return openSubagentViewer(ctx, activeManager, id)
     },
   })
 
   runtime = {
     manager,
     activityReporter,
-    demoManager: undefined,
+    demoSubagentManager: undefined,
     fleet,
     batcher,
   }
@@ -330,14 +335,14 @@ export async function setupManager(
   })
 
   if (demoEnabled) {
-    pi.registerCommand('workers-demo', {
-      description: 'Browse a worker live demo (manager mode)',
+    pi.registerCommand('subagent-demo', {
+      description: 'Browse a subagent live demo (manager mode)',
       handler: async (args, ctx) => {
         const argList = args.split(/\s+/)
         if (!ctx.hasUI) return
         if (state.mode !== 'manager') {
           ctx.ui.notify(
-            'Workers browser is only available in manager mode.',
+            'Subagents browser is only available in manager mode.',
             'info',
           )
           return
@@ -347,22 +352,22 @@ export async function setupManager(
         const { fleet } = runtime
 
         if (argList[0] === 'add') {
-          runtime.demoManager ??= new WorkerManagerDemo()
-          runtime.demoManager.add(argList.slice(1).join(' '))
+          runtime.demoSubagentManager ??= new SubagentManagerDemo()
+          runtime.demoSubagentManager.add(argList.slice(1).join(' '))
           fleet.update()
           ctx.ui.notify(
-            'Added a demo worker. Use /workers demo to exit demo mode.',
+            'Added a demo subagent. Use /subagent demo to exit demo mode.',
             'info',
           )
-        } else if (runtime.demoManager) {
-          runtime.demoManager = undefined
+        } else if (runtime.demoSubagentManager) {
+          runtime.demoSubagentManager = undefined
           fleet.update()
           ctx.ui.notify('Demo mode exited.', 'info')
         } else {
-          runtime.demoManager = new WorkerManagerDemo()
+          runtime.demoSubagentManager = new SubagentManagerDemo()
           fleet.update()
           ctx.ui.notify(
-            'Demo mode active: fake workers loaded. Use /workers demo to exit.',
+            'Demo mode active: fake subagents loaded. Use /subagent demo to exit.',
             'info',
           )
         }

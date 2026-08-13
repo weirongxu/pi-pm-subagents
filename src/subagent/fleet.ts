@@ -12,11 +12,8 @@ import { orderBy } from 'lodash-es'
 
 import { formatElapsed, rightAlign, strInline } from '../helper.js'
 
-/** Widget key for the below-editor fleet list. */
 const FLEET_KEY = 'pi-modes:fleet'
-/** Re-render cadence so elapsed/activity stats tick while run. */
 const TICK_MS = 200
-/** Max agent rows shown at once; extras collapse into a "↓ N more" hint. */
 const MAX_ROWS = 5
 
 export type FleetEntryStatus = 'running' | 'done' | 'failed' | 'stopped'
@@ -30,24 +27,12 @@ export interface FleetEntry {
 }
 
 export interface FleetListOptions {
-  /** Current roster; order is irrelevant — the list sorts by start time. */
   list: () => FleetEntry[]
-  /** Open the live viewer for a entry id; called on `Enter`. */
   onOpen: (ctx: ExtensionContext, id: number) => void | Promise<void>
 }
 
 type RosterEntry = { kind: 'main' } | { kind: 'item'; item: FleetEntry }
 
-/**
- * Claude Code-style "FleetView" list rendered below the editor. The list itself
- * is a render-only `belowEditor` widget; all key handling goes through
- * `onTerminalInput` (which fires before the editor and can consume keys),
- * gated on an empty prompt so normal typing is untouched.
- *
- * `↓`/`←` at an empty prompt activates; `↑`/`↓` move the selection across
- * `main` + items; `Enter` opens the selected item's live conversation
- * overlay; `Esc` (or `↑` past the top) returns to the prompt.
- */
 export class FleetList {
   private ctx: ExtensionContext | undefined
   private tui: TUI | undefined
@@ -59,7 +44,6 @@ export class FleetList {
 
   constructor(private options: FleetListOptions) {}
 
-  /** Capture the UI context and (re)register the global input handler. */
   setContext(ctx: ExtensionContext): void {
     if (ctx === this.ctx) return
     this.inputUnsub?.()
@@ -70,7 +54,6 @@ export class FleetList {
     this.update()
   }
 
-  /** Re-register or refresh the widget; clears it when no items remain. */
   update(): void {
     const ctx = this.ctx
     if (!ctx) return
@@ -136,8 +119,6 @@ export class FleetList {
     this.selectedIndex = 0
   }
 
-  // ---- roster ----
-
   private roster(): RosterEntry[] {
     const items = orderBy(this.options.list(), [
       (it) => [it.status === 'running' ? 0 : 1, it.id],
@@ -156,8 +137,6 @@ export class FleetList {
     const max = this.roster().length - 1
     this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, max))
   }
-
-  // ---- key handling ----
 
   private handleKey(data: string): { consume?: boolean } | undefined {
     const ctx = this.ctx
@@ -210,7 +189,6 @@ export class FleetList {
       return { consume: true }
     }
 
-    // Any other key cancels navigation and flows through to the editor.
     this.deactivate()
     return undefined
   }
@@ -233,8 +211,6 @@ export class FleetList {
     await this.options.onOpen(ctx, id)
     this.update()
   }
-
-  // ---- rendering ----
 
   private renderBar(width: number): string[] {
     const ctx = this.ctx

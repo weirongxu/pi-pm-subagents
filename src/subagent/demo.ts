@@ -14,31 +14,33 @@ import type {
   PromptOptions,
 } from '@earendil-works/pi-coding-agent'
 
-import type { LiveWorker } from './worker.js'
-import { WorkerManager } from './worker.js'
+import type { LiveSubagent } from './manager.js'
+import { SubagentManager } from './manager.js'
 
 type MockAgentSession = Pick<
   AgentSession,
   'messages' | 'dispose' | 'abort' | 'steer' | 'subscribe' | 'prompt'
 >
 
-export class WorkerManagerDemo extends WorkerManager {
-  readonly #workers: LiveWorker[] = initialDemoWorkers()
+export class SubagentManagerDemo extends SubagentManager {
+  readonly #subagents: LiveSubagent[] = initialDemoSubagents()
 
-  override list(): LiveWorker[] {
-    return [...this.#workers]
+  override list(): LiveSubagent[] {
+    return [...this.#subagents]
   }
 
-  override get(id: number): LiveWorker | undefined {
-    return this.#workers.find((w) => w.id === id)
+  override get(id: number): LiveSubagent | undefined {
+    return this.#subagents.find((w) => w.id === id)
   }
 
-  override latest(): LiveWorker | undefined {
-    return this.#workers[this.#workers.length - 1]
+  override latest(): LiveSubagent | undefined {
+    return this.#subagents[this.#subagents.length - 1]
   }
 
-  override spawn(): Promise<LiveWorker> {
-    return Promise.reject(new Error('spawn is not supported for demo workers'))
+  override spawn(): Promise<LiveSubagent> {
+    return Promise.reject(
+      new Error('spawn is not supported for demo subagents'),
+    )
   }
 
   override steer(): Promise<boolean> {
@@ -46,17 +48,17 @@ export class WorkerManagerDemo extends WorkerManager {
   }
 
   override async abort(id: number): Promise<boolean> {
-    const worker = this.get(id)
-    if (!worker || worker.status !== 'running') return false
-    worker.status = 'stopped'
-    worker.completedAt = Date.now()
-    worker.message = '(Worker stopped.)'
+    const subagent = this.get(id)
+    if (!subagent || subagent.status !== 'running') return false
+    subagent.status = 'stopped'
+    subagent.completedAt = Date.now()
+    subagent.message = '(Subagent stopped.)'
     return true
   }
 
   add(text?: string): void {
-    this.#workers.push({
-      id: this.#workers.length + 1,
+    this.#subagents.push({
+      id: this.#subagents.length + 1,
       title: text ?? 'Review and fix authentication flow',
       text: text ?? 'Review and fix authentication flow',
       status: 'running',
@@ -71,7 +73,7 @@ export class WorkerManagerDemo extends WorkerManager {
   }
 }
 
-function initialDemoWorkers(): LiveWorker[] {
+function initialDemoSubagents(): LiveSubagent[] {
   const now = Date.now()
   return [
     {
@@ -120,7 +122,7 @@ function initialDemoWorkers(): LiveWorker[] {
       status: 'stopped',
       startedAt: now - 1800000,
       completedAt: now - 1500000,
-      message: 'Worker stopped by user.',
+      message: 'Subagent stopped by user.',
       followUpCount: 1,
       enabledTools: new Set(['read', 'edit']),
       responseText: undefined,
@@ -457,13 +459,13 @@ LIMIT 100;`,
           path: 'docs/FEATURES.md',
           content: `# New Features
 
-## Worker Mode
-Worker mode allows you to delegate complex tasks to autonomous agents.
+## Subagent Mode
+Subagent mode allows you to delegate complex tasks to autonomous agents.
 
 ### Usage
 
 \`\`\`typescript
-const worker = await workerManager.spawn(
+const subagent = await subagentManager.spawn(
   'Analyze performance',
   'Profile the main loop and identify bottlenecks',
   { cwd: '/path/to/project' }
