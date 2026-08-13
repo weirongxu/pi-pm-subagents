@@ -37,8 +37,10 @@ export class ActivityReporter {
     const now = Date.now()
     const notificationMs =
       this.options.notificationIntervalMs ?? NOTIFICATION_INTERVAL_MS
-    const running = this.options.list().filter((w) => w.status === 'running')
-    for (const subagent of running) {
+    const runningList = this.options
+      .list()
+      .filter((w) => w.status === 'running')
+    for (const subagent of runningList) {
       const last = this.lastSentAt.get(subagent.id) ?? subagent.startedAt
       if (now - last < notificationMs) continue
       this.options.onActivity(
