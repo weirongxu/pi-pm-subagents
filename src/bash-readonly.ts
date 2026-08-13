@@ -1,4 +1,12 @@
+import {
+  type BashOperations,
+  createBashToolDefinition,
+  createLocalBashOperations,
+  type ExtensionAPI,
+} from '@earendil-works/pi-coding-agent'
 import { parse as parseShell } from 'shell-quote'
+
+import { getLastModesState } from './helper.js'
 
 export type BashSafetyIssue =
   { allowed: true } | { allowed: false; subCommand: string }
@@ -19,7 +27,7 @@ const DESTRUCTIVE_BASH_PATTERNS = [
   /^\s*(vim?|nano|emacs|code|subl)\b/i,
 ] as const
 
-const READONLY_BASH_PATTERNS = [
+const BASH_READONLY_PATTERNS = [
   /^\s*(cat|head|tail|less|more|grep|find|ls|cd|pwd|echo|printf|wc|sort|uniq|diff|file|stat|du|df|tree|which|whereis|type|env|printenv|uname|whoami|id|date|uptime|ps|free)\b/,
   /^\s*git\s+(status|log|diff|show|branch|remote|ls-)/i,
   /^\s*(npm|yarn|pnpm)\s+(list|ls|view|info|outdated|audit)\b/i,
@@ -130,7 +138,7 @@ function checkSubCommandSafety(
   const destructive = DESTRUCTIVE_BASH_PATTERNS.some((p) =>
     p.test(normalizedCommand),
   )
-  const readonly = READONLY_BASH_PATTERNS.some((p) => p.test(normalizedCommand))
+  const readonly = BASH_READONLY_PATTERNS.some((p) => p.test(normalizedCommand))
 
   if (destructive) return { ok: false, subCommand: normalizedCommand }
   if (!readonly) return { ok: false, subCommand: normalizedCommand }
@@ -156,6 +164,45 @@ export function checkBashSafety(command: string): BashSafetyIssue {
   return { allowed: true }
 }
 
-export function isReadOnlyBashCommand(command: string): boolean {
+export function isBashReadonlyCommand(command: string): boolean {
   return checkBashSafety(command).allowed
+}
+
+export const BASH_READONLY_TOOL_NAME = 'bash-readonly'
+
+export function setupBashReadonlyTool(pi: ExtensionAPI): void {
+  const localOps = createLocalBashOperations()
+  const safeOps: BashOperations = {
+    exec: async (command, cwd, options) => {
+      const safety = checkBashSafety(command)
+      if (!safety.allowed) {
+        throw new Error(
+          `${BASH_READONLY_TOOL_NAME}: not allowed: "${safety.subCommand}"`,
+        )
+      }
+      return localOps.exec(command, cwd, options)
+    },
+  }
+  const def = createBashToolDefinition(process.cwd(), { operations: safeOps })
+  pi.registerTool({
+    ...def,
+    name: BASH_READONLY_TOOL_NAME,
+    label: 'Read-Only Bash',
+    description:
+      'Execute a bash command. Only commands classified as read-only are allowed; write operations are rejected. Use the regular bash tool outside of read-only modes.',
+    promptSnippet: undefined,
+    promptGuidelines: undefined,
+  })
+
+  pi.on('session_start', async (_event, ctx) => {
+    const data = getLastModesState(ctx.sessionManager.getEntries())
+    if (data === undefined) {
+      const activeTools = pi.getActiveTools()
+      if (activeTools.includes(BASH_READONLY_TOOL_NAME)) {
+        pi.setActiveTools(
+          activeTools.filter((name) => name !== BASH_READONLY_TOOL_NAME),
+        )
+      }
+    }
+  })
 }

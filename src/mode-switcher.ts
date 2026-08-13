@@ -4,7 +4,6 @@ import type {
   ThemeColor,
 } from '@earendil-works/pi-coding-agent'
 
-import { WRITE_TOOLS } from './consts.js'
 import { persist, restoreTools } from './helper.js'
 import { restoreMainModel, switchToRoleModel } from './models-config.js'
 import type { ModesState, ModeUserType } from './types.js'
@@ -20,12 +19,20 @@ export function assertModeIdle(
   }
 }
 
+export const WRITE_TOOLS = new Set(['edit', 'write'])
+
+const BASH_REPLACEMENT: ReadonlyMap<string, string> = new Map([
+  ['bash', 'bash-readonly'],
+])
+
 export function readOnlyToolSet(
   active: readonly string[],
   extra: readonly string[] = [],
 ): string[] {
-  const filtered = active.filter((name) => !WRITE_TOOLS.has(name))
-  return [...new Set([...filtered, ...extra])]
+  const transformed = active
+    .filter((name) => !WRITE_TOOLS.has(name))
+    .map((name) => BASH_REPLACEMENT.get(name) ?? name)
+  return [...new Set([...transformed, ...extra])]
 }
 
 export function enterReadOnly(

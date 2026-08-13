@@ -3,84 +3,50 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-import { truncateToWidth } from '@earendil-works/pi-tui'
 import { Type } from 'typebox'
 
-const JOB_START_EVENT = 'pi-notify:job:start'
-const JOB_END_EVENT = 'pi-notify:job:end'
-
-import { MANAGER_TOOLS } from './consts.js'
-import { FleetList } from './fleet-list.js'
-import { persist } from './helper.js'
+import { persist } from '../helper.js'
 import {
   applyModeSetup,
   assertModeIdle,
   exitReadOnly,
-} from './mode-switcher.js'
-import { getModelsConfig, resolveModelRef } from './models-config.js'
-import { exitPlanMode } from './plan.js'
-import { readPrompt } from './prompts.js'
-import type { ModesState } from './types.js'
+} from '../mode-switcher.js'
+import { getModelsConfig, resolveModelRef } from '../models-config.js'
+import { exitPlanMode } from '../plan/index.js'
+import { readPrompt } from '../prompts.js'
+import type { ModesState } from '../types.js'
+import { ActivityReporter } from './activity.js'
+import { MessageBatcher } from './batcher.js'
+import { FleetList } from './fleet.js'
+import { openWorkerViewer } from './viewer.js'
+import type { LiveWorker, WorkerStatus } from './worker.js'
 import {
-  type LiveWorker,
+  formatWorkerSummary,
   MAX_CONCURRENCY_WORKER,
   MAX_REUSE_FOLLOWUPS,
   WorkerManager,
-} from './worker-manager.js'
-import { WorkerManagerDemo } from './worker-manager-demo.js'
-import { openWorkerViewer } from './worker-viewer.js'
+} from './worker.js'
+import { WorkerManagerDemo } from './worker-demo.js'
 
 const MANAGER_MODE_WIDGET_KEY = 'pi-modes:manager-mode'
 
-export type { LiveWorker, WorkerStatus } from './worker-manager.js'
+const JOB_START_EVENT = 'pi-notify:job:start'
+const JOB_END_EVENT = 'pi-notify:job:end'
 
-export class CompletionBatcher {
-  private pendingWorkers: LiveWorker[] = []
-  private timer: ReturnType<typeof setTimeout> | undefined
-
-  constructor(
-    private readonly flush: (workers: LiveWorker[]) => void,
-    private readonly windowMs = 5000,
-  ) {}
-
-  get pending(): readonly LiveWorker[] {
-    return [...this.pendingWorkers]
-  }
-
-  add(worker: LiveWorker): void {
-    this.pendingWorkers.push(worker)
-    if (this.timer !== undefined) return
-    this.timer = setTimeout(() => {
-      this.flushNow()
-    }, this.windowMs)
-  }
-
-  flushNow(): void {
-    if (this.timer !== undefined) {
-      clearTimeout(this.timer)
-      this.timer = undefined
-    }
-    if (this.pendingWorkers.length === 0) return
-
-    const workers = this.pendingWorkers
-    this.pendingWorkers = []
-    this.flush(workers)
-  }
-
-  clear(): void {
-    if (this.timer !== undefined) {
-      clearTimeout(this.timer)
-      this.timer = undefined
-    }
-    this.pendingWorkers = []
-  }
+const MANAGER_TOOLS = {
+  delegate: 'worker_delegate',
+  kill: 'worker_kill',
+  list: 'worker_list',
 }
+
+export type { LiveWorker, WorkerStatus }
 
 interface ManagerRuntime {
   manager: WorkerManager
+  activityReporter: ActivityReporter
   demoManager: WorkerManagerDemo | undefined
   fleet: FleetList
-  batcher: CompletionBatcher
+  batcher: MessageBatcher
 }
 
 let runtime: ManagerRuntime | undefined
@@ -112,7 +78,7 @@ export async function resumeManagerMode(
   state: ModesState,
   ctx: ExtensionContext,
 ): Promise<void> {
-  const { manager, fleet } = requiredRuntime()
+  const { manager, fleet, activityReporter } = requiredRuntime()
   ensureManagerTools(pi, state, manager, fleet)
   fleet.setContext(ctx)
   await applyModeSetup(pi, state, 'manager', ctx, {
@@ -120,6 +86,7 @@ export async function resumeManagerMode(
     color: 'accent',
   })
   fleet.update()
+  activityReporter.start()
   const workerModel = getModelsConfig().worker
   ctx.ui.setWidget(MANAGER_MODE_WIDGET_KEY, [
     ctx.ui.theme.fg(
@@ -134,8 +101,9 @@ export async function exitManagerMode(
   state: ModesState,
   ctx: ExtensionContext,
 ): Promise<void> {
-  const { manager, fleet, batcher } = requiredRuntime()
+  const { manager, fleet, batcher, activityReporter } = requiredRuntime()
   batcher.clear()
+  activityReporter.stop()
   state.mode = undefined
   fleet.dispose()
   manager.disposeAll()
@@ -168,22 +136,20 @@ function ensureManagerTools(
       const sorted = [...allWorkers].sort((a, b) => a.startedAt - b.startedAt)
       const lines = [`Workers (${allWorkers.length}):`]
       for (const worker of sorted) {
-        const end = worker.completedAt ?? Date.now()
-        const elapsed = `${Math.max(0, Math.round((end - worker.startedAt) / 1000))}s`
-        lines.push(
-          `${worker.status} #${worker.id} ${truncateToWidth(worker.title, 30)} ${elapsed}`,
-        )
+        lines.push(formatWorkerSummary(worker))
       }
 
-      const text = lines.join('\n')
       const hasRunning = sorted.some((worker) => worker.status === 'running')
+      if (hasRunning)
+        lines.push(
+          '',
+          'Do not poll worker_list to wait for completion - just idle — you will be notified when workers finish.',
+        )
       return {
         content: [
           {
             type: 'text',
-            text: hasRunning
-              ? `${text}\n\nDo not poll worker_list to wait for completion - just idle — you will be notified when workers finish.`
-              : text,
+            text: lines.join('\n'),
           },
         ],
         details: {},
@@ -197,7 +163,7 @@ function ensureManagerTools(
     description: `Delegate task to background with full tool access. The tool returns immediately with a worker id; I'll send you last message when worker finishes. Max concurrency ${MAX_CONCURRENCY_WORKER} running workers`,
     parameters: Type.Object({
       title: Type.String(),
-      requirements: Type.String({
+      prompt: Type.String({
         description:
           'A self-contained description of the work the worker should do.',
       }),
@@ -212,7 +178,7 @@ function ensureManagerTools(
       const workerModel = resolveModelRef(ctx, workerRef) ?? ctx.model
       let worker: LiveWorker
       try {
-        worker = await manager.spawn(params.title, params.requirements, {
+        worker = await manager.spawn(params.title, params.prompt, {
           cwd: ctx.cwd,
           model: workerModel,
           thinkingLevel: ctx.thinkingLevel,
@@ -286,20 +252,14 @@ function ensureManagerTools(
   managerToolsRegistered = true
 }
 
-function doneMessage(worker: LiveWorker): string {
-  return `Worker #${worker.id} work done.\n\n<message>\n${worker.message ?? '(no message)'}\n</message>`
-}
-
 export async function setupManager(
   pi: ExtensionAPI,
   state: ModesState,
   { demoEnabled }: { demoEnabled: boolean },
 ): Promise<void> {
-  const batcher = new CompletionBatcher((workers) => {
+  const batcher = new MessageBatcher((messages: readonly string[]) => {
     if (state.mode !== 'manager') return
-    pi.sendUserMessage(workers.map(doneMessage).join('\n\n'), {
-      deliverAs: 'steer',
-    })
+    pi.sendUserMessage(messages.join('\n\n'), { deliverAs: 'steer' })
   })
   const manager = new WorkerManager({
     onStatusChange: () => runtime?.fleet.update(),
@@ -313,9 +273,20 @@ export async function setupManager(
         id: `pi-modes:session:${worker.id}`,
       })
       if (state.mode !== 'manager') return
-      batcher.add(worker)
+      batcher.add(
+        worker,
+        'done',
+        `<message>\n${worker.message ?? '(no message)'}\n</message>`,
+      )
     },
   })
+  const activityReporter = new ActivityReporter({
+    list: () => manager.list(),
+    onActivity: (worker, report) => {
+      batcher.add(worker, 'activity', report)
+    },
+  })
+
   const fleet = new FleetList({
     list: () => runtime?.demoManager?.list() ?? manager.list(),
     onOpen: async (ctx, id) => {
@@ -323,7 +294,14 @@ export async function setupManager(
       return openWorkerViewer(ctx, activeManager, id)
     },
   })
-  runtime = { manager, demoManager: undefined, fleet, batcher }
+
+  runtime = {
+    manager,
+    activityReporter,
+    demoManager: undefined,
+    fleet,
+    batcher,
+  }
 
   pi.on('session_start', () => {
     managerToolsRegistered = false

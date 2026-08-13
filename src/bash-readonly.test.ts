@@ -1,82 +1,93 @@
 import { describe, expect, it } from 'vitest'
 
+import { checkBashSafety, isBashReadonlyCommand } from './bash-readonly.js'
 import { readOnlyToolSet } from './mode-switcher.js'
-import { checkBashSafety, isReadOnlyBashCommand } from './readonly-bash.js'
 
-describe('isReadOnlyBashCommand', () => {
+describe('isBashReadonlyCommand', () => {
   it('allows read-only commands', () => {
-    expect(isReadOnlyBashCommand('ls -la')).toBe(true)
-    expect(isReadOnlyBashCommand('git status')).toBe(true)
-    expect(isReadOnlyBashCommand('cat README.md')).toBe(true)
-    expect(isReadOnlyBashCommand('rg "foo" src/')).toBe(true)
-    expect(isReadOnlyBashCommand('pnpm test')).toBe(true)
-    expect(isReadOnlyBashCommand('npm test')).toBe(true)
-    expect(isReadOnlyBashCommand('yarn test')).toBe(true)
-    expect(isReadOnlyBashCommand('pnpm run test')).toBe(true)
-    expect(isReadOnlyBashCommand('pnpm test:unit')).toBe(true)
-    expect(isReadOnlyBashCommand('yarn run test')).toBe(true)
-    expect(isReadOnlyBashCommand('cd /some/path')).toBe(true)
+    expect(isBashReadonlyCommand('ls -la')).toBe(true)
+    expect(isBashReadonlyCommand('git status')).toBe(true)
+    expect(isBashReadonlyCommand('cat README.md')).toBe(true)
+    expect(isBashReadonlyCommand('rg "foo" src/')).toBe(true)
+    expect(isBashReadonlyCommand('pnpm test')).toBe(true)
+    expect(isBashReadonlyCommand('npm test')).toBe(true)
+    expect(isBashReadonlyCommand('yarn test')).toBe(true)
+    expect(isBashReadonlyCommand('pnpm run test')).toBe(true)
+    expect(isBashReadonlyCommand('pnpm test:unit')).toBe(true)
+    expect(isBashReadonlyCommand('yarn run test')).toBe(true)
+    expect(isBashReadonlyCommand('cd /some/path')).toBe(true)
     expect(
-      isReadOnlyBashCommand(
+      isBashReadonlyCommand(
         'cd /home/raidou/repos/raidou/pi-notify && pnpm test 2>&1 | tail -30',
       ),
     ).toBe(true)
-    expect(isReadOnlyBashCommand('cd .. && ls')).toBe(true)
+    expect(isBashReadonlyCommand('cd .. && ls')).toBe(true)
   })
 
   it('validates each shell subcommand independently', () => {
-    expect(isReadOnlyBashCommand('cat README.md && echo done')).toBe(true)
-    expect(isReadOnlyBashCommand('cat README.md; rm file')).toBe(false)
-    expect(isReadOnlyBashCommand('ls || rm -rf /')).toBe(false)
-    expect(isReadOnlyBashCommand('cat foo | grep bar')).toBe(true)
-    expect(isReadOnlyBashCommand('cat README.md; echo "rm -rf /"')).toBe(true)
-    expect(isReadOnlyBashCommand('pnpm test | tail')).toBe(true)
-    expect(isReadOnlyBashCommand('pnpm test 2>&1 | tail -60')).toBe(true)
-    expect(isReadOnlyBashCommand('pnpm test | grep FAIL')).toBe(true)
-    expect(isReadOnlyBashCommand('pnpm test | rm file')).toBe(false)
+    expect(isBashReadonlyCommand('cat README.md && echo done')).toBe(true)
+    expect(isBashReadonlyCommand('cat README.md; rm file')).toBe(false)
+    expect(isBashReadonlyCommand('ls || rm -rf /')).toBe(false)
+    expect(isBashReadonlyCommand('cat foo | grep bar')).toBe(true)
+    expect(isBashReadonlyCommand('cat README.md; echo "rm -rf /"')).toBe(true)
+    expect(isBashReadonlyCommand('pnpm test | tail')).toBe(true)
+    expect(isBashReadonlyCommand('pnpm test 2>&1 | tail -60')).toBe(true)
+    expect(isBashReadonlyCommand('pnpm test | grep FAIL')).toBe(true)
+    expect(isBashReadonlyCommand('pnpm test | rm file')).toBe(false)
   })
 
   it('rejects empty shell subcommands', () => {
-    expect(isReadOnlyBashCommand('')).toBe(false)
-    expect(isReadOnlyBashCommand('cat README.md &&')).toBe(false)
+    expect(isBashReadonlyCommand('')).toBe(false)
+    expect(isBashReadonlyCommand('cat README.md &&')).toBe(false)
   })
 
   it('allows read-only commands with forward prefix', () => {
-    expect(isReadOnlyBashCommand('rtk ls -la')).toBe(true)
-    expect(isReadOnlyBashCommand('rtk git status')).toBe(true)
-    expect(isReadOnlyBashCommand('rtk git diff path/to')).toBe(true)
+    expect(isBashReadonlyCommand('rtk ls -la')).toBe(true)
+    expect(isBashReadonlyCommand('rtk git status')).toBe(true)
+    expect(isBashReadonlyCommand('rtk git diff path/to')).toBe(true)
     expect(
-      isReadOnlyBashCommand(
+      isBashReadonlyCommand(
         `export RTK_DB_PATH='/tmp/pi-rtk-optimizer/history.db'; rtk ls -la`,
       ),
     ).toBe(true)
   })
 
   it('blocks destructive commands', () => {
-    expect(isReadOnlyBashCommand('rm -rf /')).toBe(false)
-    expect(isReadOnlyBashCommand('npm install')).toBe(false)
-    expect(isReadOnlyBashCommand('git commit -m x')).toBe(false)
-    expect(isReadOnlyBashCommand('echo hi > out.txt')).toBe(false)
-    expect(isReadOnlyBashCommand('sudo apt-get install evil')).toBe(false)
+    expect(isBashReadonlyCommand('rm -rf /')).toBe(false)
+    expect(isBashReadonlyCommand('npm install')).toBe(false)
+    expect(isBashReadonlyCommand('git commit -m x')).toBe(false)
+    expect(isBashReadonlyCommand('echo hi > out.txt')).toBe(false)
+    expect(isBashReadonlyCommand('sudo apt-get install evil')).toBe(false)
   })
 
   it('blocks destructive commands even with forward prefix', () => {
-    expect(isReadOnlyBashCommand('rtk rm -rf /')).toBe(false)
-    expect(isReadOnlyBashCommand('rtk npm install')).toBe(false)
-    expect(isReadOnlyBashCommand('rtk git commit -m x')).toBe(false)
+    expect(isBashReadonlyCommand('rtk rm -rf /')).toBe(false)
+    expect(isBashReadonlyCommand('rtk npm install')).toBe(false)
+    expect(isBashReadonlyCommand('rtk git commit -m x')).toBe(false)
   })
 })
 
 describe('readOnlyToolSet', () => {
-  it('drops write tools and merges extras', () => {
+  it('drops write tools, replaces bash, and merges extras', () => {
     expect(
       readOnlyToolSet(['read', 'edit', 'write', 'bash'], ['delegate_worker']),
-    ).toEqual(['read', 'bash', 'delegate_worker'])
+    ).toEqual(['read', 'bash-readonly', 'delegate_worker'])
   })
 
   it('deduplicates', () => {
     expect(readOnlyToolSet(['read', 'read', 'edit'], ['read'])).toEqual([
       'read',
+    ])
+  })
+
+  it('does not inject bash-readonly when bash is not present', () => {
+    expect(readOnlyToolSet(['read', 'grep'], [])).toEqual(['read', 'grep'])
+  })
+
+  it('passes through bash-readonly unchanged when already present', () => {
+    expect(readOnlyToolSet(['read', 'bash-readonly'], [])).toEqual([
+      'read',
+      'bash-readonly',
     ])
   })
 })

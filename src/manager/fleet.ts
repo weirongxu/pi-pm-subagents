@@ -10,7 +10,7 @@ import {
 } from '@earendil-works/pi-tui'
 import { orderBy } from 'lodash-es'
 
-import { rightAlign, strInline } from './helper.js'
+import { formatElapsed, rightAlign, strInline } from '../helper.js'
 
 /** Widget key for the below-editor fleet list. */
 const FLEET_KEY = 'pi-modes:fleet'
@@ -308,16 +308,4 @@ export class FleetList {
       this.timer = undefined
     }
   }
-}
-
-export function formatElapsed(item: FleetEntry): string {
-  const end = item.completedAt ?? Date.now()
-  const seconds = Math.max(0, Math.floor((end - item.startedAt) / 1000))
-  if (seconds < 60) return `${seconds}s`
-  const minutes = Math.floor(seconds / 60)
-  const remainingSeconds = seconds % 60
-  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`
-  const hours = Math.floor(minutes / 60)
-  const remainingMinutes = minutes % 60
-  return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`
 }

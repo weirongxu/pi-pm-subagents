@@ -5,18 +5,18 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { Markdown, matchesKey, truncateToWidth } from '@earendil-works/pi-tui'
 
-import { BorderView } from './border-view.js'
-import { lastAssistantText, persist } from './helper.js'
-import { enterManagerMode, exitManagerMode } from './manager.js'
+import { BorderView } from '../border-view.js'
+import { lastAssistantText, persist } from '../helper.js'
+import { enterManagerMode, exitManagerMode } from '../manager/index.js'
 import {
   applyModeSetup,
   assertModeIdle,
   exitReadOnly,
-} from './mode-switcher.js'
-import { setupPlanDemo } from './plan-demo.js'
-import { readPrompt } from './prompts.js'
-import { ScrollView } from './scroll-view.js'
-import type { ModesState } from './types.js'
+} from '../mode-switcher.js'
+import { readPrompt } from '../prompts.js'
+import { ScrollView } from '../scroll-view.js'
+import type { ModesState } from '../types.js'
+import { setupPlanDemo } from './demo.js'
 
 const PLAN_CHOICES = [
   'Execute directly',

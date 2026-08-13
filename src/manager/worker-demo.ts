@@ -14,8 +14,8 @@ import type {
   PromptOptions,
 } from '@earendil-works/pi-coding-agent'
 
-import type { LiveWorker } from './worker-manager.js'
-import { WorkerManager } from './worker-manager.js'
+import type { LiveWorker } from './worker.js'
+import { WorkerManager } from './worker.js'
 
 type MockAgentSession = Pick<
   AgentSession,

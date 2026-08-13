@@ -9,8 +9,9 @@ import {
   getAgentDir,
   SessionManager,
 } from '@earendil-works/pi-coding-agent'
+import { truncateToWidth } from '@earendil-works/pi-tui'
 
-import { lastMessageText, messageText } from './helper.js'
+import { formatElapsed, lastMessageText, messageText } from '../helper.js'
 
 const SELF_DIR = fileURLToPath(new URL('../', import.meta.url))
 
@@ -75,6 +76,14 @@ export interface WorkerManagerOptions {
   onStart?: (worker: LiveWorker) => void
   /** Fired once when a worker exits running state (done/failed/stopped/disposed). */
   onEnd?: (worker: LiveWorker) => void
+}
+
+/** Plain-text one-line summary of a worker: `status #id title(elided) elapsed`. */
+export function formatWorkerSummary(
+  worker: LiveWorker,
+  titleWidth = 30,
+): string {
+  return `${worker.status} #${worker.id} ${truncateToWidth(worker.title, titleWidth)} follow-up(${worker.followUpCount}) ${formatElapsed(worker)}`
 }
 
 export class WorkerManager {
@@ -257,15 +266,13 @@ export class WorkerManager {
   private async run(worker: LiveWorker, task: string): Promise<void> {
     try {
       await worker.session.prompt(`Task: ${task}`)
-      const lastMessage = lastMessageText(worker.session.messages)
+      const lastMessage = lastMessageText(
+        worker.session.messages,
+        MAX_WORKER_OUTPUT_BYTES,
+      )
       if (!lastMessage) {
         worker.message = '(Worker finished without a final message.)'
-      } else if (
-        Buffer.byteLength(lastMessage, 'utf8') > MAX_WORKER_OUTPUT_BYTES
-      ) {
-        worker.message = `${lastMessage.slice(0, MAX_WORKER_OUTPUT_BYTES)}\n\n[Output truncated. Verify remaining details with read-only tools.]`
       } else {
-        // FIXME: MAX_WORKER_OUTPUT_BYTES 应该优化到这里来用一个函数判断
         worker.message = lastMessage
       }
       if (worker.status === 'running') worker.status = 'done'

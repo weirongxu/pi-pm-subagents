@@ -14,14 +14,10 @@ import {
   wrapTextWithAnsi,
 } from '@earendil-works/pi-tui'
 
-import { BorderView } from './border-view.js'
-import { rightAlign, strInline } from './helper.js'
-import { ScrollView } from './scroll-view.js'
-import type {
-  LiveWorker,
-  WorkerManager,
-  WorkerStatus,
-} from './worker-manager.js'
+import { BorderView } from '../border-view.js'
+import { rightAlign, strInline } from '../helper.js'
+import { ScrollView } from '../scroll-view.js'
+import type { LiveWorker, WorkerManager, WorkerStatus } from './worker.js'
 
 const STATUS_COLOR = {
   running: 'accent',

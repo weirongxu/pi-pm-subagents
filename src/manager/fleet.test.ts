@@ -3,7 +3,8 @@ import type { TUI } from '@earendil-works/pi-tui'
 import { Editor } from '@earendil-works/pi-tui'
 import { describe, expect, it } from 'vitest'
 
-import { type FleetEntry, FleetList, formatElapsed } from './fleet-list.js'
+import { formatElapsed } from '../helper.js'
+import { type FleetEntry, FleetList } from './fleet.js'
 
 describe('formatElapsed', () => {
   const base = (
@@ -126,7 +127,7 @@ describe('FleetList focus gate (#123)', () => {
 
   function createFakeTheme() {
     return {
-      fg: (variant: string, text: string) => text,
+      fg: (_variant: string, text: string) => text,
       strikethrough: (text: string) => text,
       borderColor: (str: string) => str,
       selectList: {
