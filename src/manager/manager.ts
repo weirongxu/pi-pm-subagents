@@ -9,7 +9,7 @@ import {
   assertModeIdle,
   exitReadOnly,
 } from '../mode-switcher.js'
-import { getModelsConfig } from '../models-config.js'
+import { getPiModesConfig } from '../models-config.js'
 import { exitPlanMode } from '../plan/index.js'
 import { readPrompt } from '../prompts.js'
 import { ActivityReporter } from '../subagent/activity.js'
@@ -76,7 +76,7 @@ export async function resumeManagerMode(
   })
   fleet.update()
   activityReporter.start()
-  const subagentModel = getModelsConfig().subagent
+  const subagentModel = getPiModesConfig().subagentDefaultModel ?? 'DEFAULT'
   ctx.ui.setWidget(MANAGER_MODE_WIDGET_KEY, [
     ctx.ui.theme.fg(
       'accent',
@@ -97,7 +97,7 @@ export async function exitManagerMode(
   fleet.dispose()
   manager.disposeAll()
   ctx.ui.setWidget(MANAGER_MODE_WIDGET_KEY, undefined)
-  await exitReadOnly(pi, state, ctx, 'manager', { restoreModel: true })
+  await exitReadOnly(pi, state, ctx, 'manager')
 }
 
 export async function setupManager(

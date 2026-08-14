@@ -120,10 +120,11 @@ export class FleetList {
   }
 
   private roster(): RosterEntry[] {
-    const items = orderBy(this.options.list(), [
+    const items = orderBy(
+      this.options.list(),
       (it) => [it.status === 'running' ? 0 : 1, it.id],
       ['asc', 'desc'],
-    ])
+    )
     return [
       { kind: 'main' },
       ...items.map((item): RosterEntry => ({

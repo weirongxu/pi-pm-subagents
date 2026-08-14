@@ -7,55 +7,48 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
+import type { Static } from 'typebox'
 import { Type } from 'typebox'
 import { Parse } from 'typebox/value'
 
 import { customSelect } from './custom-select.js'
-import type { ModeRole, ModesState } from './types.js'
-
-export const MODES_ROLES: readonly ModeRole[] = ['plan', 'manager', 'subagent']
-
-export type ModelsConfig = Partial<Record<ModeRole, string>>
 
 export const MODEL_DEFAULT = 'DEFAULT'
 
-/** Schema for `<agentDir>/modes-models.json`: optional ref per role. */
-const ModelsConfigSchema = Type.Object({
-  plan: Type.Optional(Type.String()),
-  manager: Type.Optional(Type.String()),
-  subagent: Type.Optional(Type.String()),
+const PiModesConfigSchema = Type.Object({
+  subagentDefaultModel: Type.Optional(Type.String()),
 })
 
-let modelsConfig: ModelsConfig = {}
+export type PiModesConfig = Static<typeof PiModesConfigSchema>
+
+let piModesConfig: PiModesConfig = {}
 
 function configPath(): string {
-  return join(getAgentDir(), 'modes-models.json')
+  return join(getAgentDir(), 'pi-modes.json')
 }
 
-/** Read `<agentDir>/modes-models.json` into the module cache. */
-export async function loadModelsConfig(): Promise<void> {
+export async function loadPiModesConfig(): Promise<void> {
   try {
     const raw: unknown = JSON.parse(await readFile(configPath(), 'utf8'))
-    const record = Parse(ModelsConfigSchema, raw)
-    for (const role of MODES_ROLES) {
-      const model = record[role]
-      if (model !== undefined && !parseModelRef(model)) record[role] = undefined
-    }
-    modelsConfig = record
+    const record = Parse(PiModesConfigSchema, raw)
+    const model = record.subagentDefaultModel
+    if (model !== undefined && !parseModelRef(model))
+      record.subagentDefaultModel = undefined
+    piModesConfig = record
   } catch {
-    modelsConfig = {}
+    piModesConfig = {}
   }
 }
 
-export function getModelsConfig(): ModelsConfig {
-  return modelsConfig
+export function getPiModesConfig(): PiModesConfig {
+  return piModesConfig
 }
 
-async function saveModelsConfig(): Promise<void> {
+async function savePiModesConfig(): Promise<void> {
   await mkdir(dirname(configPath()), { recursive: true })
   await writeFile(
     configPath(),
-    `${JSON.stringify(modelsConfig, null, 2)}\n`,
+    `${JSON.stringify(piModesConfig, null, 2)}\n`,
     'utf8',
   )
 }
@@ -82,10 +75,6 @@ export function resolveModelRef(
   return ctx.modelRegistry.find(parsed.provider, parsed.id)
 }
 
-function isRole(value: string): value is ModeRole {
-  return (MODES_ROLES as readonly string[]).includes(value)
-}
-
 async function pickModel(ctx: ExtensionContext): Promise<string | undefined> {
   const items = [
     { key: MODEL_DEFAULT, text: 'DEFAULT (use agent default)' },
@@ -101,76 +90,10 @@ async function pickModel(ctx: ExtensionContext): Promise<string | undefined> {
   })
 }
 
-/** Resolve a role from an explicit arg, otherwise prompt the user. */
-async function pickRole(
-  ctx: ExtensionContext,
-  arg?: string,
-): Promise<ModeRole | undefined> {
-  if (arg) {
-    if (isRole(arg)) return arg
-    ctx.ui.notify(`Invalid role ${arg}`, 'warning')
-    return undefined
-  }
-  const picked = await customSelect(ctx, {
-    title: 'Select role to configure',
-    items: MODES_ROLES.map((it) => ({ key: it, text: it })),
-  })
-  return picked && isRole(picked) ? picked : undefined
-}
-
-export async function switchToRoleModel(
-  pi: ExtensionAPI,
-  state: ModesState,
-  role: ModeRole,
-  ctx: ExtensionContext,
-): Promise<void> {
-  const ref = modelsConfig[role]
-  if (!ref) return
-  if (ctx.model && modelRefOf(ctx.model) === ref) return
-  if (!state.modelBackup && ctx.model) state.modelBackup = modelRefOf(ctx.model)
-  const model = resolveModelRef(ctx, ref)
-  if (!model) {
-    ctx.ui.notify(`Unknown model "${ref}" for ${role} role`, 'warning')
-    return
-  }
-  const ok = await pi.setModel(model)
-  if (!ok)
-    ctx.ui.notify(`Could not switch to ${ref} (missing API key?)`, 'warning')
-}
-
-/** Restore the main-session model captured before the last role switch. */
-export async function restoreMainModel(
-  pi: ExtensionAPI,
-  state: ModesState,
-  ctx: ExtensionContext,
-): Promise<void> {
-  const ref = state.modelBackup
-  if (!ref) return
-  state.modelBackup = undefined
-  const model = resolveModelRef(ctx, ref)
-  if (model) await pi.setModel(model)
-}
-
-/** Register the `/modes-model` command (role model configuration). */
-export function setupModesConfig(pi: ExtensionAPI, state: ModesState): void {
-  pi.registerCommand('modes-model', {
-    description:
-      'Configure role models. Usage: /modes-model [show] · /modes-model <plan|manager|subagent>',
-    getArgumentCompletions: (prefix: string) => {
-      const items = [...MODES_ROLES, 'show']
-        .filter((candidate) => candidate.startsWith(prefix))
-        .map((candidate) => ({ value: candidate, label: candidate }))
-      return items.length > 0 ? items : null
-    },
-    handler: async (args, ctx) => {
-      const arg = args.trim()
-      if (arg === 'show') {
-        showModelsConfig(ctx)
-        return
-      }
-
-      const role = await pickRole(ctx, arg || undefined)
-      if (!role) return
+export function setupModesConfig(pi: ExtensionAPI): void {
+  pi.registerCommand('modes-subagent-model', {
+    description: 'Configure the default model for subagents',
+    handler: async (_args, ctx) => {
       const model = await pickModel(ctx)
       if (!model) {
         ctx.ui.notify('No model selected', 'warning')
@@ -183,25 +106,20 @@ export function setupModesConfig(pi: ExtensionAPI, state: ModesState): void {
         return
       }
 
-      if (isDefaultModel) modelsConfig[role] = undefined
-      else modelsConfig[role] = model
-      await saveModelsConfig()
+      if (isDefaultModel) piModesConfig.subagentDefaultModel = undefined
+      else piModesConfig.subagentDefaultModel = model
+      await savePiModesConfig()
 
       showModelsConfig(ctx)
-
-      if (role === state.mode) {
-        await switchToRoleModel(pi, state, role, ctx)
-      }
     },
   })
 }
 
 function showModelsConfig(ctx: ExtensionContext): void {
-  const items: string[] = []
-  for (const role of MODES_ROLES) {
-    const model = modelsConfig[role]
-    if (model === undefined) continue
-    items.push(`${role}: ${model}`)
+  const model = piModesConfig.subagentDefaultModel
+  if (model === undefined) {
+    ctx.ui.notify('Subagent: DEFAULT', 'info')
+  } else {
+    ctx.ui.notify(`Subagent: ${model}`, 'info')
   }
-  ctx.ui.notify(items.join('\n'), 'info')
 }

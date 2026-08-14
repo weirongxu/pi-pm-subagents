@@ -5,7 +5,7 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { Type } from 'typebox'
 
-import { getModelsConfig, resolveModelRef } from '../models-config.js'
+import { getPiModesConfig, resolveModelRef } from '../models-config.js'
 import { registerOptionalTools } from '../pi-utils.js'
 import type { ModesState } from '../types.js'
 import type { FleetList } from './fleet.js'
@@ -89,7 +89,7 @@ export function registerSubagentTools(
         ),
       }),
       async execute(_toolCallId, params, signal, _onUpdate, ctx) {
-        const subagentRef = getModelsConfig().subagent
+        const subagentRef = getPiModesConfig().subagentDefaultModel
         const subagentModel = resolveModelRef(ctx, subagentRef) ?? ctx.model
         let subagent: LiveSubagent
         try {

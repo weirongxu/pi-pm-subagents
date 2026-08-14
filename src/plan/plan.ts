@@ -63,14 +63,11 @@ export async function exitPlanMode(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
-  options: { restoreModel?: boolean; clearMarkdown?: boolean } = {},
 ): Promise<void> {
-  const restoreModel = options.restoreModel ?? true
-  const clearMarkdown = options.clearMarkdown ?? true
   state.mode = undefined
-  if (clearMarkdown) state.planMarkdown = undefined
+  state.planMarkdown = undefined
   ctx.ui.setWidget(PLAN_MODE_WIDGET_KEY, undefined)
-  await exitReadOnly(pi, state, ctx, 'plan', { restoreModel })
+  await exitReadOnly(pi, state, ctx, 'plan')
 }
 
 export function renderPlanPager(
@@ -201,7 +198,7 @@ async function askHowToProceed(
         break
       }
       case 'Execute via manager':
-        await exitPlanMode(pi, state, ctx, { restoreModel: true })
+        await exitPlanMode(pi, state, ctx)
         await enterManagerMode(pi, state, planBlock, ctx)
         break
       case 'Refine the plan': {

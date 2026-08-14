@@ -5,7 +5,6 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 
 import { persist, restoreTools } from './helper.js'
-import { restoreMainModel, switchToRoleModel } from './models-config.js'
 import type { ModesState, ModeUserType } from './types.js'
 
 export function assertModeIdle(
@@ -49,10 +48,8 @@ export async function exitReadOnly(
   state: ModesState,
   ctx: ExtensionContext,
   name: ModeUserType,
-  options: { restoreModel?: boolean } = {},
 ): Promise<void> {
   restoreTools(pi, state)
-  if (options.restoreModel) await restoreMainModel(pi, state, ctx)
   ctx.ui.setStatus(name, undefined)
   persist(pi, state)
 }
@@ -72,6 +69,5 @@ export async function applyModeSetup(
   options: ModeSetupOptions,
 ): Promise<void> {
   enterReadOnly(pi, state, options.extraTools ?? [])
-  await switchToRoleModel(pi, state, mode, ctx)
   ctx.ui.setStatus(mode, ctx.ui.theme.fg(options.color, mode))
 }

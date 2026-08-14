@@ -53,7 +53,7 @@ export interface SubagentManagerOptions {
 
 export function formatSubagentSummary(
   subagent: LiveSubagent,
-  titleWidth = 30,
+  titleWidth = 80,
 ): string {
   return `${subagent.status} #${subagent.id} ${truncateToWidth(subagent.title, titleWidth)} follow-up(${subagent.followUpCount}) ${formatElapsed(subagent)}`
 }

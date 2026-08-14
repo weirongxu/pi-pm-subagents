@@ -25,7 +25,6 @@ export function persist(pi: ExtensionAPI, state: ModesState): void {
     mode: state.mode,
     planMarkdown: state.planMarkdown,
     toolsBackup: state.toolsBackup,
-    modelBackup: state.modelBackup,
   })
 }
 
