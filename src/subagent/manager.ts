@@ -55,7 +55,13 @@ export function formatSubagentSummary(
   subagent: LiveSubagent,
   titleWidth = 80,
 ): string {
-  return `${subagent.status} #${subagent.id} ${truncateToWidth(subagent.title, titleWidth)} follow-up(${subagent.followUpCount}) ${formatElapsed(subagent)}`
+  return [
+    subagent.status,
+    `#${subagent.id}`,
+    truncateToWidth(subagent.title, titleWidth),
+    `F(${subagent.followUpCount})}`,
+    formatElapsed(subagent),
+  ].join(' ')
 }
 
 export class SubagentManager {

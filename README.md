@@ -16,7 +16,7 @@ Let the agent delegate some subagents to work and supervise them.
 
 ## Model configuration
 
-`/modes-model` configures which model each role uses
+`/modes-subagent-model` configures the default model for subagents
 
 ## Customizing prompts
 
