@@ -121,6 +121,7 @@ export async function setupCoordinator(
         id: `pi-modes:session:${subagent.id}`,
       })
       if (state.mode !== 'coordinator') return
+      if (subagent.status === 'killed') return
       batcher.add(
         subagent,
         'done',

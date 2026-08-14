@@ -50,9 +50,9 @@ export class SubagentManagerDemo extends SubagentManager {
   override async abort(id: number): Promise<boolean> {
     const subagent = this.get(id)
     if (!subagent || subagent.status !== 'running') return false
-    subagent.status = 'stopped'
+    subagent.status = 'killed'
     subagent.completedAt = Date.now()
-    subagent.message = '(Subagent stopped.)'
+    subagent.message = '(Subagent killed.)'
     return true
   }
 
@@ -119,10 +119,10 @@ function initialDemoSubagents(): LiveSubagent[] {
       id: 4,
       title: 'Optimize database queries for dashboard',
       text: 'Optimize database queries for dashboard',
-      status: 'stopped',
+      status: 'killed',
       startedAt: now - 1800000,
       completedAt: now - 1500000,
-      message: 'Subagent stopped by user.',
+      message: 'Subagent killed by user.',
       followUpCount: 1,
       enabledTools: new Set(['read', 'edit']),
       responseText: undefined,

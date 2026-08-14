@@ -27,7 +27,7 @@ const STATUS_COLOR = {
   running: 'accent',
   done: 'success',
   failed: 'error',
-  stopped: 'dim',
+  killed: 'dim',
 } satisfies Record<SubagentStatus, ThemeColor>
 
 let openedViewerHandle: OverlayHandle | undefined

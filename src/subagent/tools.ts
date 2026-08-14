@@ -150,7 +150,7 @@ export function registerSubagentTools(
         try {
           const stopped = await manager.abort(params.id)
           const message = stopped
-            ? `Subagent #${params.id} stopped.`
+            ? `Subagent #${params.id} killed.`
             : `Subagent #${params.id} is not running (status: ${subagent.status}).`
           return {
             content: [{ type: 'text', text: message }],

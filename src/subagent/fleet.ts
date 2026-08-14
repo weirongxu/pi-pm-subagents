@@ -16,7 +16,7 @@ const FLEET_KEY = 'pi-modes:fleet'
 const TICK_MS = 200
 const MAX_ROWS = 5
 
-export type FleetEntryStatus = 'running' | 'done' | 'failed' | 'stopped'
+export type FleetEntryStatus = 'running' | 'done' | 'failed' | 'killed'
 
 export interface FleetEntry {
   id: number

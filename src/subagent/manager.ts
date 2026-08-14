@@ -20,7 +20,7 @@ const MAX_SUBAGENT_OUTPUT_BYTES = 50 * 1024
 export const MAX_REUSE_FOLLOWUPS = 5
 export const MAX_CONCURRENCY_SUBAGENT = 5
 
-export type SubagentStatus = 'running' | 'done' | 'failed' | 'stopped'
+export type SubagentStatus = 'running' | 'done' | 'failed' | 'killed'
 
 export interface SpawnOptions {
   cwd: string
@@ -204,8 +204,8 @@ export class SubagentManager {
   async abort(id: number): Promise<boolean> {
     const subagent = this.subagents.get(id)
     if (!subagent || subagent.status !== 'running') return false
-    subagent.status = 'stopped'
-    subagent.message = '(Subagent stopped.)'
+    subagent.status = 'killed'
+    subagent.message = '(Subagent killed.)'
     this.options.onStatusChange?.()
     await subagent.session.abort()
     return true
@@ -215,7 +215,7 @@ export class SubagentManager {
     const disposedSessions = new Set<AgentSession>()
     for (const subagent of this.subagents.values()) {
       if (subagent.status === 'running') {
-        subagent.status = 'stopped'
+        subagent.status = 'killed'
         subagent.message = '(Subagent disposed.)'
         this.options.onEnd?.(subagent)
       }
