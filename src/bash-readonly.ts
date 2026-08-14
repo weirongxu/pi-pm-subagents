@@ -2,11 +2,12 @@ import {
   type BashOperations,
   createBashToolDefinition,
   createLocalBashOperations,
+  defineTool,
   type ExtensionAPI,
 } from '@earendil-works/pi-coding-agent'
 import { parse as parseShell } from 'shell-quote'
 
-import { getLastModesState } from './helper.js'
+import { registerOptionalTools } from './pi-utils.js'
 
 export type BashSafetyIssue =
   { allowed: true } | { allowed: false; subCommand: string }
@@ -184,25 +185,15 @@ export function setupBashReadonlyTool(pi: ExtensionAPI): void {
     },
   }
   const def = createBashToolDefinition(process.cwd(), { operations: safeOps })
-  pi.registerTool({
-    ...def,
-    name: BASH_READONLY_TOOL_NAME,
-    label: 'Read-Only Bash',
-    description:
-      'Execute a bash command. Only commands classified as read-only are allowed; write operations are rejected. Use the regular bash tool outside of read-only modes.',
-    promptSnippet: undefined,
-    promptGuidelines: undefined,
-  })
-
-  pi.on('session_start', async (_event, ctx) => {
-    const data = getLastModesState(ctx.sessionManager.getEntries())
-    if (data === undefined) {
-      const activeTools = pi.getActiveTools()
-      if (activeTools.includes(BASH_READONLY_TOOL_NAME)) {
-        pi.setActiveTools(
-          activeTools.filter((name) => name !== BASH_READONLY_TOOL_NAME),
-        )
-      }
-    }
-  })
+  registerOptionalTools(pi, [
+    defineTool({
+      ...def,
+      name: BASH_READONLY_TOOL_NAME,
+      label: 'Read-Only Bash',
+      description:
+        'Execute a bash command. Only commands classified as read-only are allowed; write operations are rejected. Use the regular bash tool outside of read-only modes.',
+      promptSnippet: undefined,
+      promptGuidelines: undefined,
+    }),
+  ])
 }

@@ -21,11 +21,7 @@ import {
   SubagentManager,
   type SubagentStatus,
 } from '../subagent/manager.js'
-import {
-  registerSubagentTools,
-  resetSubagentTools,
-  SUBAGENT_TOOLS,
-} from '../subagent/tools.js'
+import { registerSubagentTools, SUBAGENT_TOOLS } from '../subagent/tools.js'
 import { openSubagentViewer } from '../subagent/viewer.js'
 import type { ModesState } from '../types.js'
 
@@ -72,8 +68,7 @@ export async function resumeManagerMode(
   state: ModesState,
   ctx: ExtensionContext,
 ): Promise<void> {
-  const { manager, fleet, activityReporter } = requiredRuntime()
-  registerSubagentTools(pi, state, manager, fleet)
+  const { fleet, activityReporter } = requiredRuntime()
   fleet.setContext(ctx)
   await applyModeSetup(pi, state, 'manager', ctx, {
     extraTools: Object.values(SUBAGENT_TOOLS),
@@ -156,9 +151,7 @@ export async function setupManager(
     batcher,
   }
 
-  pi.on('session_start', () => {
-    resetSubagentTools()
-  })
+  registerSubagentTools(pi, state, manager, fleet)
 
   const managerPrompt = await readPrompt('manager')
   pi.on('before_agent_start', async (event) => {
