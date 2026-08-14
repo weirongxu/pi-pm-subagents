@@ -25,14 +25,14 @@ import { registerSubagentTools, SUBAGENT_TOOLS } from '../subagent/tools.js'
 import { openSubagentViewer } from '../subagent/viewer.js'
 import type { ModesState } from '../types.js'
 
-const MANAGER_MODE_WIDGET_KEY = 'pi-modes:manager-mode'
+const COORDINATOR_MODE_WIDGET_KEY = 'pi-modes:coordinator-mode'
 
 const JOB_START_EVENT = 'pi-notify:job:start'
 const JOB_END_EVENT = 'pi-notify:job:end'
 
 export type { LiveSubagent, SubagentStatus }
 
-interface ManagerRuntime {
+interface CoordinatorRuntime {
   manager: SubagentManager
   activityReporter: ActivityReporter
   demoSubagentManager: SubagentManagerDemo | undefined
@@ -40,52 +40,52 @@ interface ManagerRuntime {
   batcher: MessageBatcher
 }
 
-let runtime: ManagerRuntime | undefined
+let runtime: CoordinatorRuntime | undefined
 
-function requiredRuntime(): ManagerRuntime {
+function requiredRuntime(): CoordinatorRuntime {
   if (!runtime) {
-    throw new Error('Manager mode is not initialized.')
+    throw new Error('Coordinator mode is not initialized.')
   }
   return runtime
 }
 
-export async function enterManagerMode(
+export async function enterCoordinatorMode(
   pi: ExtensionAPI,
   state: ModesState,
   request: string | undefined,
   ctx: ExtensionContext,
 ): Promise<void> {
-  assertModeIdle(state, 'manager')
-  state.mode = 'manager'
+  assertModeIdle(state, 'coordinator')
+  state.mode = 'coordinator'
   state.planMarkdown = request
-  await resumeManagerMode(pi, state, ctx)
+  await resumeCoordinatorMode(pi, state, ctx)
   persist(pi, state)
   if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
 }
 
-export async function resumeManagerMode(
+export async function resumeCoordinatorMode(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
 ): Promise<void> {
   const { fleet, activityReporter } = requiredRuntime()
   fleet.setContext(ctx)
-  await applyModeSetup(pi, state, 'manager', ctx, {
+  await applyModeSetup(pi, state, 'coordinator', ctx, {
     extraTools: Object.values(SUBAGENT_TOOLS),
     color: 'accent',
   })
   fleet.update()
   activityReporter.start()
   const subagentModel = getPiModesConfig().subagentDefaultModel ?? 'DEFAULT'
-  ctx.ui.setWidget(MANAGER_MODE_WIDGET_KEY, [
+  ctx.ui.setWidget(COORDINATOR_MODE_WIDGET_KEY, [
     ctx.ui.theme.fg(
       'accent',
-      `${ctx.ui.theme.bold('👥 MANAGER MODE')} - subagent model ${subagentModel}`,
+      `${ctx.ui.theme.bold('👥 COORDINATOR MODE')} - subagent model ${subagentModel}`,
     ),
   ])
 }
 
-export async function exitManagerMode(
+export async function exitCoordinatorMode(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
@@ -96,17 +96,17 @@ export async function exitManagerMode(
   state.mode = undefined
   fleet.dispose()
   manager.disposeAll()
-  ctx.ui.setWidget(MANAGER_MODE_WIDGET_KEY, undefined)
-  await exitReadOnly(pi, state, ctx, 'manager')
+  ctx.ui.setWidget(COORDINATOR_MODE_WIDGET_KEY, undefined)
+  await exitReadOnly(pi, state, ctx, 'coordinator')
 }
 
-export async function setupManager(
+export async function setupCoordinator(
   pi: ExtensionAPI,
   state: ModesState,
   { demoEnabled }: { demoEnabled: boolean },
 ): Promise<void> {
   const batcher = new MessageBatcher((messages: readonly string[]) => {
-    if (state.mode !== 'manager') return
+    if (state.mode !== 'coordinator') return
     pi.sendUserMessage(messages.join('\n\n'), { deliverAs: 'steer' })
   })
   const manager = new SubagentManager({
@@ -120,7 +120,7 @@ export async function setupManager(
       pi.events.emit(JOB_END_EVENT, {
         id: `pi-modes:session:${subagent.id}`,
       })
-      if (state.mode !== 'manager') return
+      if (state.mode !== 'coordinator') return
       batcher.add(
         subagent,
         'done',
@@ -153,37 +153,45 @@ export async function setupManager(
 
   registerSubagentTools(pi, state, manager, fleet)
 
-  const managerPrompt = await readPrompt('manager')
+  const managerPrompt = await readPrompt('coordinator')
   pi.on('before_agent_start', async (event) => {
-    if (state.mode !== 'manager') return
+    if (state.mode !== 'coordinator') return
     return { systemPrompt: `${event.systemPrompt}\n\n${managerPrompt}` }
   })
 
-  pi.registerCommand('manager', {
+  const runCoordinatorCommand = async (args: string, ctx: ExtensionContext) => {
+    const request = args.trim()
+    if (state.mode === 'coordinator') {
+      await exitCoordinatorMode(pi, state, ctx)
+      ctx.ui.notify('Coordinator mode off.', 'info')
+      return
+    }
+    if (state.mode === 'plan') await exitPlanMode(pi, state, ctx)
+    await enterCoordinatorMode(pi, state, undefined, ctx)
+    if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
+  }
+
+  pi.registerCommand('coordinator', {
     description:
-      'Manager mode. Usage: /manager [request] — toggles, or enters with a task',
-    handler: async (args, ctx) => {
-      const request = args.trim()
-      if (state.mode === 'manager') {
-        await exitManagerMode(pi, state, ctx)
-        ctx.ui.notify('Manager mode off.', 'info')
-        return
-      }
-      if (state.mode === 'plan') await exitPlanMode(pi, state, ctx)
-      await enterManagerMode(pi, state, undefined, ctx)
-      if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
-    },
+      'Coordinator mode. Usage: /coordinator [request] — toggles, or enters with a task',
+    handler: runCoordinatorCommand,
+  })
+
+  pi.registerCommand('pm', {
+    description:
+      'Coordinator mode. Usage: /pm [request] — toggles, or enters with a task',
+    handler: runCoordinatorCommand,
   })
 
   if (demoEnabled) {
     pi.registerCommand('subagent-demo', {
-      description: 'Browse a subagent live demo (manager mode)',
+      description: 'Browse a subagent live demo (coordinator mode)',
       handler: async (args, ctx) => {
         const argList = args.split(/\s+/)
         if (!ctx.hasUI) return
-        if (state.mode !== 'manager') {
+        if (state.mode !== 'coordinator') {
           ctx.ui.notify(
-            'Subagents browser is only available in manager mode.',
+            'Subagents browser is only available in coordinator mode.',
             'info',
           )
           return

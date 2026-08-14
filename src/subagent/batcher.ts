@@ -1,4 +1,4 @@
-import { formatSubagentSummary, type LiveSubagent } from './manager.ts'
+import { formatSubagentSummary, type LiveSubagent } from './manager.js'
 
 export class MessageBatcher {
   private items: string[] = []

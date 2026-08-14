@@ -2,15 +2,15 @@
 
 pi-modes extension for [pi](https://pi.dev):
 
-**plan** mode , and a **manager** mode.
+**plan** mode , and a **coordinator** mode.
 
 ## Plan mode
 
 `/plan`
 
-Let the agent write a plan; then you can review the plan and execute it directly or execute it in manager mode.
+Let the agent write a plan; then you can review the plan and execute it directly or execute it in coordinator mode.
 
-## Manager mode
+## Coordinator mode
 
 Let the agent delegate some subagents to work and supervise them.
 
@@ -20,9 +20,9 @@ Let the agent delegate some subagents to work and supervise them.
 
 ## Customizing prompts
 
-Each mode's prompt is a Markdown file under `<agentDir>/modes-prompts/` (`plan.md`, `manager.md`).
+Each mode's prompt is a Markdown file under `<agentDir>/modes-prompts/` (`plan.md`, `coordinator.md`).
 
-To add extra rules without replacing the whole prompt, drop an append file under `<agentDir>/modes-prompts/` (`plan-append.md`, `manager-append.md`).
+To add extra rules without replacing the whole prompt, drop an append file under `<agentDir>/modes-prompts/` (`plan-append.md`, `coordinator-append.md`).
 
 ## Install
 

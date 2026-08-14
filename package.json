@@ -1,7 +1,7 @@
 {
   "name": "pi-modes",
   "version": "0.1.0",
-  "description": "Plan and manager modes for pi: read-only planning with a review step, and a read-only manager agent that drives isolated worker agents.",
+  "description": "Plan and coordinator modes for pi: read-only planning with a review step, and a read-only coordinator agent that drives isolated subagents.",
   "keywords": [
     "pi-package"
   ],

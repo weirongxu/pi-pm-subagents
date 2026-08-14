@@ -1,8 +1,8 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 import { setupBashReadonlyTool } from './bash-readonly.js'
+import { resumeCoordinatorMode, setupCoordinator } from './coordinator/index.js'
 import { createState, getLastModesState } from './helper.js'
-import { resumeManagerMode, setupManager } from './manager/index.js'
 import { loadPiModesConfig, setupModesConfig } from './models-config.js'
 import { resumePlanMode, setupPlan } from './plan/index.js'
 
@@ -14,7 +14,7 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
 
   setupBashReadonlyTool(pi)
   await setupPlan(pi, state, { demoEnabled })
-  await setupManager(pi, state, { demoEnabled })
+  await setupCoordinator(pi, state, { demoEnabled })
   setupModesConfig(pi)
 
   // Restore persisted state on startup, reload, new, resume, and fork.
@@ -27,8 +27,8 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
 
       if (state.mode === 'plan') {
         await resumePlanMode(pi, state, ctx)
-      } else if (state.mode === 'manager') {
-        await resumeManagerMode(pi, state, ctx)
+      } else if (state.mode === 'coordinator') {
+        await resumeCoordinatorMode(pi, state, ctx)
       }
     }
   })

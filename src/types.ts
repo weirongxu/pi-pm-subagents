@@ -1,4 +1,4 @@
-export type ModeUserType = 'plan' | 'manager'
+export type ModeUserType = 'plan' | 'coordinator'
 
 export interface ModesState {
   mode: ModeUserType | undefined

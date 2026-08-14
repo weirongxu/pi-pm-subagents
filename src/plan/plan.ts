@@ -6,8 +6,11 @@ import {
 import { Markdown, matchesKey, truncateToWidth } from '@earendil-works/pi-tui'
 
 import { BorderView } from '../border-view.js'
+import {
+  enterCoordinatorMode,
+  exitCoordinatorMode,
+} from '../coordinator/index.js'
 import { lastAssistantText, persist } from '../helper.js'
-import { enterManagerMode, exitManagerMode } from '../manager/index.js'
 import {
   applyModeSetup,
   assertModeIdle,
@@ -20,8 +23,8 @@ import { setupPlanDemo } from './demo.js'
 
 const PLAN_CHOICES = [
   'Execute directly',
-  'Execute via manager',
-  'Refine the plan',
+  'Execute via subagents',
+  'Update the plan',
   'Cancel',
 ] as const
 
@@ -197,18 +200,16 @@ async function askHowToProceed(
         })
         break
       }
-      case 'Execute via manager':
+      case 'Execute via subagents':
         await exitPlanMode(pi, state, ctx)
-        await enterManagerMode(pi, state, planBlock, ctx)
+        await enterCoordinatorMode(pi, state, planBlock, ctx)
         break
-      case 'Refine the plan': {
-        const refinement = await ctx.ui.editor('Refine the plan:', '')
-        if (refinement?.trim()) {
+      case 'Update the plan': {
+        const updatePrompt = await ctx.ui.editor('Update the plan:', '')
+        if (updatePrompt?.trim()) {
           pi.sendUserMessage(
-            `Update the plan based on:\n\n${refinement.trim()}`,
-            {
-              deliverAs: 'followUp',
-            },
+            `Update the plan based on:\n\n${updatePrompt.trim()}`,
+            { deliverAs: 'steer' },
           )
         }
         break
@@ -256,7 +257,8 @@ export async function setupPlan(
         ctx.ui.notify('Plan mode off.', 'info')
         return
       }
-      if (state.mode === 'manager') await exitManagerMode(pi, state, ctx)
+      if (state.mode === 'coordinator')
+        await exitCoordinatorMode(pi, state, ctx)
       await enterPlanMode(pi, state, ctx)
       if (request && request !== 'toggle')
         pi.sendUserMessage(request, { deliverAs: 'followUp' })
