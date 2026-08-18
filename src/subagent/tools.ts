@@ -16,6 +16,7 @@ import {
   MAX_CONCURRENCY_SUBAGENT,
   MAX_REUSE_FOLLOWUPS,
 } from './manager.js'
+import { resolveRole, rolesDescription } from './roles.ts'
 
 export const SUBAGENT_TOOLS = {
   delegate: 'subagent_delegate',
@@ -33,7 +34,7 @@ export function registerSubagentTools(
     defineTool({
       name: SUBAGENT_TOOLS.list,
       label: 'List Subagents',
-      description: `List all background subagents with their status, don't use ${SUBAGENT_TOOLS.list} to wait subagents finished just idle`,
+      description: `List all background subagents, don't use ${SUBAGENT_TOOLS.list} to wait subagents finished just idle`,
       parameters: Type.Object({}),
       async execute() {
         const allSubagents = manager.list()
@@ -58,7 +59,7 @@ export function registerSubagentTools(
         if (hasRunning)
           lines.push(
             '',
-            'Do not poll subagent_list to wait for completion - just idle — you will be notified when subagents finish.',
+            `DO NOT POLL ${SUBAGENT_TOOLS.list} TO WAIT FOR COMPLETION, JUST IDLE, YOU WILL BE NOTIFIED WHEN SUBAGENTS FINISH.`,
           )
         return {
           content: [
@@ -75,7 +76,7 @@ export function registerSubagentTools(
     defineTool({
       name: SUBAGENT_TOOLS.delegate,
       label: 'Delegate Subagent',
-      description: `Delegate task to background with full tool access. The tool returns immediately with a subagent id; I'll send you last message when subagent finishes. Max concurrency ${MAX_CONCURRENCY_SUBAGENT} running subagents`,
+      description: `Delegate task to background with full tool access. The tool returns immediately with a subagent id; I'll send you last message when subagent finishes. Max concurrency ${MAX_CONCURRENCY_SUBAGENT} running subagents\nAvailable roles:\n${rolesDescription()}`,
       parameters: Type.Object({
         title: Type.String(),
         prompt: Type.String({
@@ -87,17 +88,36 @@ export function registerSubagentTools(
             description: `Reuse subagent id to follow up. Omit for a fresh task. Max reuse ${MAX_REUSE_FOLLOWUPS} times`,
           }),
         ),
+        role: Type.Optional(
+          Type.String({
+            description: `Role that customizes the subagent's system prompt, tools, and model.`,
+          }),
+        ),
       }),
       async execute(_toolCallId, params, signal, _onUpdate, ctx) {
         const subagentRef = getPiModesConfig().subagentDefaultModel
         const subagentModel = resolveModelRef(ctx, subagentRef) ?? ctx.model
+        let tools = state.previousActiveTools
+        let systemPrompt: string | undefined = undefined
+        let model = subagentModel
+        const role = resolveRole(params.role)
+
+        // FIXME: 添加 extra tools 字段，默认 tools 是覆盖用的
+        if (role.tools) tools = [...role.tools]
+        if (role.systemPrompt) systemPrompt = role.systemPrompt
+        if (role.model) {
+          const roleModel = resolveModelRef(ctx, role.model)
+          if (roleModel) model = roleModel
+        }
+
         let subagent: LiveSubagent
         try {
           subagent = await manager.spawn(params.title, params.prompt, {
             cwd: ctx.cwd,
-            model: subagentModel,
+            model,
             thinkingLevel: ctx.thinkingLevel,
-            tools: state.toolsBackup,
+            tools,
+            systemPrompt,
             followupOf: params.followupOf,
           })
           fleet.update()
@@ -132,8 +152,7 @@ export function registerSubagentTools(
     defineTool({
       name: SUBAGENT_TOOLS.kill,
       label: 'Kill Subagent',
-      description:
-        'Stop a running subagent by id. Only running subagents can be killed.',
+      description: 'Kill a running subagent by id.',
       parameters: Type.Object({
         id: Type.Number({ description: 'Subagent id to stop.' }),
       }),

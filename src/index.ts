@@ -23,7 +23,7 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
     if (data) {
       state.mode = data.mode
       state.planMarkdown = data.planMarkdown
-      state.toolsBackup = data.toolsBackup
+      state.previousActiveTools = data.previousActiveTools
 
       if (state.mode === 'plan') {
         await resumePlanMode(pi, state, ctx)

@@ -71,7 +71,7 @@ describe('readOnlyToolSet', () => {
   it('drops write tools, replaces bash, and merges extras', () => {
     expect(
       readOnlyToolSet(['read', 'edit', 'write', 'bash'], ['subagent_delegate']),
-    ).toEqual(['read', 'bash-readonly', 'subagent_delegate'])
+    ).toEqual(['read', 'bash_readonly', 'subagent_delegate'])
   })
 
   it('deduplicates', () => {
@@ -80,14 +80,14 @@ describe('readOnlyToolSet', () => {
     ])
   })
 
-  it('does not inject bash-readonly when bash is not present', () => {
+  it('does not inject bash_readonly when bash is not present', () => {
     expect(readOnlyToolSet(['read', 'grep'], [])).toEqual(['read', 'grep'])
   })
 
-  it('passes through bash-readonly unchanged when already present', () => {
-    expect(readOnlyToolSet(['read', 'bash-readonly'], [])).toEqual([
+  it('passes through bash_readonly unchanged when already present', () => {
+    expect(readOnlyToolSet(['read', 'bash_readonly'], [])).toEqual([
       'read',
-      'bash-readonly',
+      'bash_readonly',
     ])
   })
 })

@@ -24,7 +24,7 @@ export function persist(pi: ExtensionAPI, state: ModesState): void {
   pi.appendEntry(STATE_KEY, {
     mode: state.mode,
     planMarkdown: state.planMarkdown,
-    toolsBackup: state.toolsBackup,
+    previousActiveTools: state.previousActiveTools,
   })
 }
 
@@ -42,8 +42,8 @@ export function getLastModesState(
 
 /** Restore the tool set captured before entering a read-only mode. */
 export function restoreTools(pi: ExtensionAPI, state: ModesState): void {
-  if (state.toolsBackup) pi.setActiveTools(state.toolsBackup)
-  state.toolsBackup = undefined
+  if (state.previousActiveTools) pi.setActiveTools(state.previousActiveTools)
+  state.previousActiveTools = undefined
 }
 
 function isAssistantMessage(

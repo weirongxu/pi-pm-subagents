@@ -169,7 +169,7 @@ export function isBashReadonlyCommand(command: string): boolean {
   return checkBashSafety(command).allowed
 }
 
-export const BASH_READONLY_TOOL_NAME = 'bash-readonly'
+export const BASH_READONLY_TOOL_NAME = 'bash_readonly'
 
 export function setupBashReadonlyTool(pi: ExtensionAPI): void {
   const localOps = createLocalBashOperations()

@@ -5,12 +5,9 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 
 import { persist, restoreTools } from './helper.js'
-import type { ModesState, ModeUserType } from './types.js'
+import type { ModesState, ModeType } from './types.js'
 
-export function assertModeIdle(
-  state: ModesState,
-  entering: ModeUserType,
-): void {
+export function assertModeIdle(state: ModesState, entering: ModeType): void {
   if (state.mode !== undefined) {
     throw new Error(
       `Cannot enter ${entering} mode while in ${state.mode} mode — exit the current mode first.`,
@@ -21,7 +18,8 @@ export function assertModeIdle(
 export const WRITE_TOOLS = new Set(['edit', 'write'])
 
 const BASH_REPLACEMENT: ReadonlyMap<string, string> = new Map([
-  ['bash', 'bash-readonly'],
+  // FIXME: 这里 bash_readonly 居然不用常量
+  ['bash', 'bash_readonly'],
 ])
 
 export function readOnlyToolSet(
@@ -39,15 +37,16 @@ export function enterReadOnly(
   state: ModesState,
   extra: readonly string[] = [],
 ): void {
-  if (!state.toolsBackup) state.toolsBackup = pi.getActiveTools()
-  pi.setActiveTools(readOnlyToolSet(state.toolsBackup, extra))
+  if (!state.previousActiveTools)
+    state.previousActiveTools = pi.getActiveTools()
+  pi.setActiveTools(readOnlyToolSet(state.previousActiveTools, extra))
 }
 
 export async function exitReadOnly(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
-  name: ModeUserType,
+  name: ModeType,
 ): Promise<void> {
   restoreTools(pi, state)
   ctx.ui.setStatus(name, undefined)
@@ -64,7 +63,7 @@ export interface ModeSetupOptions {
 export async function applyModeSetup(
   pi: ExtensionAPI,
   state: ModesState,
-  mode: ModeUserType,
+  mode: ModeType,
   ctx: ExtensionContext,
   options: ModeSetupOptions,
 ): Promise<void> {

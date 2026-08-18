@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url'
 
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
-import type { ModeUserType } from './types.js'
+import type { ModeType } from './types.js'
 
-const cache = new Map<ModeUserType, string>()
+const modePromptCache = new Map<ModeType, string>()
 
 /** Read and trim a file, returning undefined when it does not exist. */
 async function readOptional(path: string): Promise<string | undefined> {
@@ -18,27 +18,28 @@ async function readOptional(path: string): Promise<string | undefined> {
 }
 
 /**
- * Load a role prompt.
+ * Load a mode prompt.
  *
- * The base comes from the bundled `prompts/<name>.md`, overridable by
+ * The base comes from the bundled `prompts/modes/<name>.md`, overridable by
  * `<agentDir>/prompts/<name>.md`. Optional append content from
- * `<agentDir>/prompts/<name>-append.md` is concatenated after the base.
+ * `<agentDir>/modes-prompts/<name>-append.md` is concatenated after the base.
  */
-export async function readPrompt(name: ModeUserType): Promise<string> {
-  const cached = cache.get(name)
+export async function readModePrompt(name: ModeType): Promise<string> {
+  const cached = modePromptCache.get(name)
   if (cached !== undefined) return cached
 
   const here = dirname(fileURLToPath(import.meta.url))
   const agentDir = getAgentDir()
-  const override = await readOptional(join(agentDir, 'prompts', `${name}.md`))
+  const modesPromptsDir = join(agentDir, 'modes-prompts')
+  const override = await readOptional(join(modesPromptsDir, `${name}.md`))
   const base =
     override ??
-    (await readFile(join(here, '..', 'prompts', `${name}.md`), 'utf8')).trim()
-  const extra = await readOptional(
-    join(agentDir, 'modes-prompts', `${name}-append.md`),
-  )
+    (
+      await readFile(join(here, '..', 'modes-prompts', `${name}.md`), 'utf8')
+    ).trim()
+  const extra = await readOptional(join(modesPromptsDir, `${name}-append.md`))
 
   const text = extra ? `${base}\n\n${extra}` : base
-  cache.set(name, text)
+  modePromptCache.set(name, text)
   return text
 }

@@ -9,7 +9,6 @@ import {
   getAgentDir,
   SessionManager,
 } from '@earendil-works/pi-coding-agent'
-import { truncateToWidth } from '@earendil-works/pi-tui'
 
 import { formatElapsed, lastMessageText, messageText } from '../helper.js'
 
@@ -58,7 +57,7 @@ export function formatSubagentSummary(
   return [
     subagent.status,
     `#${subagent.id}`,
-    truncateToWidth(subagent.title, titleWidth),
+    subagent.title.slice(0, titleWidth),
     `F(${subagent.followUpCount})}`,
     formatElapsed(subagent),
   ].join(' ')

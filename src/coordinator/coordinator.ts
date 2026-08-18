@@ -11,7 +11,7 @@ import {
 } from '../mode-switcher.js'
 import { getPiModesConfig } from '../models-config.js'
 import { exitPlanMode } from '../plan/index.js'
-import { readPrompt } from '../prompts.js'
+import { readModePrompt } from '../prompts.js'
 import { ActivityReporter } from '../subagent/activity.js'
 import { MessageBatcher } from '../subagent/batcher.js'
 import { SubagentManagerDemo } from '../subagent/demo.js'
@@ -21,6 +21,7 @@ import {
   SubagentManager,
   type SubagentStatus,
 } from '../subagent/manager.js'
+import { loadRoles } from '../subagent/roles.js'
 import { registerSubagentTools, SUBAGENT_TOOLS } from '../subagent/tools.js'
 import { openSubagentViewer } from '../subagent/viewer.js'
 import type { ModesState } from '../types.js'
@@ -122,11 +123,7 @@ export async function setupCoordinator(
       })
       if (state.mode !== 'coordinator') return
       if (subagent.status === 'killed') return
-      batcher.add(
-        subagent,
-        'done',
-        `<message>\n${subagent.message ?? '(no message)'}\n</message>`,
-      )
+      batcher.add(subagent, 'done', subagent.message ?? '(no message)')
     },
   })
   const activityReporter = new ActivityReporter({
@@ -144,6 +141,8 @@ export async function setupCoordinator(
     },
   })
 
+  await loadRoles(process.cwd())
+
   runtime = {
     manager,
     activityReporter,
@@ -154,10 +153,10 @@ export async function setupCoordinator(
 
   registerSubagentTools(pi, state, manager, fleet)
 
-  const managerPrompt = await readPrompt('coordinator')
+  const coordinatorPrompt = await readModePrompt('coordinator')
   pi.on('before_agent_start', async (event) => {
     if (state.mode !== 'coordinator') return
-    return { systemPrompt: `${event.systemPrompt}\n\n${managerPrompt}` }
+    return { systemPrompt: `${event.systemPrompt}\n\n${coordinatorPrompt}` }
   })
 
   const runCoordinatorCommand = async (args: string, ctx: ExtensionContext) => {

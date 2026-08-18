@@ -16,7 +16,7 @@ import {
   assertModeIdle,
   exitReadOnly,
 } from '../mode-switcher.js'
-import { readPrompt } from '../prompts.js'
+import { readModePrompt } from '../prompts.js'
 import { ScrollView } from '../scroll-view.js'
 import type { ModesState } from '../types.js'
 import { setupPlanDemo } from './demo.js'
@@ -229,7 +229,7 @@ export async function setupPlan(
   { demoEnabled }: { demoEnabled: boolean },
 ): Promise<void> {
   let reviewInFlight = false
-  const planPrompt = await readPrompt('plan')
+  const planPrompt = await readModePrompt('plan')
 
   pi.on('before_agent_start', async (event) => {
     if (state.mode !== 'plan') return

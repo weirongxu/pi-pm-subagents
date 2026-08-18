@@ -1,1 +1,1 @@
-- run `pnpm test` to check after edit
+- use `pnpm test` to check and fix after edit, always test types, lint, and unit (if have)

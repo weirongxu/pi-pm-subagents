@@ -1,8 +1,8 @@
-export type ModeUserType = 'plan' | 'coordinator'
+export type ModeType = 'plan' | 'coordinator'
 
 export interface ModesState {
-  mode: ModeUserType | undefined
+  mode: ModeType | undefined
   planMarkdown?: string
   /** Active tools captured before entering a read-only mode, restored on exit. */
-  toolsBackup?: string[]
+  previousActiveTools?: string[]
 }
