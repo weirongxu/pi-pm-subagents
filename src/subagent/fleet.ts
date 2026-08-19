@@ -25,6 +25,7 @@ export interface FleetEntry {
   startedAt: number
   completedAt?: number
   followUpCount: number
+  role: string
 }
 
 export interface FleetListOptions {
@@ -270,7 +271,8 @@ export class FleetList {
     if (!isRunning) title = theme.strikethrough(title)
     const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${title}`
     const followUpPart = theme.fg('dim', `F(${item.followUpCount})`)
-    const right = `${theme.fg('accent', item.status)} ${followUpPart} ${theme.fg('dim', formatElapsed(item))}`
+    const rolePart = theme.fg('muted', `[${item.role}]`)
+    const right = `${rolePart} ${theme.fg('accent', item.status)} ${followUpPart} ${theme.fg('dim', formatElapsed(item))}`
     const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
     return rightAlign(truncateToWidth(left, leftMaxWidth), right, width)
   }

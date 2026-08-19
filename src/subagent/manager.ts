@@ -28,6 +28,7 @@ export interface SpawnOptions {
   tools?: readonly string[]
   systemPrompt?: string
   followupOf?: number
+  role?: string
 }
 
 export interface LiveSubagent {
@@ -42,6 +43,7 @@ export interface LiveSubagent {
   followUpCount: number
   enabledTools: Set<string>
   responseText?: string
+  role: string
 }
 
 export interface SubagentManagerOptions {
@@ -183,6 +185,7 @@ export class SubagentManager {
       startedAt: Date.now(),
       followUpCount: 0,
       enabledTools,
+      role: options.role ?? 'worker',
     }
 
     this.subagents.set(id, subagent)

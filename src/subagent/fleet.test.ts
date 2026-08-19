@@ -15,6 +15,7 @@ describe('formatElapsed', () => {
     startedAt: 1000,
     status: 'running',
     followUpCount: 0,
+    role: 'worker',
     ...overrides,
   })
 
@@ -191,6 +192,7 @@ describe('FleetList focus gate (#123)', () => {
         status: 'running',
         startedAt: now,
         followUpCount: 0,
+        role: 'worker',
       },
     ]
 

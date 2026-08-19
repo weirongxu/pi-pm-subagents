@@ -69,6 +69,7 @@ export class SubagentManagerDemo extends SubagentManager {
       enabledTools: new Set(['read', 'write', 'bash']),
       responseText: undefined,
       session: mockSessionFor('2'),
+      role: 'worker',
     })
   }
 }
@@ -88,6 +89,7 @@ function initialDemoSubagents(): LiveSubagent[] {
       enabledTools: new Set(['read', 'edit', 'bash']),
       responseText: undefined,
       session: mockSessionFor('1', 6),
+      role: 'reviewer',
     },
     {
       id: 2,
@@ -101,6 +103,7 @@ function initialDemoSubagents(): LiveSubagent[] {
       enabledTools: new Set(['read', 'write', 'bash']),
       responseText: undefined,
       session: mockSessionFor('2', 6),
+      role: 'tester',
     },
     {
       id: 3,
@@ -114,6 +117,7 @@ function initialDemoSubagents(): LiveSubagent[] {
       enabledTools: new Set(['read', 'bash']),
       responseText: undefined,
       session: mockSessionFor('3', 6),
+      role: 'investigator',
     },
     {
       id: 4,
@@ -127,6 +131,7 @@ function initialDemoSubagents(): LiveSubagent[] {
       enabledTools: new Set(['read', 'edit']),
       responseText: undefined,
       session: mockSessionFor('4', 6),
+      role: 'worker',
     },
     {
       id: 5,
@@ -140,6 +145,7 @@ function initialDemoSubagents(): LiveSubagent[] {
       enabledTools: new Set(['read', 'write']),
       responseText: undefined,
       session: mockSessionFor('5', 6),
+      role: 'docs',
     },
   ]
 }

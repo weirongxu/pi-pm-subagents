@@ -119,6 +119,7 @@ export function registerSubagentTools(
             tools,
             systemPrompt,
             followupOf: params.followupOf,
+            role: params.role,
           })
           fleet.update()
         } catch (error) {
