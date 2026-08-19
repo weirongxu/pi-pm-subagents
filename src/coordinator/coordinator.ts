@@ -58,7 +58,6 @@ export async function enterCoordinatorMode(
 ): Promise<void> {
   assertModeIdle(state, 'coordinator')
   state.mode = 'coordinator'
-  state.planMarkdown = request
   await resumeCoordinatorMode(pi, state, ctx)
   persist(pi, state)
   if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })

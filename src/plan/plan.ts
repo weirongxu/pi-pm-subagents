@@ -191,18 +191,19 @@ async function askHowToProceed(
   try {
     const choice = await renderPlanPager(ctx, plan)
     const planBlock = `<plan>\n${plan}\n</plan>`
+    const executePlan = `Execute the plan below.${planBlock}`
 
     switch (choice) {
       case 'Execute directly': {
         await exitPlanMode(pi, state, ctx)
-        pi.sendUserMessage(`Execute the plan below.${planBlock}`, {
+        pi.sendUserMessage(executePlan, {
           deliverAs: 'followUp',
         })
         break
       }
       case 'Execute via subagents':
         await exitPlanMode(pi, state, ctx)
-        await enterCoordinatorMode(pi, state, planBlock, ctx)
+        await enterCoordinatorMode(pi, state, executePlan, ctx)
         break
       case 'Update the plan': {
         const updatePrompt = await ctx.ui.editor('Update the plan:', '')
