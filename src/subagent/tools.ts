@@ -80,16 +80,14 @@ export function registerSubagentTools(
         title: Type.String(),
         prompt: Type.String({
           description:
-            'A self-contained description of the work the subagent should do.',
+            'A self-contained description of the subagent should do.',
+        }),
+        role: Type.String({
+          description: `Role of subagent`,
         }),
         followupOf: Type.Optional(
           Type.Number({
             description: `Reuse subagent id to follow up. Omit for a fresh task. Max reuse ${MAX_REUSE_FOLLOWUPS} times`,
-          }),
-        ),
-        role: Type.Optional(
-          Type.String({
-            description: `Role that customizes the subagent's system prompt, tools, and model.`,
           }),
         ),
       }),
