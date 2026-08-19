@@ -1,8 +1,11 @@
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
+import {
+  type ExtensionAPI,
+  SessionManager,
+} from '@earendil-works/pi-coding-agent'
 
 import { setupBashReadonlyTool } from './bash-readonly.js'
 import { resumeCoordinatorMode, setupCoordinator } from './coordinator/index.js'
-import { createState, getLastModesState } from './helper.js'
+import { createState, getLastModesState, persist } from './helper.js'
 import { loadPiModesConfig, setupModesConfig } from './models-config.js'
 import { resumePlanMode, setupPlan } from './plan/index.js'
 
@@ -17,9 +20,22 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
   await setupCoordinator(pi, state, { demoEnabled })
   setupModesConfig(pi)
 
-  // Restore persisted state on startup, reload, new, resume, and fork.
-  pi.on('session_start', async (_event, ctx) => {
-    const data = getLastModesState(ctx.sessionManager.getEntries())
+  pi.on('session_start', async (event, ctx) => {
+    let entries = ctx.sessionManager.getEntries()
+
+    if (
+      event.previousSessionFile &&
+      (event.reason === 'new' ||
+        event.reason === 'resume' ||
+        event.reason === 'fork')
+    ) {
+      const previousSessionManager = SessionManager.open(
+        event.previousSessionFile,
+      )
+      entries = previousSessionManager.getEntries()
+    }
+
+    const data = getLastModesState(entries)
     if (data) {
       state.mode = data.mode
       state.planMarkdown = data.planMarkdown
@@ -30,6 +46,8 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
       } else if (state.mode === 'coordinator') {
         await resumeCoordinatorMode(pi, state, ctx)
       }
+
+      persist(pi, state)
     }
   })
 }
