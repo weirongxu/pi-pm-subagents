@@ -150,6 +150,79 @@ No tools either.`,
         expect(resolveRole('empty-tools').tools).toBeUndefined()
       })
 
+      it('parses extraTools as array in frontmatter', async () => {
+        const rolePath = join(agentsDir, 'extra-array.md')
+        await writeFile(
+          rolePath,
+          `---
+extraTools: [bash_readonly, grep]
+---
+You have extra tools.`,
+        )
+
+        await loadRoles(tempDir)
+        const role = resolveRole('extra-array')
+        expect(role.extraTools).toEqual(['bash_readonly', 'grep'])
+      })
+
+      it('parses extraTools as comma-separated string', async () => {
+        const rolePath = join(agentsDir, 'extra-string.md')
+        await writeFile(
+          rolePath,
+          `---
+extraTools: read, grep, glob
+---
+You have extra tools as string.`,
+        )
+
+        await loadRoles(tempDir)
+        const role = resolveRole('extra-string')
+        expect(role.extraTools).toEqual(['read', 'grep', 'glob'])
+      })
+
+      it('handles empty extraTools array or string', async () => {
+        const rolePath = join(agentsDir, 'no-extra.md')
+        await writeFile(
+          rolePath,
+          `---
+extraTools: []
+---
+No extra tools needed.`,
+        )
+
+        await loadRoles(tempDir)
+        expect(resolveRole('no-extra').extraTools).toBeUndefined()
+
+        const rolePath2 = join(agentsDir, 'empty-extra.md')
+        await writeFile(
+          rolePath2,
+          `---
+extraTools: ''
+---
+No extra tools either.`,
+        )
+
+        await loadRoles(tempDir)
+        expect(resolveRole('empty-extra').extraTools).toBeUndefined()
+      })
+
+      it('tools field is not affected by extraTools', async () => {
+        const rolePath = join(agentsDir, 'both-tools.md')
+        await writeFile(
+          rolePath,
+          `---
+tools: [read, write]
+extraTools: [grep, glob]
+---
+You have both tools.`,
+        )
+
+        await loadRoles(tempDir)
+        const role = resolveRole('both-tools')
+        expect(role.tools).toEqual(['read', 'write'])
+        expect(role.extraTools).toEqual(['grep', 'glob'])
+      })
+
       it('skips non-.md files', async () => {
         await writeFile(
           join(agentsDir, 'not-a-role.txt'),

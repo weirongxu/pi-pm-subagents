@@ -3,6 +3,7 @@ import {
   defineTool,
   type ExtensionAPI,
 } from '@earendil-works/pi-coding-agent'
+import { orderBy } from 'lodash-es'
 import { Type } from 'typebox'
 
 import { getPiModesConfig, resolveModelRef } from '../models-config.js'
@@ -45,9 +46,7 @@ export function registerSubagentTools(
           }
         }
 
-        const sorted = [...allSubagents].sort(
-          (a, b) => a.startedAt - b.startedAt,
-        )
+        const sorted = orderBy(allSubagents, (it) => it.id, 'desc')
         const lines = [`Subagents (${allSubagents.length}):`]
         for (const subagent of sorted) {
           lines.push(formatSubagentSummary(subagent))
@@ -102,8 +101,8 @@ export function registerSubagentTools(
         let model = subagentModel
         const role = resolveRole(params.role)
 
-        // FIXME: 添加 extra tools 字段，默认 tools 是覆盖用的
         if (role.tools) tools = [...role.tools]
+        if (role.extraTools) tools = [...(tools ?? []), ...role.extraTools]
         if (role.systemPrompt) systemPrompt = role.systemPrompt
         if (role.model) {
           const roleModel = resolveModelRef(ctx, role.model)

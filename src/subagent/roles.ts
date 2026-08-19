@@ -12,12 +12,14 @@ const DEFAULT_ROLE = 'worker'
 export interface RoleFrontmatter extends Record<string, unknown> {
   description?: string
   tools?: string[] | string
+  extraTools?: string[] | string
   model?: string
 }
 
 export interface RoleDefinition {
   description?: string
   tools?: string[]
+  extraTools?: string[]
   model?: string
   systemPrompt: string
 }
@@ -46,6 +48,7 @@ async function loadMarkdownRoleFromFile(
     return {
       description: frontmatter.description,
       tools: normalizeTools(frontmatter.tools),
+      extraTools: normalizeTools(frontmatter.extraTools),
       model: frontmatter.model,
       systemPrompt: body.trim(),
     }

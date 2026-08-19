@@ -6,6 +6,206 @@ import { describe, expect, it } from 'vitest'
 import { formatElapsed } from '../helper.js'
 import { type FleetEntry, FleetList } from './fleet.js'
 
+describe('FleetList roster sorting', () => {
+  const now = Date.now()
+
+  function createFleetList(entries: FleetEntry[]) {
+    return new FleetList({
+      list: () => entries,
+      onOpen: () => {},
+    })
+  }
+
+  it('sorts running items first by id descending, then done items by id descending', () => {
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        status: 'done',
+        startedAt: now - 10000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 5,
+        title: 'task 5',
+        status: 'done',
+        startedAt: now - 20000,
+        completedAt: now - 15000,
+        followUpCount: 1,
+        role: 'worker',
+      },
+      {
+        id: 3,
+        title: 'task 3',
+        status: 'running',
+        startedAt: now - 3000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 4,
+        title: 'task 4',
+        status: 'running',
+        startedAt: now - 4000,
+        followUpCount: 2,
+        role: 'supervisor',
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        status: 'done',
+        startedAt: now - 8000,
+        completedAt: now - 6000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+
+    const fleetList = createFleetList(entries)
+
+    const roster = fleetList['roster']()
+
+    const itemEntries = roster.filter((entry) => entry.kind === 'item')
+
+    expect(itemEntries.map((e) => e.item.id)).toEqual([4, 3, 5, 2, 1])
+
+    expect(itemEntries.map((e) => e.item.status)).toEqual([
+      'running',
+      'running',
+      'done',
+      'done',
+      'done',
+    ])
+  })
+
+  it('handles all running items', () => {
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        status: 'running',
+        startedAt: now - 1000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 3,
+        title: 'task 3',
+        status: 'running',
+        startedAt: now - 3000,
+        followUpCount: 1,
+        role: 'supervisor',
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        status: 'running',
+        startedAt: now - 2000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+
+    const fleetList = createFleetList(entries)
+    const roster = fleetList['roster']()
+    const itemEntries = roster.filter((entry) => entry.kind === 'item')
+
+    expect(itemEntries.map((e) => e.item.id)).toEqual([3, 2, 1])
+  })
+
+  it('handles all done items', () => {
+    const entries: FleetEntry[] = [
+      {
+        id: 2,
+        title: 'task 2',
+        status: 'done',
+        startedAt: now - 2000,
+        completedAt: now - 1000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 5,
+        title: 'task 5',
+        status: 'done',
+        startedAt: now - 5000,
+        completedAt: now - 4000,
+        followUpCount: 1,
+        role: 'worker',
+      },
+      {
+        id: 1,
+        title: 'task 1',
+        status: 'done',
+        startedAt: now - 1000,
+        completedAt: now - 500,
+        followUpCount: 0,
+        role: 'supervisor',
+      },
+    ]
+
+    const fleetList = createFleetList(entries)
+    const roster = fleetList['roster']()
+    const itemEntries = roster.filter((entry) => entry.kind === 'item')
+
+    expect(itemEntries.map((e) => e.item.id)).toEqual([5, 2, 1])
+  })
+
+  it('handles mixed statuses including failed and killed', () => {
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        status: 'failed',
+        startedAt: now - 10000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 4,
+        title: 'task 4',
+        status: 'running',
+        startedAt: now - 2000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        status: 'killed',
+        startedAt: now - 8000,
+        completedAt: now - 7000,
+        followUpCount: 1,
+        role: 'worker',
+      },
+      {
+        id: 3,
+        title: 'task 3',
+        status: 'running',
+        startedAt: now - 3000,
+        followUpCount: 0,
+        role: 'supervisor',
+      },
+    ]
+
+    const fleetList = createFleetList(entries)
+    const roster = fleetList['roster']()
+    const itemEntries = roster.filter((entry) => entry.kind === 'item')
+
+    expect(itemEntries.map((e) => e.item.id)).toEqual([4, 3, 2, 1])
+
+    expect(itemEntries.map((e) => e.item.status)).toEqual([
+      'running',
+      'running',
+      'killed',
+      'failed',
+    ])
+  })
+})
+
 describe('formatElapsed', () => {
   const base = (
     overrides: Partial<FleetEntry> & { title?: never },

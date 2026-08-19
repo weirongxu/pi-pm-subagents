@@ -4,6 +4,7 @@ import type {
   ThemeColor,
 } from '@earendil-works/pi-coding-agent'
 
+import { BASH_READONLY_TOOL_NAME } from './bash-readonly.js'
 import { persist, restoreTools } from './helper.js'
 import type { ModesState, ModeType } from './types.js'
 
@@ -18,8 +19,7 @@ export function assertModeIdle(state: ModesState, entering: ModeType): void {
 export const WRITE_TOOLS = new Set(['edit', 'write'])
 
 const BASH_REPLACEMENT: ReadonlyMap<string, string> = new Map([
-  // FIXME: 这里 bash_readonly 居然不用常量
-  ['bash', 'bash_readonly'],
+  ['bash', BASH_READONLY_TOOL_NAME],
 ])
 
 export function readOnlyToolSet(
