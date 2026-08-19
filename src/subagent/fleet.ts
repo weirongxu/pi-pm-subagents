@@ -269,10 +269,10 @@ export class FleetList {
     const isRunning = item.status === 'running'
     let title = strInline(item.title)
     if (!isRunning) title = theme.strikethrough(title)
-    const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${title}`
     const followUpPart = theme.fg('dim', `F(${item.followUpCount})`)
     const rolePart = theme.fg('muted', `[${item.role}]`)
-    const right = `${rolePart} ${theme.fg('accent', item.status)} ${followUpPart} ${theme.fg('dim', formatElapsed(item))}`
+    const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${rolePart} ${title}`
+    const right = `${theme.fg('accent', item.status)} ${followUpPart} ${theme.fg('dim', formatElapsed(item))}`
     const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
     return rightAlign(truncateToWidth(left, leftMaxWidth), right, width)
   }
