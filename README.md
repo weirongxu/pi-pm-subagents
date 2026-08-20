@@ -35,5 +35,5 @@ pi install git:github.com/raidou/pi-modes     # adjust to your repo
 `/plan-demo` and `/workers-demo` are UI fixtures for development. They are only registered when pi is launched with `DEMO=1`:
 
 ```bash
-DEMO=1 pi
+PI_DEMO=1 pi
 ```

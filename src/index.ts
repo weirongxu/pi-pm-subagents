@@ -13,7 +13,7 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
   const state = createState()
   await loadPiModesConfig()
 
-  const demoEnabled = process.env.DEMO === '1'
+  const demoEnabled = process.env.PI_DEMO === '1'
 
   setupBashReadonlyTool(pi)
   await setupPlan(pi, state, { demoEnabled })

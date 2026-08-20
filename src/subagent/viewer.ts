@@ -124,9 +124,10 @@ export class SubagentViewer implements Component {
     const status = this.subagent.status
     const color = STATUS_COLOR[status]
     const id = `#${this.subagent.id}`
-    const titleMaxWidth = width - visibleWidth(status + id) - 1
+    const role = `[${this.subagent.role}]`
+    const titleMaxWidth = width - visibleWidth(`${status + id} ${role}`) - 1
     return rightAlign(
-      `${th.fg('muted', `#${this.subagent.id}`)} ${truncateToWidth(strInline(this.subagent.title), titleMaxWidth)}`,
+      `${th.fg('muted', `#${this.subagent.id}`)} ${th.fg('muted', role)} ${truncateToWidth(strInline(this.subagent.title), titleMaxWidth)}`,
       th.fg(color, status),
       width,
     )

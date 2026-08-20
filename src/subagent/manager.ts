@@ -1,3 +1,5 @@
+import { mkdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import type { ThinkingLevel } from '@earendil-works/pi-agent-core'
@@ -13,6 +15,11 @@ import {
 import { formatElapsed, lastMessageText, messageText } from '../helper.js'
 
 const SELF_DIR = fileURLToPath(new URL('../', import.meta.url))
+
+const subagentDirFor = (cwd: string, agentDir: string): string => {
+  const safeCwd = cwd.replace(/^[/\\]/, '').replace(/[/\\:]/g, '-')
+  return join(agentDir, 'sessions', 'pi-modes', `--${safeCwd}--`)
+}
 
 const MAX_SUBAGENT_OUTPUT_BYTES = 50 * 1024
 
@@ -161,6 +168,10 @@ export class SubagentManager {
         `Subagent concurrency limit reached (${MAX_CONCURRENCY_SUBAGENT}). Wait for an existing subagent to finish, or abort one.`,
       )
     }
+    this.seq += 1
+    const id = this.seq
+    const subagentSessionDir = subagentDirFor(options.cwd, getAgentDir())
+    mkdirSync(subagentSessionDir, { recursive: true })
     const loader = await this.createLoader(options)
     const created = await createAgentSession({
       cwd: options.cwd,
@@ -168,11 +179,11 @@ export class SubagentManager {
       thinkingLevel: options.thinkingLevel,
       tools: options.tools ? [...options.tools] : undefined,
       resourceLoader: loader,
-      sessionManager: SessionManager.inMemory(options.cwd),
+      sessionManager: SessionManager.create(options.cwd, subagentSessionDir, {
+        id: `pi-modes-subagent-${id}-${Date.now()}`,
+      }),
     })
 
-    this.seq += 1
-    const id = this.seq
     const enabledTools: Set<string> = options.tools
       ? new Set(options.tools)
       : new Set()
