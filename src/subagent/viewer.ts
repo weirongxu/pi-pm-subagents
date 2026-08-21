@@ -15,8 +15,8 @@ import {
 } from '@earendil-works/pi-tui'
 
 import { BorderView } from '../border-view.js'
-import { rightAlign, strInline } from '../helper.js'
 import { ScrollView } from '../scroll-view.js'
+import { rightAlign, strInline } from '../utils/format.js'
 import type {
   LiveSubagent,
   SubagentManager,

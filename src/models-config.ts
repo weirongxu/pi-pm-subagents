@@ -1,7 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
-import type { Api, Model } from '@earendil-works/pi-ai'
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -12,6 +11,11 @@ import { Type } from 'typebox'
 import { Parse } from 'typebox/value'
 
 import { customSelect } from './custom-select.js'
+import {
+  modelRefOf,
+  parseModelRef,
+  resolveModelRef,
+} from './utils/model-ref.js'
 
 export const MODEL_DEFAULT = 'DEFAULT'
 
@@ -53,28 +57,6 @@ async function savePiModesConfig(): Promise<void> {
   )
 }
 
-export function modelRefOf(model: Model<Api>): string {
-  return `${model.provider}/${model.id}`
-}
-
-export function parseModelRef(
-  ref: string,
-): { provider: string; id: string } | undefined {
-  const [provider, id] = ref.split('/')
-  if (!provider || !id) return undefined
-  return { provider, id }
-}
-
-export function resolveModelRef(
-  ctx: ExtensionContext,
-  ref?: string,
-): Model<Api> | undefined {
-  if (!ref) return undefined
-  const parsed = parseModelRef(ref)
-  if (!parsed) return undefined
-  return ctx.modelRegistry.find(parsed.provider, parsed.id)
-}
-
 async function pickModel(ctx: ExtensionContext): Promise<string | undefined> {
   const items = [
     { key: MODEL_DEFAULT, text: 'DEFAULT (use agent default)' },
@@ -101,7 +83,7 @@ export function setupModesConfig(pi: ExtensionAPI): void {
       }
 
       const isDefaultModel = model === MODEL_DEFAULT
-      if (!isDefaultModel && !resolveModelRef(ctx, model)) {
+      if (!isDefaultModel && !resolveModelRef(ctx, [model])) {
         ctx.ui.notify(`Unknown model "${model}"`, 'warning')
         return
       }

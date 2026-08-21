@@ -1,4 +1,4 @@
-import { lastMessageText } from '../helper.js'
+import { lastMessageText } from '../utils/messages.js'
 import type { LiveSubagent } from './manager.js'
 
 const CHECK_INTERVAL_MS = 60 * 1000

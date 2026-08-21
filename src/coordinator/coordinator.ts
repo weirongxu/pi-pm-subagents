@@ -3,7 +3,6 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
 
-import { persist } from '../helper.js'
 import {
   applyModeSetup,
   assertModeIdle,
@@ -11,7 +10,6 @@ import {
 } from '../mode-switcher.js'
 import { getPiModesConfig } from '../models-config.js'
 import { exitPlanMode } from '../plan/index.js'
-import type { PromptDefinition } from '../prompts/core.js'
 import { loadRoles } from '../prompts/roles.js'
 import { ActivityReporter } from '../subagent/activity.js'
 import { MessageBatcher } from '../subagent/batcher.js'
@@ -25,11 +23,15 @@ import {
 import { registerSubagentTools, SUBAGENT_TOOLS } from '../subagent/tools.js'
 import { openSubagentViewer } from '../subagent/viewer.js'
 import type { ModesState } from '../types.js'
+import type { PromptDefinition } from '../utils/markdown.js'
+import { persist } from '../utils/state.js'
 
 const COORDINATOR_MODE_WIDGET_KEY = 'pi-modes:coordinator-mode'
 
 const JOB_START_EVENT = 'pi-notify:job:start'
 const JOB_END_EVENT = 'pi-notify:job:end'
+
+const REMOVE_TOOLS = ['read', 'find', 'grep', 'bash']
 
 export type { LiveSubagent, SubagentStatus }
 
@@ -77,6 +79,7 @@ export async function resumeCoordinatorMode(
     promptDefinition: {
       ...def,
       extraTools: [...Object.values(SUBAGENT_TOOLS), ...(def.extraTools ?? [])],
+      removeTools: [...REMOVE_TOOLS, ...(def.removeTools ?? [])],
     },
     color: 'accent',
   })

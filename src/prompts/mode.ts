@@ -3,8 +3,8 @@ import { fileURLToPath } from 'node:url'
 
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
-import type { PromptDefinition } from './core.js'
-import { loadMarkdown, readOptional } from './core.js'
+import { readOptional } from '../utils/fs.js'
+import { loadMarkdown, type PromptDefinition } from '../utils/markdown.js'
 
 export async function readModePrompt(name: string): Promise<PromptDefinition> {
   const here = dirname(fileURLToPath(import.meta.url))

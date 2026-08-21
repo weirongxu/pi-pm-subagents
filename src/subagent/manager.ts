@@ -12,7 +12,8 @@ import {
   SessionManager,
 } from '@earendil-works/pi-coding-agent'
 
-import { formatElapsed, lastMessageText, messageText } from '../helper.js'
+import { formatElapsed } from '../utils/format.js'
+import { lastMessageText, messageText } from '../utils/messages.js'
 
 const SELF_DIR = fileURLToPath(new URL('../', import.meta.url))
 

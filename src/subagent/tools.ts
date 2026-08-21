@@ -6,11 +6,12 @@ import {
 import { orderBy } from 'lodash-es'
 import { Type } from 'typebox'
 
-import { getPiModesConfig, resolveModelRef } from '../models-config.js'
+import { getPiModesConfig } from '../models-config.js'
 import { registerOptionalTools } from '../pi-utils.js'
-import { composeTools } from '../prompts/core.js'
 import { resolveRole, rolesDescription } from '../prompts/roles.js'
 import type { ModesState } from '../types.js'
+import { resolveModelRef } from '../utils/model-ref.js'
+import { composeTools } from '../utils/tools.js'
 import type { FleetList } from './fleet.js'
 import type { SubagentManager } from './manager.js'
 import {
@@ -94,7 +95,7 @@ export function registerSubagentTools(
       }),
       async execute(_toolCallId, params, signal, _onUpdate, ctx) {
         const subagentRef = getPiModesConfig().subagentDefaultModel
-        const subagentModel = resolveModelRef(ctx, subagentRef) ?? ctx.model
+        const subagentModel = resolveModelRef(ctx, [subagentRef]) ?? ctx.model
         const role = resolveRole(params.role)
 
         const tools = composeTools(state.previousActiveTools ?? [], {
@@ -108,7 +109,7 @@ export function registerSubagentTools(
 
         if (role.systemPrompt) systemPrompt = role.systemPrompt
         if (role.model) {
-          const roleModel = resolveModelRef(ctx, role.model)
+          const roleModel = resolveModelRef(ctx, [role.model])
           if (roleModel) model = roleModel
         }
 

@@ -3,7 +3,7 @@ import type { TUI } from '@earendil-works/pi-tui'
 import { Editor } from '@earendil-works/pi-tui'
 import { describe, expect, it } from 'vitest'
 
-import { formatElapsed } from '../helper.js'
+import { formatElapsed } from '../utils/format.js'
 import { type FleetEntry, FleetList } from './fleet.js'
 
 describe('FleetList roster sorting', () => {

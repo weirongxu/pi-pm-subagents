@@ -10,15 +10,16 @@ import {
   enterCoordinatorMode,
   exitCoordinatorMode,
 } from '../coordinator/index.js'
-import { lastAssistantText, persist } from '../helper.js'
 import {
   applyModeSetup,
   assertModeIdle,
   exitReadOnly,
 } from '../mode-switcher.js'
-import type { PromptDefinition } from '../prompts/core.js'
 import { ScrollView } from '../scroll-view.js'
 import type { ModesState } from '../types.js'
+import type { PromptDefinition } from '../utils/markdown.js'
+import { lastAssistantText } from '../utils/messages.js'
+import { persist } from '../utils/state.js'
 import { setupPlanDemo } from './demo.js'
 
 const PLAN_CHOICES = [

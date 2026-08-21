@@ -5,15 +5,33 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 
 import { BASH_READONLY_TOOL_NAME } from './bash-readonly.js'
-import { persist, restoreTools } from './helper.js'
-import {
-  composeTools,
-  type PromptDefinition,
-  type ToolConfig,
-} from './prompts/core.js'
 import type { ModesState, ModeType } from './types.js'
+import type { PromptDefinition } from './utils/markdown.js'
+import { modelRefOf, resolveModelRef } from './utils/model-ref.js'
+import { persist, restoreTools } from './utils/state.js'
+import { composeTools, type ToolConfig } from './utils/tools.js'
 
-export type { ToolConfig } from './prompts/core.js'
+export type { ToolConfig } from './utils/tools.js'
+
+/** Restore the model captured before entering a read-only mode. */
+export async function restoreModel(
+  pi: ExtensionAPI,
+  state: ModesState,
+  ctx: ExtensionContext,
+): Promise<void> {
+  const previousModel = state.previousModel
+  state.previousModel = undefined
+  if (!previousModel) return
+
+  const currentModel = ctx.model
+  if (currentModel) {
+    const currentRef = `${currentModel.provider}/${currentModel.id}`
+    if (currentRef === previousModel) return
+  }
+
+  const model = resolveModelRef(ctx, [previousModel])
+  if (model) await pi.setModel(model)
+}
 
 export function assertModeIdle(state: ModesState, entering: ModeType): void {
   if (state.mode !== undefined) {
@@ -56,8 +74,35 @@ export async function exitReadOnly(
   name: ModeType,
 ): Promise<void> {
   restoreTools(pi, state)
+  await restoreModel(pi, state, ctx)
   ctx.ui.setStatus(name, undefined)
   persist(pi, state)
+}
+
+export async function applyModeModel(
+  pi: ExtensionAPI,
+  state: ModesState,
+  ctx: ExtensionContext,
+  modelRef: string | undefined,
+): Promise<void> {
+  if (!modelRef) return
+
+  const model = resolveModelRef(ctx, [modelRef])
+  if (!model) {
+    ctx.ui.notify(`Invalid model ref: ${modelRef}`, 'warning')
+    return
+  }
+
+  if (!state.previousModel) {
+    const current = ctx.model
+    if (current) state.previousModel = modelRefOf(current)
+  }
+
+  const success = await pi.setModel(model)
+  if (!success) {
+    ctx.ui.notify('No API key for this model', 'error')
+    state.previousModel = undefined
+  }
 }
 
 export interface ModeSetupOptions {
@@ -79,5 +124,6 @@ export async function applyModeSetup(
     extraTools: options.promptDefinition.extraTools,
     removeTools: options.promptDefinition.removeTools,
   })
+  await applyModeModel(pi, state, ctx, options.promptDefinition.model)
   ctx.ui.setStatus(modeType, ctx.ui.theme.fg(options.color, modeType))
 }

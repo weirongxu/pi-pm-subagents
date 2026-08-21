@@ -137,13 +137,13 @@ Test prompt.`,
       await writeFile(
         join(modesDir, 'model-test.md'),
         `---
-model: sonnet
+model: anthropic/claude-sonnet-4-5
 ---
 Test prompt.`,
       )
 
       const result = await readModePrompt('model-test')
-      expect(result.model).toBe('sonnet')
+      expect(result.model).toBe('anthropic/claude-sonnet-4-5')
     })
 
     it('appends extra content from -append.md', async () => {

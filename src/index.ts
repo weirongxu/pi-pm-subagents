@@ -2,11 +2,11 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 import { setupBashReadonlyTool } from './bash-readonly.js'
 import { resumeCoordinatorMode, setupCoordinator } from './coordinator/index.js'
-import { createState, getLastModesState, persist } from './helper.js'
 import { loadPiModesConfig, setupModesConfig } from './models-config.js'
 import { resumePlanMode, setupPlan } from './plan/index.js'
 import { readModePrompt } from './prompts/mode.js'
 import type { ModesState } from './types.js'
+import { createState, getLastModesState, persist } from './utils/state.js'
 
 let pendingModesState: Partial<ModesState> | undefined
 
@@ -50,6 +50,7 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
       state.mode = data.mode
       state.planMarkdown = data.planMarkdown
       state.previousActiveTools = data.previousActiveTools
+      state.previousModel = data.previousModel
 
       if (state.mode === 'plan') {
         await resumePlanMode(pi, state, ctx, planDefinition)

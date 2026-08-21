@@ -10,7 +10,7 @@ import {
 } from '@earendil-works/pi-tui'
 import { orderBy } from 'lodash-es'
 
-import { formatElapsed, rightAlign, strInline } from '../helper.js'
+import { formatElapsed, rightAlign, strInline } from '../utils/format.js'
 
 const FLEET_KEY = 'pi-modes:fleet'
 const TICK_MS = 200

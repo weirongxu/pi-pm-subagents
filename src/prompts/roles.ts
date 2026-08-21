@@ -3,8 +3,7 @@ import { join } from 'node:path'
 
 import { CONFIG_DIR_NAME, getAgentDir } from '@earendil-works/pi-coding-agent'
 
-import type { PromptDefinition } from './core.js'
-import { loadMarkdown } from './core.js'
+import { loadMarkdown, type PromptDefinition } from '../utils/markdown.js'
 
 const DEFAULT_ROLE = 'worker'
 

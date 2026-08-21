@@ -7,17 +7,14 @@ import type {
   ToolResultMessage,
   UserMessage,
 } from '@earendil-works/pi-ai'
-import type { SessionEntry } from '@earendil-works/pi-coding-agent'
 import { describe, expect, it } from 'vitest'
 
 import {
   formatToolNameWithArgs,
-  getLastModesState,
   lastAssistantText,
   lastMessageText,
   messageText,
-  truncateToBytes,
-} from './helper.js'
+} from './messages.js'
 
 function user(text: string): UserMessage {
   return {
@@ -70,24 +67,7 @@ function assistant(opts: {
   }
 }
 
-function toolResult(
-  data: Record<string, unknown> = {},
-  isError: boolean = false,
-): ToolResultMessage {
-  return {
-    role: 'toolResult',
-    toolCallId: 'call-123',
-    toolName: 'read',
-    content: [{ type: 'text', text: JSON.stringify(data) }],
-    isError,
-    timestamp: Date.now(),
-  }
-}
-
-function toolResultText(
-  text: string,
-  isError: boolean = false,
-): ToolResultMessage {
+function toolResultText(text: string, isError = false): ToolResultMessage {
   return {
     role: 'toolResult',
     toolCallId: 'call-123',
@@ -128,7 +108,7 @@ describe('lastAssistantText', () => {
     const messages: AgentMessage[] = [
       user('task'),
       assistant({ text: 'Reading file', toolCall: 'read' }),
-      toolResult(),
+      toolResultText('content'),
     ]
     const result = lastAssistantText(messages)
     expect(result).toBe('Reading file')
@@ -138,7 +118,7 @@ describe('lastAssistantText', () => {
     const messages: AgentMessage[] = [
       user('task'),
       assistant({ text: 'first' }),
-      toolResult(),
+      toolResultText('result'),
       assistant({ text: 'second' }),
     ]
     const result = lastAssistantText(messages)
@@ -278,13 +258,13 @@ describe('lastMessageText', () => {
     expect(result).toBe('read\nworld')
   })
 
-  it('returns undefined when assistant has text but toolResult is empty', () => {
+  it('returns assistant text when toolResult has empty content', () => {
     const messages: AgentMessage[] = [
       assistant({ text: 'only assistant' }),
       toolResultText(''),
     ]
     const result = lastMessageText(messages)
-    expect(result).toBeUndefined()
+    expect(result).toBe('only assistant')
   })
 
   it('returns tool result text when toolResult is the only message', () => {
@@ -322,6 +302,26 @@ describe('lastMessageText', () => {
     ]
     const result = lastMessageText(messages)
     expect(result).toBe('read({"path":"x"})\nFile content here')
+  })
+
+  it('returns previous assistant text when last assistant has no text', () => {
+    const messages: AgentMessage[] = [
+      user('task'),
+      assistant({ text: 'first assistant' }),
+      assistant({ toolCall: 'read' }),
+    ]
+    const result = lastMessageText(messages)
+    expect(result).toBe('first assistant')
+  })
+
+  it('returns undefined when no assistant has text', () => {
+    const messages: AgentMessage[] = [
+      user('task'),
+      assistant({ toolCall: 'read' }),
+      assistant({}),
+    ]
+    const result = lastMessageText(messages)
+    expect(result).toBeUndefined()
   })
 })
 
@@ -434,149 +434,5 @@ describe('formatToolNameWithArgs', () => {
     expect(result).toBe(
       'write({"path":"file.txt","content":"hello world","overwrite":true})',
     )
-  })
-})
-
-describe('getLastModesState', () => {
-  it('returns undefined for empty entries array', () => {
-    const result = getLastModesState([])
-    expect(result).toBeUndefined()
-  })
-
-  it('returns undefined when entries contain no custom entries', () => {
-    const entries: SessionEntry[] = [
-      {
-        type: 'message',
-        id: '1',
-        parentId: null,
-        timestamp: new Date().toISOString(),
-        message: user('task'),
-      },
-    ]
-    const result = getLastModesState(entries)
-    expect(result).toBeUndefined()
-  })
-
-  it('returns undefined when custom entries have different type', () => {
-    const entries: SessionEntry[] = [
-      {
-        type: 'custom',
-        id: '1',
-        parentId: null,
-        timestamp: new Date().toISOString(),
-        customType: 'other-key',
-        data: {},
-      },
-    ]
-    const result = getLastModesState(entries)
-    expect(result).toBeUndefined()
-  })
-
-  it('returns modes state from the last matching custom entry', () => {
-    const entries: SessionEntry[] = [
-      {
-        type: 'custom',
-        id: '1',
-        parentId: null,
-        timestamp: new Date().toISOString(),
-        customType: 'modes',
-        data: {
-          mode: 'plan',
-          planMarkdown: 'plan1',
-        },
-      },
-      {
-        type: 'custom',
-        id: '2',
-        parentId: null,
-        timestamp: new Date().toISOString(),
-        customType: 'modes',
-        data: {
-          mode: 'coordinator',
-          planMarkdown: 'plan2',
-          previousActiveTools: ['tool1', 'tool2'],
-        },
-      },
-    ]
-    const result = getLastModesState(entries)
-    expect(result).toEqual({
-      mode: 'coordinator',
-      planMarkdown: 'plan2',
-      previousActiveTools: ['tool1', 'tool2'],
-    })
-  })
-})
-
-describe('truncateToBytes', () => {
-  const defaultSuffix =
-    '\n\n[Output truncated. Verify remaining details with read-only tools.]'
-
-  it('returns original text when under byte limit', () => {
-    const text = 'Hello world'
-    const result = truncateToBytes(text, 100)
-    expect(result).toBe(text)
-  })
-
-  it('truncates text when over byte limit and adds suffix', () => {
-    const text = 'a'.repeat(100)
-    const result = truncateToBytes(text, 50)
-    const suffixBytes = Buffer.byteLength(defaultSuffix, 'utf8')
-    const budget = Math.max(0, 50 - suffixBytes)
-    expect(result.length).toBe(budget + defaultSuffix.length)
-    expect(result.endsWith(defaultSuffix)).toBe(true)
-  })
-
-  it('truncates text to budget bytes when limit is small', () => {
-    const text = 'Hello world' // 11 bytes
-    const maxBytes = 5 // less than text bytes
-    const suffixBytes = Buffer.byteLength(defaultSuffix, 'utf8')
-    const budget = Math.max(0, maxBytes - suffixBytes)
-    const result = truncateToBytes(text, maxBytes)
-    expect(result.length).toBe(budget + defaultSuffix.length)
-    expect(result.endsWith(defaultSuffix)).toBe(true)
-  })
-
-  it('handles multibyte characters correctly', () => {
-    const text = '你好世界你好世界你好世界你好世界你好世界'
-    const maxBytes = 30
-    const suffixBytes = Buffer.byteLength(defaultSuffix, 'utf8')
-    const result = truncateToBytes(text, maxBytes)
-    expect(result.endsWith(defaultSuffix)).toBe(true)
-    const headBytes = Buffer.byteLength(
-      result.slice(0, result.length - defaultSuffix.length),
-      'utf8',
-    )
-    expect(headBytes).toBe(Math.max(0, maxBytes - suffixBytes))
-  })
-
-  it('handles mixed ASCII and multibyte characters', () => {
-    const text = 'Hello你好World你好Test你好Data'
-    const maxBytes = 20
-    const suffixBytes = Buffer.byteLength(defaultSuffix, 'utf8')
-    const result = truncateToBytes(text, maxBytes)
-    expect(result.endsWith(defaultSuffix)).toBe(true)
-    const headBytes = Buffer.byteLength(
-      result.slice(0, result.length - defaultSuffix.length),
-      'utf8',
-    )
-    expect(headBytes).toBe(Math.max(0, maxBytes - suffixBytes))
-  })
-
-  it('uses custom suffix', () => {
-    const text = 'a'.repeat(100)
-    const customSuffix = ' [truncated]'
-    const result = truncateToBytes(text, 50, customSuffix)
-    expect(result).toContain(customSuffix)
-    expect(result).not.toContain(defaultSuffix)
-  })
-
-  it('handles empty string', () => {
-    expect(truncateToBytes('', 100)).toBe('')
-  })
-
-  it('handles budget exactly zero when suffix bytes exceed limit', () => {
-    const text = 'Hello'
-    const result = truncateToBytes(text, 1)
-    expect(result).toBe(defaultSuffix)
   })
 })
