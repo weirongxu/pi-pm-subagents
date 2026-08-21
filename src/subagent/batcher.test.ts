@@ -56,7 +56,7 @@ describe('MessageBatcher', () => {
     batcher.add(subagent1, 'done', 'Task 1 completed')
     vi.advanceTimersByTime(50)
     batcher.add(subagent2, 'failed', 'Task 2 failed')
-    vi.advanceTimersByTime(50)
+    vi.advanceTimersByTime(100)
 
     expect(flushed).toHaveLength(1)
     const firstFlush = flushed[0]
@@ -137,5 +137,56 @@ describe('MessageBatcher', () => {
     expect(firstFlush?.[0]).toContain('Subagent #1 work done.')
     expect(firstFlush?.[1]).toContain('running #2')
     expect(firstFlush?.[1]).toContain('Subagent activity update')
+  })
+
+  it('resets timer on each add', () => {
+    vi.useFakeTimers()
+    const flushed: string[][] = []
+    const batcher = new MessageBatcher((items) => flushed.push(items), 100)
+
+    const subagent1 = makeSubagent(1, 'task-1', 'done')
+    const subagent2 = makeSubagent(2, 'task-2', 'running')
+
+    batcher.add(subagent1, 'done', 'First message')
+    vi.advanceTimersByTime(50)
+    expect(flushed).toHaveLength(0)
+
+    batcher.add(subagent2, 'activity', 'Second message')
+    vi.advanceTimersByTime(50)
+    expect(flushed).toHaveLength(0)
+
+    vi.advanceTimersByTime(50)
+    expect(flushed).toHaveLength(1)
+
+    const firstFlush = flushed[0]
+    expect(firstFlush?.length).toBe(2)
+    expect(firstFlush?.[0]).toContain('done #1')
+    expect(firstFlush?.[0]).toContain('First message')
+    expect(firstFlush?.[1]).toContain('running #2')
+    expect(firstFlush?.[1]).toContain('Second message')
+  })
+
+  it('clears old timer and starts new one when adding item', () => {
+    vi.useFakeTimers()
+    const flushed: string[][] = []
+    const batcher = new MessageBatcher((items) => flushed.push(items), 100)
+
+    const subagent = makeSubagent(1, 'task-1', 'done')
+
+    batcher.add(subagent, 'done', 'Message 1')
+    vi.advanceTimersByTime(80)
+    expect(flushed).toHaveLength(0)
+
+    batcher.add(subagent, 'activity', 'Message 2')
+    vi.advanceTimersByTime(80)
+    expect(flushed).toHaveLength(0)
+
+    vi.advanceTimersByTime(20)
+    expect(flushed).toHaveLength(1)
+
+    const firstFlush = flushed[0]
+    expect(firstFlush?.length).toBe(2)
+    expect(firstFlush?.[0]).toContain('Message 1')
+    expect(firstFlush?.[1]).toContain('Message 2')
   })
 })

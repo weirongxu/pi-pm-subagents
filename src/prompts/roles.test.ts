@@ -608,8 +608,8 @@ Custom prompt.`,
       expect(description).toContain('  - worker')
     })
 
-    it('includes role descriptions when available', async () => {
-      const tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-desc-'))
+    it('includes role descriptions and tools when available', async () => {
+      const tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-desc-tools-'))
       try {
         const agentsDir = join(tempDir, '.pi', 'agents')
         await mkdir(agentsDir, { recursive: true })
@@ -617,13 +617,41 @@ Custom prompt.`,
           join(agentsDir, 'custom.md'),
           `---
 description: A custom role for testing.
+tools:
+  - read
+  - grep
 ---
 Custom prompt.`,
         )
 
         await loadRoles(tempDir)
         const description = rolesDescription()
-        expect(description).toContain('  - custom: A custom role for testing.')
+        expect(description).toContain(
+          '  - custom: A custom role for testing.; tools: read, grep',
+        )
+      } finally {
+        await rm(tempDir, { recursive: true, force: true })
+      }
+    })
+
+    it('includes tools-only when no description', async () => {
+      const tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-tools-only-'))
+      try {
+        const agentsDir = join(tempDir, '.pi', 'agents')
+        await mkdir(agentsDir, { recursive: true })
+        await writeFile(
+          join(agentsDir, 'toolrole.md'),
+          `---
+tools:
+  - read
+  - find
+---
+Tool role prompt.`,
+        )
+
+        await loadRoles(tempDir)
+        const description = rolesDescription()
+        expect(description).toContain('  - toolrole: tools: read, find')
       } finally {
         await rm(tempDir, { recursive: true, force: true })
       }

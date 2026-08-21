@@ -94,8 +94,6 @@ export function registerSubagentTools(
         ),
       }),
       async execute(_toolCallId, params, signal, _onUpdate, ctx) {
-        const subagentRef = getPiModesConfig().subagentDefaultModel
-        const subagentModel = resolveModelRef(ctx, [subagentRef]) ?? ctx.model
         const role = resolveRole(params.role)
 
         const tools = composeTools(state.previousActiveTools ?? [], {
@@ -104,14 +102,11 @@ export function registerSubagentTools(
           removeTools: role.removeTools,
         })
 
-        let systemPrompt: string | undefined = undefined
-        let model = subagentModel
-
-        if (role.systemPrompt) systemPrompt = role.systemPrompt
-        if (role.model) {
-          const roleModel = resolveModelRef(ctx, [role.model])
-          if (roleModel) model = roleModel
-        }
+        const model =
+          resolveModelRef(ctx, [
+            role.model,
+            getPiModesConfig().subagentDefaultModel,
+          ]) ?? ctx.model
 
         let subagent: LiveSubagent
         try {
@@ -120,7 +115,7 @@ export function registerSubagentTools(
             model,
             thinkingLevel: ctx.thinkingLevel,
             tools,
-            systemPrompt,
+            systemPrompt: role.systemPrompt,
             followupOf: params.followupOf,
             role: params.role,
           })

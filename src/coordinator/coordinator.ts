@@ -28,10 +28,11 @@ import { persist } from '../utils/state.js'
 
 const COORDINATOR_MODE_WIDGET_KEY = 'pi-modes:coordinator-mode'
 
+/** job event for pi-notify */
 const JOB_START_EVENT = 'pi-notify:job:start'
 const JOB_END_EVENT = 'pi-notify:job:end'
 
-const REMOVE_TOOLS = ['read', 'find', 'grep', 'bash']
+const REMOVE_TOOLS = ['find', 'grep', 'bash']
 
 export type { LiveSubagent, SubagentStatus }
 
@@ -84,8 +85,6 @@ export async function resumeCoordinatorMode(
     color: 'accent',
   })
 
-  fleet.update()
-  activityReporter.start()
   const subagentModel = getPiModesConfig().subagentDefaultModel ?? 'DEFAULT'
   ctx.ui.setWidget(COORDINATOR_MODE_WIDGET_KEY, [
     ctx.ui.theme.fg(
@@ -93,6 +92,9 @@ export async function resumeCoordinatorMode(
       `${ctx.ui.theme.bold('👥 COORDINATOR MODE')} - subagent model ${subagentModel}`,
     ),
   ])
+
+  fleet.update()
+  activityReporter.start()
 }
 
 export async function exitCoordinatorMode(

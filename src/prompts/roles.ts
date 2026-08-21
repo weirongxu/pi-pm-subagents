@@ -71,16 +71,26 @@ export function listRoles(): string[] {
   return [...roles.keys()]
 }
 
+function formatRoleEntry([name, role]: [string, PromptDefinition]): string {
+  const parts: string[] = []
+  if (role.description) {
+    parts.push(role.description)
+  }
+  if (role.tools && role.tools.length > 0) {
+    parts.push(`tools: ${role.tools.join(', ')}`)
+  }
+  if (parts.length > 0) {
+    return `  - ${name}: ${parts.join('; ')}`
+  }
+  return `  - ${name}`
+}
+
 export function rolesDescription(): string {
   if (roles.size === 0) {
     return ''
   }
 
-  return [...roles.entries()]
-    .map(([name, role]) =>
-      role.description ? `  - ${name}: ${role.description}` : `  - ${name}`,
-    )
-    .join('\n')
+  return [...roles.entries()].map(formatRoleEntry).join('\n')
 }
 
 export function clearRoles(): void {

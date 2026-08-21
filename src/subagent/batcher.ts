@@ -6,7 +6,7 @@ export class MessageBatcher {
 
   constructor(
     private readonly flush: (items: string[]) => void,
-    private readonly windowMs = 5000,
+    private readonly windowMs = 3000,
   ) {}
 
   get pending(): readonly string[] {
@@ -20,7 +20,7 @@ export class MessageBatcher {
       `<message>\n${message}\n</message>`,
     ].join('\n')
     this.items.push(item)
-    if (this.timer !== undefined) return
+    if (this.timer !== undefined) clearTimeout(this.timer)
     this.timer = setTimeout(() => {
       this.flushNow()
     }, this.windowMs)
