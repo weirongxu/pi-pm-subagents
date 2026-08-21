@@ -16,7 +16,7 @@ import {
   assertModeIdle,
   exitReadOnly,
 } from '../mode-switcher.js'
-import { readModePrompt } from '../prompts.js'
+import type { PromptDefinition } from '../prompts/core.js'
 import { ScrollView } from '../scroll-view.js'
 import type { ModesState } from '../types.js'
 import { setupPlanDemo } from './demo.js'
@@ -40,11 +40,12 @@ export async function enterPlanMode(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
+  def: PromptDefinition,
 ): Promise<void> {
   assertModeIdle(state, 'plan')
   state.mode = 'plan'
   state.planMarkdown = undefined
-  await resumePlanMode(pi, state, ctx)
+  await resumePlanMode(pi, state, ctx, def)
   ctx.ui.notify('Plan mode on — read-only. Produce a plan for review.', 'info')
   persist(pi, state)
 }
@@ -53,8 +54,10 @@ export async function resumePlanMode(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
+  def: PromptDefinition,
 ): Promise<void> {
   await applyModeSetup(pi, state, 'plan', ctx, {
+    promptDefinition: def,
     color: 'warning',
   })
   ctx.ui.setWidget(PLAN_MODE_WIDGET_KEY, [
@@ -183,6 +186,7 @@ async function askHowToProceed(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
+  coordinatorDef: PromptDefinition,
 ): Promise<void> {
   const plan = state.planMarkdown
   if (!plan) return
@@ -201,10 +205,11 @@ async function askHowToProceed(
         })
         break
       }
-      case 'Execute via subagents':
+      case 'Execute via subagents': {
         await exitPlanMode(pi, state, ctx)
-        await enterCoordinatorMode(pi, state, executePlan, ctx)
+        await enterCoordinatorMode(pi, state, executePlan, ctx, coordinatorDef)
         break
+      }
       case 'Update the plan': {
         const updatePrompt = await ctx.ui.editor('Update the plan:', '')
         if (updatePrompt?.trim()) {
@@ -227,10 +232,18 @@ async function askHowToProceed(
 export async function setupPlan(
   pi: ExtensionAPI,
   state: ModesState,
-  { demoEnabled }: { demoEnabled: boolean },
+  {
+    demoEnabled,
+    planDefinition,
+    coordinatorDefinition,
+  }: {
+    demoEnabled: boolean
+    planDefinition: PromptDefinition
+    coordinatorDefinition: PromptDefinition
+  },
 ): Promise<void> {
   let reviewInFlight = false
-  const planPrompt = await readModePrompt('plan')
+  const planPrompt = planDefinition.systemPrompt
 
   pi.on('before_agent_start', async (event) => {
     if (state.mode !== 'plan') return
@@ -250,7 +263,7 @@ export async function setupPlan(
     handler: async (args, ctx) => {
       const request = args.trim()
       if (request === 'show') {
-        await askHowToProceed(pi, state, ctx)
+        await askHowToProceed(pi, state, ctx, coordinatorDefinition)
         return
       }
       if (state.mode === 'plan') {
@@ -260,7 +273,7 @@ export async function setupPlan(
       }
       if (state.mode === 'coordinator')
         await exitCoordinatorMode(pi, state, ctx)
-      await enterPlanMode(pi, state, ctx)
+      await enterPlanMode(pi, state, ctx, planDefinition)
       if (request && request !== 'toggle')
         pi.sendUserMessage(request, { deliverAs: 'followUp' })
     },
@@ -276,7 +289,7 @@ export async function setupPlan(
     reviewInFlight = true
 
     try {
-      await askHowToProceed(pi, state, ctx)
+      await askHowToProceed(pi, state, ctx, coordinatorDefinition)
     } finally {
       reviewInFlight = false
     }

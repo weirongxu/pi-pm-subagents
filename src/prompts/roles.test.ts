@@ -34,6 +34,7 @@ describe('roles', () => {
         const worker = resolveRole('worker')
         expect(worker.systemPrompt).toBe('')
         expect(worker.tools).toBeUndefined()
+        expect(worker.removeTools).toBeUndefined()
         expect(worker.model).toBeUndefined()
       })
 
@@ -204,6 +205,62 @@ No extra tools either.`,
 
         await loadRoles(tempDir)
         expect(resolveRole('empty-extra').extraTools).toBeUndefined()
+      })
+
+      it('parses removeTools as array in frontmatter', async () => {
+        const rolePath = join(agentsDir, 'remove-array.md')
+        await writeFile(
+          rolePath,
+          `---
+removeTools: [write, bash]
+---
+You have removed tools.`,
+        )
+
+        await loadRoles(tempDir)
+        const role = resolveRole('remove-array')
+        expect(role.removeTools).toEqual(['write', 'bash'])
+      })
+
+      it('parses removeTools as comma-separated string', async () => {
+        const rolePath = join(agentsDir, 'remove-string.md')
+        await writeFile(
+          rolePath,
+          `---
+removeTools: write, bash, edit
+---
+You have removed tools as string.`,
+        )
+
+        await loadRoles(tempDir)
+        const role = resolveRole('remove-string')
+        expect(role.removeTools).toEqual(['write', 'bash', 'edit'])
+      })
+
+      it('handles empty removeTools array or string', async () => {
+        const rolePath = join(agentsDir, 'no-remove.md')
+        await writeFile(
+          rolePath,
+          `---
+removeTools: []
+---
+No tools to remove.`,
+        )
+
+        await loadRoles(tempDir)
+        expect(resolveRole('no-remove').removeTools).toBeUndefined()
+
+        const rolePath2 = join(agentsDir, 'empty-remove.md')
+        await writeFile(
+          rolePath2,
+          `---
+removeTools: ''
+---
+No tools to remove either.`,
+        )
+
+        await loadRoles(tempDir)
+        expect(resolveRole('empty-remove').removeTools).toBeUndefined()
       })
 
       it('tools field is not affected by extraTools', async () => {

@@ -8,6 +8,8 @@ import { Type } from 'typebox'
 
 import { getPiModesConfig, resolveModelRef } from '../models-config.js'
 import { registerOptionalTools } from '../pi-utils.js'
+import { composeTools } from '../prompts/core.js'
+import { resolveRole, rolesDescription } from '../prompts/roles.js'
 import type { ModesState } from '../types.js'
 import type { FleetList } from './fleet.js'
 import type { SubagentManager } from './manager.js'
@@ -17,7 +19,6 @@ import {
   MAX_CONCURRENCY_SUBAGENT,
   MAX_REUSE_FOLLOWUPS,
 } from './manager.js'
-import { resolveRole, rolesDescription } from './roles.ts'
 
 export const SUBAGENT_TOOLS = {
   delegate: 'subagent_delegate',
@@ -94,13 +95,17 @@ export function registerSubagentTools(
       async execute(_toolCallId, params, signal, _onUpdate, ctx) {
         const subagentRef = getPiModesConfig().subagentDefaultModel
         const subagentModel = resolveModelRef(ctx, subagentRef) ?? ctx.model
-        let tools = state.previousActiveTools
-        let systemPrompt: string | undefined = undefined
-        let model = subagentModel
         const role = resolveRole(params.role)
 
-        if (role.tools) tools = [...role.tools]
-        if (role.extraTools) tools = [...(tools ?? []), ...role.extraTools]
+        const tools = composeTools(state.previousActiveTools ?? [], {
+          tools: role.tools,
+          extraTools: role.extraTools,
+          removeTools: role.removeTools,
+        })
+
+        let systemPrompt: string | undefined = undefined
+        let model = subagentModel
+
         if (role.systemPrompt) systemPrompt = role.systemPrompt
         if (role.model) {
           const roleModel = resolveModelRef(ctx, role.model)

@@ -5,6 +5,7 @@ import { resumeCoordinatorMode, setupCoordinator } from './coordinator/index.js'
 import { createState, getLastModesState, persist } from './helper.js'
 import { loadPiModesConfig, setupModesConfig } from './models-config.js'
 import { resumePlanMode, setupPlan } from './plan/index.js'
+import { readModePrompt } from './prompts/mode.js'
 import type { ModesState } from './types.js'
 
 let pendingModesState: Partial<ModesState> | undefined
@@ -13,11 +14,20 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
   const state = createState()
   await loadPiModesConfig()
 
+  const [planDefinition, coordinatorDefinition] = await Promise.all([
+    readModePrompt('plan'),
+    readModePrompt('coordinator'),
+  ])
+
   const demoEnabled = process.env.PI_DEMO === '1'
 
   setupBashReadonlyTool(pi)
-  await setupPlan(pi, state, { demoEnabled })
-  await setupCoordinator(pi, state, { demoEnabled })
+  await setupPlan(pi, state, {
+    demoEnabled,
+    planDefinition,
+    coordinatorDefinition,
+  })
+  await setupCoordinator(pi, state, { demoEnabled, coordinatorDefinition })
   setupModesConfig(pi)
 
   pi.on('session_before_switch', (_event, ctx) => {
@@ -42,9 +52,9 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
       state.previousActiveTools = data.previousActiveTools
 
       if (state.mode === 'plan') {
-        await resumePlanMode(pi, state, ctx)
+        await resumePlanMode(pi, state, ctx, planDefinition)
       } else if (state.mode === 'coordinator') {
-        await resumeCoordinatorMode(pi, state, ctx)
+        await resumeCoordinatorMode(pi, state, ctx, coordinatorDefinition)
       }
 
       persist(pi, state)

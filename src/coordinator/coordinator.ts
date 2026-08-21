@@ -11,7 +11,8 @@ import {
 } from '../mode-switcher.js'
 import { getPiModesConfig } from '../models-config.js'
 import { exitPlanMode } from '../plan/index.js'
-import { readModePrompt } from '../prompts.js'
+import type { PromptDefinition } from '../prompts/core.js'
+import { loadRoles } from '../prompts/roles.js'
 import { ActivityReporter } from '../subagent/activity.js'
 import { MessageBatcher } from '../subagent/batcher.js'
 import { SubagentManagerDemo } from '../subagent/demo.js'
@@ -21,7 +22,6 @@ import {
   SubagentManager,
   type SubagentStatus,
 } from '../subagent/manager.js'
-import { loadRoles } from '../subagent/roles.js'
 import { registerSubagentTools, SUBAGENT_TOOLS } from '../subagent/tools.js'
 import { openSubagentViewer } from '../subagent/viewer.js'
 import type { ModesState } from '../types.js'
@@ -55,10 +55,11 @@ export async function enterCoordinatorMode(
   state: ModesState,
   request: string | undefined,
   ctx: ExtensionContext,
+  def: PromptDefinition,
 ): Promise<void> {
   assertModeIdle(state, 'coordinator')
   state.mode = 'coordinator'
-  await resumeCoordinatorMode(pi, state, ctx)
+  await resumeCoordinatorMode(pi, state, ctx, def)
   persist(pi, state)
   if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
 }
@@ -67,13 +68,19 @@ export async function resumeCoordinatorMode(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
+  def: PromptDefinition,
 ): Promise<void> {
   const { fleet, activityReporter } = requiredRuntime()
   fleet.setContext(ctx)
+
   await applyModeSetup(pi, state, 'coordinator', ctx, {
-    extraTools: Object.values(SUBAGENT_TOOLS),
+    promptDefinition: {
+      ...def,
+      extraTools: [...Object.values(SUBAGENT_TOOLS), ...(def.extraTools ?? [])],
+    },
     color: 'accent',
   })
+
   fleet.update()
   activityReporter.start()
   const subagentModel = getPiModesConfig().subagentDefaultModel ?? 'DEFAULT'
@@ -103,7 +110,10 @@ export async function exitCoordinatorMode(
 export async function setupCoordinator(
   pi: ExtensionAPI,
   state: ModesState,
-  { demoEnabled }: { demoEnabled: boolean },
+  {
+    demoEnabled,
+    coordinatorDefinition,
+  }: { demoEnabled: boolean; coordinatorDefinition: PromptDefinition },
 ): Promise<void> {
   const batcher = new MessageBatcher((messages: readonly string[]) => {
     if (state.mode !== 'coordinator') return
@@ -152,7 +162,8 @@ export async function setupCoordinator(
 
   registerSubagentTools(pi, state, manager, fleet)
 
-  const coordinatorPrompt = await readModePrompt('coordinator')
+  const coordinatorPrompt = coordinatorDefinition.systemPrompt
+
   pi.on('before_agent_start', async (event) => {
     if (state.mode !== 'coordinator') return
     return { systemPrompt: `${event.systemPrompt}\n\n${coordinatorPrompt}` }
@@ -166,7 +177,7 @@ export async function setupCoordinator(
       return
     }
     if (state.mode === 'plan') await exitPlanMode(pi, state, ctx)
-    await enterCoordinatorMode(pi, state, undefined, ctx)
+    await enterCoordinatorMode(pi, state, undefined, ctx, coordinatorDefinition)
     if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
   }
 

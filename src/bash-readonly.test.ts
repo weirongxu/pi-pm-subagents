@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { checkBashSafety, isBashReadonlyCommand } from './bash-readonly.js'
-import { readOnlyToolSet } from './mode-switcher.js'
+import { applyModeTools } from './mode-switcher.js'
 
 describe('isBashReadonlyCommand', () => {
   it('allows read-only commands', () => {
@@ -67,28 +67,49 @@ describe('isBashReadonlyCommand', () => {
   })
 })
 
-describe('readOnlyToolSet', () => {
+describe('applyModeTools', () => {
   it('drops write tools, replaces bash, and merges extras', () => {
     expect(
-      readOnlyToolSet(['read', 'edit', 'write', 'bash'], ['subagent_delegate']),
+      applyModeTools(['read', 'edit', 'write', 'bash'], {
+        extraTools: ['subagent_delegate'],
+      }),
     ).toEqual(['read', 'bash_readonly', 'subagent_delegate'])
   })
 
   it('deduplicates', () => {
-    expect(readOnlyToolSet(['read', 'read', 'edit'], ['read'])).toEqual([
-      'read',
-    ])
+    expect(
+      applyModeTools(['read', 'read', 'edit'], { extraTools: ['read'] }),
+    ).toEqual(['read'])
   })
 
   it('does not inject bash_readonly when bash is not present', () => {
-    expect(readOnlyToolSet(['read', 'grep'], [])).toEqual(['read', 'grep'])
+    expect(applyModeTools(['read', 'grep'], {})).toEqual(['read', 'grep'])
   })
 
   it('passes through bash_readonly unchanged when already present', () => {
-    expect(readOnlyToolSet(['read', 'bash_readonly'], [])).toEqual([
+    expect(applyModeTools(['read', 'bash_readonly'], {})).toEqual([
       'read',
       'bash_readonly',
     ])
+  })
+
+  it('removes specified tools', () => {
+    expect(
+      applyModeTools(['read', 'bash', 'grep'], { removeTools: ['grep'] }),
+    ).toEqual(['read', 'bash_readonly'])
+  })
+
+  it('restricts to tools list when provided', () => {
+    expect(
+      applyModeTools(['read', 'bash', 'grep'], {
+        extraTools: ['subagent_delegate'],
+        tools: ['read', 'subagent_delegate'],
+      }),
+    ).toEqual(['read', 'subagent_delegate'])
+  })
+
+  it('returns empty when tools list is empty', () => {
+    expect(applyModeTools(['read', 'bash', 'grep'], { tools: [] })).toEqual([])
   })
 })
 
