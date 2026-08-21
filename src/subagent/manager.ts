@@ -24,7 +24,7 @@ const subagentDirFor = (cwd: string, agentDir: string): string => {
 
 const MAX_SUBAGENT_OUTPUT_BYTES = 50 * 1024
 
-export const MAX_REUSE_FOLLOWUPS = 5
+export const MAX_REUSE_FOLLOWUPS = 10
 export const MAX_CONCURRENCY_SUBAGENT = 5
 
 export type SubagentStatus = 'running' | 'done' | 'failed' | 'killed'
@@ -35,7 +35,7 @@ export interface SpawnOptions {
   thinkingLevel?: ThinkingLevel
   tools?: readonly string[]
   systemPrompt?: string
-  followupOf?: number
+  followUpOf?: number
   role?: string
 }
 
@@ -68,7 +68,7 @@ export function formatSubagentSummary(
     subagent.status,
     `#${subagent.id}`,
     subagent.title.slice(0, titleWidth),
-    `F(${subagent.followUpCount})}`,
+    `F(${subagent.followUpCount})`,
     formatElapsed(subagent),
   ].join(' ')
 }
@@ -106,8 +106,8 @@ export class SubagentManager {
     task: string,
     options: SpawnOptions,
   ): Promise<LiveSubagent> {
-    if (options.followupOf) {
-      return this.handleFollowup(title, task, options.followupOf)
+    if (options.followUpOf) {
+      return this.handleFollowup(title, task, options.followUpOf)
     }
     return this.createNewSubagent(title, task, options)
   }
@@ -119,10 +119,6 @@ export class SubagentManager {
   ): Promise<LiveSubagent> {
     const followupSubagent = this.subagents.get(followupOf)
     if (!followupSubagent) throw new Error(`Subagent #${followupOf} not found`)
-    if (followupSubagent.status === 'running')
-      throw new Error(
-        `Cannot follow-up subagent #${followupOf} while it is still running`,
-      )
     if (followupSubagent.followUpCount >= MAX_REUSE_FOLLOWUPS)
       throw new Error(
         `Subagent #${followupOf} follow-up budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
@@ -130,11 +126,18 @@ export class SubagentManager {
 
     followupSubagent.title = title
     followupSubagent.text = task
+    followupSubagent.followUpCount += 1
+
+    if (followupSubagent.status === 'running') {
+      await followupSubagent.session.steer(task)
+      this.options.onStatusChange?.()
+      return followupSubagent
+    }
+
     followupSubagent.status = 'running'
     followupSubagent.startedAt = Date.now()
     followupSubagent.completedAt = undefined
     followupSubagent.message = undefined
-    followupSubagent.followUpCount += 1
     this.options.onStatusChange?.()
     this.options.onStart?.(followupSubagent)
     void this.run(followupSubagent, task)

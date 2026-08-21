@@ -225,7 +225,9 @@ export class FleetList {
     }[]
     if (items.length === 0) return []
 
-    const sel = Math.min(this.selectedIndex, items.length)
+    const sel = this.activeSelect
+      ? Math.min(this.selectedIndex, items.length)
+      : -1
     const hint = this.activeSelect
       ? '↑↓ select · enter view · esc back'
       : 'esc to interrupt · ←/↓ for items'

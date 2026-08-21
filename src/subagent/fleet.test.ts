@@ -462,3 +462,152 @@ describe('FleetList focus gate (#123)', () => {
     expect(result).toEqual({ consume: true })
   })
 })
+
+describe('FleetList renderBar when inactive', () => {
+  function createFakeTheme() {
+    return {
+      fg: (_variant: string, text: string) => text,
+      strikethrough: (text: string) => text,
+      borderColor: (str: string) => str,
+      selectList: {
+        selectedPrefix: (text: string) => text,
+        selectedText: (text: string) => text,
+        description: (text: string) => text,
+        scrollInfo: (text: string) => text,
+        noMatch: (text: string) => text,
+      },
+    }
+  }
+
+  function createFakeContext(): Record<string, unknown> {
+    return {
+      ui: {
+        getEditorText: () => '',
+        setWidget: () => {},
+        theme: createFakeTheme(),
+        onTerminalInput: () => () => {},
+        notify: () => {},
+      },
+    }
+  }
+
+  it('renders main without selected bullet (●) when inactive', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'test task',
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+
+    const fleetList = new FleetList({
+      list: () => entries,
+      onOpen: () => {},
+    })
+
+    const fakeContext = createFakeContext()
+    fleetList.setContext(fakeContext as unknown as ExtensionContext)
+
+    // Simulate inactive state (activeSelect = false)
+    fleetList['activeSelect'] = false
+
+    // Get the render output
+    const width = 100
+    const render = (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(width)
+
+    // Check that main line does not contain the selected bullet (●)
+    const mainLine = render.find((line: string) => line.includes('main'))
+    expect(mainLine).toBeDefined()
+    expect(mainLine).not.toContain('●')
+    expect(mainLine).toContain('◯')
+  })
+
+  it('renders all subagents without selected bullet (●) when inactive', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        status: 'done',
+        startedAt: now - 10000,
+        completedAt: now - 5000,
+        followUpCount: 1,
+        role: 'supervisor',
+      },
+    ]
+
+    const fleetList = new FleetList({
+      list: () => entries,
+      onOpen: () => {},
+    })
+
+    const fakeContext = createFakeContext()
+    fleetList.setContext(fakeContext as unknown as ExtensionContext)
+
+    // Simulate inactive state (activeSelect = false)
+    fleetList['activeSelect'] = false
+
+    // Get the render output
+    const width = 100
+    const render = (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(width)
+
+    // Check that no line contains the selected bullet (●)
+    for (const line of render) {
+      expect(line).not.toContain('●')
+    }
+  })
+
+  it('renders selected bullet (●) when active', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'test task',
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+
+    const fleetList = new FleetList({
+      list: () => entries,
+      onOpen: () => {},
+    })
+
+    const fakeContext = createFakeContext()
+    fleetList.setContext(fakeContext as unknown as ExtensionContext)
+
+    // Simulate active state (activeSelect = true, selectedIndex = 0 for main)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 0
+
+    // Get the render output
+    const width = 100
+    const render = (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(width)
+
+    // Check that main line contains the selected bullet (●)
+    const mainLine = render.find((line: string) => line.includes('main'))
+    expect(mainLine).toBeDefined()
+    expect(mainLine).toContain('●')
+    expect(mainLine).not.toContain('◯')
+  })
+})

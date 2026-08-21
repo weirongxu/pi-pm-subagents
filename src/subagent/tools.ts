@@ -87,7 +87,7 @@ export function registerSubagentTools(
         role: Type.String({
           description: `Role of subagent`,
         }),
-        followupOf: Type.Optional(
+        followUpOf: Type.Optional(
           Type.Number({
             description: `Reuse subagent id to follow up. Omit for a fresh task. Max reuse ${MAX_REUSE_FOLLOWUPS} times`,
           }),
@@ -116,7 +116,7 @@ export function registerSubagentTools(
             thinkingLevel: ctx.thinkingLevel,
             tools,
             systemPrompt: role.systemPrompt,
-            followupOf: params.followupOf,
+            followUpOf: params.followUpOf,
             role: params.role,
           })
           fleet.update()
