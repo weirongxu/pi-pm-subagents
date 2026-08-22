@@ -37,7 +37,7 @@ export class SubagentManagerDemo extends SubagentManager {
     return this.#subagents[this.#subagents.length - 1]
   }
 
-  override spawn(): Promise<LiveSubagent> {
+  override createNewSubagent(): Promise<LiveSubagent> {
     return Promise.reject(
       new Error('spawn is not supported for demo subagents'),
     )

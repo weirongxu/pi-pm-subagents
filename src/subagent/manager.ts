@@ -35,7 +35,6 @@ export interface SpawnOptions {
   thinkingLevel?: ThinkingLevel
   tools?: readonly string[]
   systemPrompt?: string
-  followUpOf?: number
   role?: string
 }
 
@@ -101,49 +100,6 @@ export class SubagentManager {
     return latest
   }
 
-  async spawn(
-    title: string,
-    task: string,
-    options: SpawnOptions,
-  ): Promise<LiveSubagent> {
-    if (options.followUpOf) {
-      return this.handleFollowup(title, task, options.followUpOf)
-    }
-    return this.createNewSubagent(title, task, options)
-  }
-
-  private async handleFollowup(
-    title: string,
-    task: string,
-    followupOf: number,
-  ): Promise<LiveSubagent> {
-    const followupSubagent = this.subagents.get(followupOf)
-    if (!followupSubagent) throw new Error(`Subagent #${followupOf} not found`)
-    if (followupSubagent.followUpCount >= MAX_REUSE_FOLLOWUPS)
-      throw new Error(
-        `Subagent #${followupOf} follow-up budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
-      )
-
-    followupSubagent.title = title
-    followupSubagent.text = task
-    followupSubagent.followUpCount += 1
-
-    if (followupSubagent.status === 'running') {
-      await followupSubagent.session.steer(task)
-      this.options.onStatusChange?.()
-      return followupSubagent
-    }
-
-    followupSubagent.status = 'running'
-    followupSubagent.startedAt = Date.now()
-    followupSubagent.completedAt = undefined
-    followupSubagent.message = undefined
-    this.options.onStatusChange?.()
-    this.options.onStart?.(followupSubagent)
-    void this.run(followupSubagent, task)
-    return followupSubagent
-  }
-
   private async createLoader(
     options: SpawnOptions,
   ): Promise<DefaultResourceLoader> {
@@ -162,9 +118,9 @@ export class SubagentManager {
     return loader
   }
 
-  private async createNewSubagent(
+  async createNewSubagent(
     title: string,
-    task: string,
+    prompt: string,
     options: SpawnOptions,
   ): Promise<LiveSubagent> {
     if (this.countRunning() >= MAX_CONCURRENCY_SUBAGENT) {
@@ -194,7 +150,7 @@ export class SubagentManager {
     const subagent: LiveSubagent = {
       id,
       title,
-      text: task,
+      text: prompt,
       status: 'running',
       session: created.session,
       startedAt: Date.now(),
@@ -207,8 +163,40 @@ export class SubagentManager {
     this.subscribe(subagent)
     this.options.onStart?.(subagent)
     this.options.onStatusChange?.()
-    void this.run(subagent, task)
+    void this.run(subagent, prompt)
     return subagent
+  }
+
+  async followup(
+    id: number,
+    title: string,
+    prompt: string,
+  ): Promise<LiveSubagent> {
+    const followupSubagent = this.subagents.get(id)
+    if (!followupSubagent) throw new Error(`Subagent #${id} not found`)
+    if (followupSubagent.followUpCount >= MAX_REUSE_FOLLOWUPS)
+      throw new Error(
+        `Subagent #${id} follow-up budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
+      )
+
+    followupSubagent.title = title
+    followupSubagent.text = prompt
+    followupSubagent.followUpCount += 1
+
+    if (followupSubagent.status === 'running') {
+      await followupSubagent.session.steer(prompt)
+      this.options.onStatusChange?.()
+      return followupSubagent
+    }
+
+    followupSubagent.status = 'running'
+    followupSubagent.startedAt = Date.now()
+    followupSubagent.completedAt = undefined
+    followupSubagent.message = undefined
+    this.options.onStatusChange?.()
+    this.options.onStart?.(followupSubagent)
+    void this.run(followupSubagent, prompt)
+    return followupSubagent
   }
 
   async steer(id: number, text: string): Promise<boolean> {
@@ -258,9 +246,9 @@ export class SubagentManager {
     })
   }
 
-  private async run(subagent: LiveSubagent, task: string): Promise<void> {
+  private async run(subagent: LiveSubagent, prompt: string): Promise<void> {
     try {
-      await subagent.session.prompt(`Task: ${task}`)
+      await subagent.session.prompt(prompt)
       const lastMessage = lastMessageText(
         subagent.session.messages,
         MAX_SUBAGENT_OUTPUT_BYTES,

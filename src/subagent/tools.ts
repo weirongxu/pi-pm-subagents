@@ -21,8 +21,27 @@ import {
   MAX_REUSE_FOLLOWUPS,
 } from './manager.js'
 
+function toolResultFromError(error: unknown): AgentToolResult<unknown> {
+  const message = error instanceof Error ? error.message : String(error)
+  return { content: [{ type: 'text', text: message }], details: {} }
+}
+
+const stopSubagentOnAbort = (
+  signal: AbortSignal | undefined,
+  id: number,
+  manager: SubagentManager,
+): void => {
+  if (!signal) return
+  const stop = (): void => {
+    void manager.abort(id)
+  }
+  if (signal.aborted) stop()
+  else signal.addEventListener('abort', stop, { once: true })
+}
+
 export const SUBAGENT_TOOLS = {
   delegate: 'subagent_delegate',
+  followup: 'subagent_followup',
   kill: 'subagent_kill',
   list: 'subagent_list',
 } as const
@@ -81,19 +100,19 @@ export function registerSubagentTools(
       parameters: Type.Object({
         title: Type.String(),
         prompt: Type.String({
-          description:
-            'A self-contained description of the subagent should do.',
+          description: 'Prompt of the subagent should do',
         }),
         role: Type.String({
           description: `Role of subagent`,
         }),
-        followUpOf: Type.Optional(
-          Type.Number({
-            description: `Reuse subagent id to follow up. Omit for a fresh task. Max reuse ${MAX_REUSE_FOLLOWUPS} times`,
-          }),
-        ),
       }),
-      async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+      async execute(
+        _toolCallId,
+        params,
+        signal,
+        _onUpdate,
+        ctx,
+      ): Promise<AgentToolResult<unknown>> {
         const role = resolveRole(params.role)
 
         const tools = composeTools(state.previousActiveTools ?? [], {
@@ -110,37 +129,71 @@ export function registerSubagentTools(
 
         let subagent: LiveSubagent
         try {
-          subagent = await manager.spawn(params.title, params.prompt, {
-            cwd: ctx.cwd,
-            model,
-            thinkingLevel: ctx.thinkingLevel,
-            tools,
-            systemPrompt: role.systemPrompt,
-            followUpOf: params.followUpOf,
-            role: params.role,
-          })
+          subagent = await manager.createNewSubagent(
+            params.title,
+            params.prompt,
+            {
+              cwd: ctx.cwd,
+              model,
+              thinkingLevel: ctx.thinkingLevel,
+              tools,
+              systemPrompt: role.systemPrompt,
+              role: params.role,
+            },
+          )
           fleet.update()
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          return {
-            content: [{ type: 'text', text: message }],
-            details: {},
-          }
+          return toolResultFromError(error)
         }
 
-        if (signal) {
-          const stop = (): void => {
-            void manager.abort(subagent.id)
-          }
-          if (signal.aborted) stop()
-          else signal.addEventListener('abort', stop, { once: true })
-        }
+        stopSubagentOnAbort(signal, subagent.id, manager)
 
         return {
           content: [
             {
               type: 'text',
               text: `Subagent id #${subagent.id} background. I'll send you last message when it finishes.`,
+            },
+          ],
+          details: { subagentId: subagent.id, status: subagent.status },
+        }
+      },
+    }),
+
+    defineTool({
+      name: SUBAGENT_TOOLS.followup,
+      label: 'Follow Up Subagent',
+      description: `Continue working with an existing subagent. Max reuse ${MAX_REUSE_FOLLOWUPS} times.`,
+      parameters: Type.Object({
+        id: Type.Number(),
+        title: Type.String(),
+        prompt: Type.String({
+          description: 'Prompt of the subagent should do',
+        }),
+      }),
+      async execute(
+        _toolCallId,
+        params,
+        signal,
+      ): Promise<AgentToolResult<unknown>> {
+        let subagent: LiveSubagent
+        try {
+          subagent = await manager.followup(
+            params.id,
+            params.title,
+            params.prompt,
+          )
+        } catch (error) {
+          return toolResultFromError(error)
+        }
+
+        stopSubagentOnAbort(signal, subagent.id, manager)
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Subagent #${subagent.id} continued. I'll send you last message when it finishes.`,
             },
           ],
           details: { subagentId: subagent.id, status: subagent.status },

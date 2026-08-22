@@ -63,13 +63,13 @@ function registerSubagent(
   return subagent
 }
 
-describe('SubagentManager.handleFollowup', () => {
-  describe('followupOf not found', () => {
+describe('SubagentManager.followup', () => {
+  describe('subagent not found', () => {
     it('throws when subagent id does not exist', async () => {
       const manager = new SubagentManager()
-      await expect(
-        manager.spawn('title', 'task', { cwd: '/tmp', followUpOf: 99 }),
-      ).rejects.toThrow('Subagent #99 not found')
+      await expect(manager.followup(99, 'title', 'task')).rejects.toThrow(
+        'Subagent #99 not found',
+      )
     })
   })
 
@@ -90,10 +90,7 @@ describe('SubagentManager.handleFollowup', () => {
       })
       promptMock.mockReturnValue(new Promise(() => {}))
 
-      const result = await manager.spawn('New Title', 'New Task', {
-        cwd: '/tmp',
-        followUpOf: 1,
-      })
+      const result = await manager.followup(1, 'New Title', 'New Task')
 
       expect(result.id).toBe(1)
       expect(result.status).toBe('running')
@@ -117,9 +114,7 @@ describe('SubagentManager.handleFollowup', () => {
         followUpCount: 10,
       })
 
-      await expect(
-        manager.spawn('title', 'task', { cwd: '/tmp', followUpOf: 1 }),
-      ).rejects.toThrow(
+      await expect(manager.followup(1, 'title', 'task')).rejects.toThrow(
         'Subagent #1 follow-up budget exhausted (10/10). Start a fresh subagent instead.',
       )
 
@@ -143,10 +138,7 @@ describe('SubagentManager.handleFollowup', () => {
         followUpCount: 0,
       })
 
-      const result = await manager.spawn('New Title', 'New Task', {
-        cwd: '/tmp',
-        followUpOf: 1,
-      })
+      const result = await manager.followup(1, 'New Title', 'New Task')
 
       expect(result.id).toBe(1)
       expect(result.status).toBe('running')
@@ -170,7 +162,7 @@ describe('SubagentManager.handleFollowup', () => {
       const originalStartedAt = Date.now() - 5000
       subagent.startedAt = originalStartedAt
 
-      await manager.spawn('title', 'task', { cwd: '/tmp', followUpOf: 1 })
+      await manager.followup(1, 'title', 'task')
 
       expect(steerMock).toHaveBeenCalled()
       expect(subagent.startedAt).toBe(originalStartedAt)
@@ -187,10 +179,10 @@ describe('SubagentManager.handleFollowup', () => {
         followUpCount: 3,
       })
 
-      await manager.spawn('t1', 'task 1', { cwd: '/tmp', followUpOf: 1 })
+      await manager.followup(1, 't1', 'task 1')
       expect(steerMock).toHaveBeenCalledTimes(1)
 
-      await manager.spawn('t2', 'task 2', { cwd: '/tmp', followUpOf: 1 })
+      await manager.followup(1, 't2', 'task 2')
       expect(steerMock).toHaveBeenCalledTimes(2)
 
       const subagent = (
@@ -208,9 +200,7 @@ describe('SubagentManager.handleFollowup', () => {
         followUpCount: 10,
       })
 
-      await expect(
-        manager.spawn('title', 'task', { cwd: '/tmp', followUpOf: 1 }),
-      ).rejects.toThrow(
+      await expect(manager.followup(1, 'title', 'task')).rejects.toThrow(
         'Subagent #1 follow-up budget exhausted (10/10). Start a fresh subagent instead.',
       )
 
