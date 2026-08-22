@@ -154,7 +154,7 @@ describe('SubagentManager.handleFollowup', () => {
       expect(result.text).toBe('New Task')
       expect(result.followUpCount).toBe(1)
       expect(steerMock).toHaveBeenCalledOnce()
-      expect(steerMock).toHaveBeenCalledWith('Task: New Task')
+      expect(steerMock).toHaveBeenCalledWith('New Task')
       expect(promptMock).not.toHaveBeenCalled()
       expect(onStartMock).not.toHaveBeenCalled()
     })
