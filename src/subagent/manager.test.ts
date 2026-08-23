@@ -46,7 +46,8 @@ function registerSubagent(
   const subagent: LiveSubagent = {
     id,
     title: `Task ${id}`,
-    text: `Do task ${id}`,
+    previousEntries: [],
+    prompt: `Do task ${id}`,
     status,
     session: session as unknown as AgentSession,
     startedAt: Date.now() - 1000,
@@ -95,7 +96,7 @@ describe('SubagentManager.followup', () => {
       expect(result.id).toBe(1)
       expect(result.status).toBe('running')
       expect(result.title).toBe('New Title')
-      expect(result.text).toBe('New Task')
+      expect(result.prompt).toBe('New Task')
       expect(result.followUpCount).toBe(1)
       expect(result.startedAt).toBeGreaterThan(0)
       expect(result.completedAt).toBeUndefined()
@@ -143,7 +144,7 @@ describe('SubagentManager.followup', () => {
       expect(result.id).toBe(1)
       expect(result.status).toBe('running')
       expect(result.title).toBe('New Title')
-      expect(result.text).toBe('New Task')
+      expect(result.prompt).toBe('New Task')
       expect(result.followUpCount).toBe(1)
       expect(steerMock).toHaveBeenCalledOnce()
       expect(steerMock).toHaveBeenCalledWith('New Task')
@@ -205,6 +206,55 @@ describe('SubagentManager.followup', () => {
       )
 
       expect(steerMock).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('previousEntries accumulation', () => {
+    it('accumulates previous titles with full metadata on each followup', async () => {
+      const { session } = makeStubSession()
+      const manager = new SubagentManager()
+      const subagent = registerSubagent(manager, session, {
+        id: 1,
+        status: 'done',
+        followUpCount: 0,
+      })
+
+      await manager.followup(1, 'Title 1', 'task 1')
+      await manager.followup(1, 'Title 2', 'task 2')
+      await manager.followup(1, 'Title 3', 'task 3')
+
+      expect(subagent.previousEntries).toHaveLength(3)
+      expect(subagent.previousEntries[0]).toMatchObject({
+        title: 'Title 2',
+        status: 'done',
+        followUpCount: 2,
+      })
+      expect(subagent.previousEntries[1]).toMatchObject({
+        title: 'Title 1',
+        status: 'done',
+        followUpCount: 1,
+      })
+      expect(subagent.previousEntries[2]).toMatchObject({
+        title: 'Task 1',
+        status: 'done',
+        followUpCount: 0,
+      })
+      expect(subagent.title).toBe('Title 3')
+    })
+
+    it('does not modify previousEntries when followup budget exhausted', async () => {
+      const { session } = makeStubSession()
+      const manager = new SubagentManager()
+      const subagent = registerSubagent(manager, session, {
+        id: 1,
+        status: 'done',
+        followUpCount: 10,
+      })
+
+      await expect(manager.followup(1, 'New Title', 'task')).rejects.toThrow()
+
+      expect(subagent.previousEntries).toEqual([])
+      expect(subagent.title).toBe('Task 1')
     })
   })
 })

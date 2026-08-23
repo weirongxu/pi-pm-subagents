@@ -10,7 +10,12 @@ import {
 } from '@earendil-works/pi-tui'
 import { orderBy } from 'lodash-es'
 
-import { formatElapsed, rightAlign, strInline } from '../utils/format.js'
+import {
+  formatElapsed,
+  formatElapsedMs,
+  rightAlign,
+  strInline,
+} from '../utils/format.js'
 
 const FLEET_KEY = 'pi-modes:fleet'
 const TICK_MS = 200
@@ -18,9 +23,17 @@ const MAX_ROWS = 5
 
 export type FleetEntryStatus = 'running' | 'done' | 'failed' | 'killed'
 
+export interface PreviousEntry {
+  title: string
+  status: FleetEntryStatus
+  followUpCount: number
+  setAt: number
+}
+
 export interface FleetEntry {
   id: number
   title: string
+  previousEntries: PreviousEntry[]
   status: FleetEntryStatus
   startedAt: number
   completedAt?: number
@@ -219,14 +232,14 @@ export class FleetList {
     const ctx = this.ctx
     if (!ctx) return []
     const theme = ctx.ui.theme
-    const items = this.roster().slice(1) as {
+    const rosterItems = this.roster().slice(1) as {
       kind: 'item'
       item: FleetEntry
     }[]
-    if (items.length === 0) return []
+    if (rosterItems.length === 0) return []
 
     const sel = this.activeSelect
-      ? Math.min(this.selectedIndex, items.length)
+      ? Math.min(this.selectedIndex, rosterItems.length)
       : -1
     const hint = this.activeSelect
       ? '↑↓ select · enter view · esc back'
@@ -237,17 +250,31 @@ export class FleetList {
       truncateToWidth(` ${this.bullet(0, sel, theme)} main`, width),
     ]
 
-    const visible = Math.min(MAX_ROWS, items.length)
+    const visible = Math.min(MAX_ROWS, rosterItems.length)
     const selItem = Math.max(0, sel - 1)
     const start = selItem < visible ? 0 : selItem - visible + 1
-    const hiddenBelow = items.length - (start + visible)
+    const hiddenBelow = rosterItems.length - (start + visible)
     if (start > 0) {
       lines.push(rightAlign('', theme.fg('dim', `↑ ${start} more`), width))
     }
     for (let i = start; i < start + visible; i++) {
-      const entry = items[i]
+      const entry = rosterItems[i]
       if (!entry) continue
       lines.push(this.renderItemRow(i + 1, sel, entry.item, width, theme))
+      for (const prevEntry of entry.item.previousEntries) {
+        const titleText = strInline(prevEntry.title)
+        const statusPart = theme.fg('muted', prevEntry.status)
+        const followUpPart = theme.fg('dim', `F(${prevEntry.followUpCount})`)
+        const elapsed = formatElapsedMs(
+          Math.max(0, (entry.item.completedAt ?? Date.now()) - prevEntry.setAt),
+        )
+        const right = `${statusPart} ${followUpPart} ${theme.fg('dim', elapsed)}`
+        const left = `    ${theme.fg('dim', '↳')} ${theme.fg('dim', theme.strikethrough(titleText))}`
+        const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
+        lines.push(
+          rightAlign(truncateToWidth(left, leftMaxWidth), right, width),
+        )
+      }
     }
     if (hiddenBelow > 0) {
       lines.push(

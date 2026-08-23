@@ -21,6 +21,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 1,
         title: 'task 1',
+        previousEntries: [],
         status: 'done',
         startedAt: now - 10000,
         completedAt: now - 5000,
@@ -30,6 +31,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 5,
         title: 'task 5',
+        previousEntries: [],
         status: 'done',
         startedAt: now - 20000,
         completedAt: now - 15000,
@@ -39,6 +41,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 3,
         title: 'task 3',
+        previousEntries: [],
         status: 'running',
         startedAt: now - 3000,
         followUpCount: 0,
@@ -47,6 +50,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 4,
         title: 'task 4',
+        previousEntries: [],
         status: 'running',
         startedAt: now - 4000,
         followUpCount: 2,
@@ -55,6 +59,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 2,
         title: 'task 2',
+        previousEntries: [],
         status: 'done',
         startedAt: now - 8000,
         completedAt: now - 6000,
@@ -85,6 +90,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 1,
         title: 'task 1',
+        previousEntries: [],
         status: 'running',
         startedAt: now - 1000,
         followUpCount: 0,
@@ -93,6 +99,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 3,
         title: 'task 3',
+        previousEntries: [],
         status: 'running',
         startedAt: now - 3000,
         followUpCount: 1,
@@ -101,6 +108,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 2,
         title: 'task 2',
+        previousEntries: [],
         status: 'running',
         startedAt: now - 2000,
         followUpCount: 0,
@@ -120,6 +128,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 2,
         title: 'task 2',
+        previousEntries: [],
         status: 'done',
         startedAt: now - 2000,
         completedAt: now - 1000,
@@ -129,6 +138,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 5,
         title: 'task 5',
+        previousEntries: [],
         status: 'done',
         startedAt: now - 5000,
         completedAt: now - 4000,
@@ -138,6 +148,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 1,
         title: 'task 1',
+        previousEntries: [],
         status: 'done',
         startedAt: now - 1000,
         completedAt: now - 500,
@@ -158,6 +169,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 1,
         title: 'task 1',
+        previousEntries: [],
         status: 'failed',
         startedAt: now - 10000,
         completedAt: now - 5000,
@@ -167,6 +179,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 4,
         title: 'task 4',
+        previousEntries: [],
         status: 'running',
         startedAt: now - 2000,
         followUpCount: 0,
@@ -175,6 +188,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 2,
         title: 'task 2',
+        previousEntries: [],
         status: 'killed',
         startedAt: now - 8000,
         completedAt: now - 7000,
@@ -184,6 +198,7 @@ describe('FleetList roster sorting', () => {
       {
         id: 3,
         title: 'task 3',
+        previousEntries: [],
         status: 'running',
         startedAt: now - 3000,
         followUpCount: 0,
@@ -212,6 +227,7 @@ describe('formatElapsed', () => {
   ): FleetEntry => ({
     id: 1,
     title: '',
+    previousEntries: [],
     startedAt: 1000,
     status: 'running',
     followUpCount: 0,
@@ -389,6 +405,7 @@ describe('FleetList focus gate (#123)', () => {
       {
         id: 1,
         title: 'test task',
+        previousEntries: [],
         status: 'running',
         startedAt: now,
         followUpCount: 0,
@@ -497,6 +514,7 @@ describe('FleetList renderBar when inactive', () => {
       {
         id: 1,
         title: 'test task',
+        previousEntries: [],
         status: 'running',
         startedAt: now,
         followUpCount: 0,
@@ -534,6 +552,7 @@ describe('FleetList renderBar when inactive', () => {
       {
         id: 1,
         title: 'task 1',
+        previousEntries: [],
         status: 'running',
         startedAt: now,
         followUpCount: 0,
@@ -542,6 +561,7 @@ describe('FleetList renderBar when inactive', () => {
       {
         id: 2,
         title: 'task 2',
+        previousEntries: [],
         status: 'done',
         startedAt: now - 10000,
         completedAt: now - 5000,
@@ -579,6 +599,7 @@ describe('FleetList renderBar when inactive', () => {
       {
         id: 1,
         title: 'test task',
+        previousEntries: [],
         status: 'running',
         startedAt: now,
         followUpCount: 0,
@@ -609,5 +630,55 @@ describe('FleetList renderBar when inactive', () => {
     expect(mainLine).toBeDefined()
     expect(mainLine).toContain('●')
     expect(mainLine).not.toContain('◯')
+  })
+
+  it('renders previousEntries with strikethrough, status, followUpCount, and elapsed', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'current task',
+        previousEntries: [
+          {
+            title: 'previous 1',
+            status: 'done',
+            followUpCount: 1,
+            setAt: now - 8000,
+          },
+          {
+            title: 'previous 2',
+            status: 'done',
+            followUpCount: 0,
+            setAt: now - 10000,
+          },
+        ],
+        status: 'done',
+        startedAt: now - 5000,
+        completedAt: now - 5000,
+        followUpCount: 2,
+        role: 'worker',
+      },
+    ]
+
+    const fleetList = new FleetList({
+      list: () => entries,
+      onOpen: () => {},
+    })
+
+    const fakeContext = createFakeContext()
+    fleetList.setContext(fakeContext as unknown as ExtensionContext)
+    fleetList['activeSelect'] = false
+
+    const width = 100
+    const render = (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(width)
+
+    expect(render).toContainEqual(expect.stringContaining('↳'))
+    expect(render).toContainEqual(expect.stringContaining('previous 1'))
+    expect(render).toContainEqual(expect.stringContaining('previous 2'))
+    expect(render).toContainEqual(expect.stringContaining('F(1)'))
+    expect(render).toContainEqual(expect.stringContaining('F(0)'))
+    expect(render).toContainEqual(expect.stringContaining('done'))
   })
 })

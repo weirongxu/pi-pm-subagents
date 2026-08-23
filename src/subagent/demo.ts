@@ -56,11 +56,12 @@ export class SubagentManagerDemo extends SubagentManager {
     return true
   }
 
-  add(text?: string): void {
+  add(prompt?: string): void {
     this.#subagents.push({
       id: this.#subagents.length + 1,
-      title: text ?? 'Review and fix authentication flow',
-      text: text ?? 'Review and fix authentication flow',
+      title: prompt ?? 'Review and fix authentication flow',
+      previousEntries: [],
+      prompt: prompt ?? 'Review and fix authentication flow',
       status: 'running',
       startedAt: Date.now() - 600000,
       completedAt: undefined,
@@ -80,12 +81,26 @@ function initialDemoSubagents(): LiveSubagent[] {
     {
       id: 1,
       title: 'Review and fix authentication flow',
-      text: 'Review and fix authentication flow',
+      previousEntries: [
+        {
+          title: 'Check JWT validation logic',
+          status: 'done',
+          followUpCount: 1,
+          setAt: now - 3500000,
+        },
+        {
+          title: 'Initial authentication review',
+          status: 'done',
+          followUpCount: 0,
+          setAt: now - 3600000,
+        },
+      ],
+      prompt: 'Review and fix authentication flow',
       status: 'done',
-      startedAt: now - 3600000,
+      startedAt: now - 3000000,
       completedAt: now - 3000000,
       message: 'Fixed JWT token validation and updated error handling.',
-      followUpCount: 0,
+      followUpCount: 2,
       enabledTools: new Set(['read', 'edit', 'bash']),
       responseText: undefined,
       session: mockSessionFor('1', 6),
@@ -94,7 +109,8 @@ function initialDemoSubagents(): LiveSubagent[] {
     {
       id: 2,
       title: 'Add unit tests for API endpoints',
-      text: 'Add unit tests for API endpoints',
+      previousEntries: [],
+      prompt: 'Add unit tests for API endpoints',
       status: 'running',
       startedAt: now - 600000,
       completedAt: undefined,
@@ -108,9 +124,23 @@ function initialDemoSubagents(): LiveSubagent[] {
     {
       id: 3,
       title: 'Update dependencies and fix breaking changes\nClean local cache',
-      text: 'Update dependencies and fix breaking changes\nClean local cache',
+      previousEntries: [
+        {
+          title: 'Review React 19 compatibility',
+          status: 'done',
+          followUpCount: 1,
+          setAt: now - 1100000,
+        },
+        {
+          title: 'Check for outdated dependencies',
+          status: 'done',
+          followUpCount: 0,
+          setAt: now - 1200000,
+        },
+      ],
+      prompt: 'Update dependencies and fix breaking changes\nClean local cache',
       status: 'failed',
-      startedAt: now - 1200000,
+      startedAt: now - 900000,
       completedAt: now - 900000,
       message: 'Error: Peer dependency conflict with React 19.',
       followUpCount: 2,
@@ -122,9 +152,17 @@ function initialDemoSubagents(): LiveSubagent[] {
     {
       id: 4,
       title: 'Optimize database queries for dashboard',
-      text: 'Optimize database queries for dashboard',
+      previousEntries: [
+        {
+          title: 'Analyze dashboard query performance',
+          status: 'done',
+          followUpCount: 0,
+          setAt: now - 1700000,
+        },
+      ],
+      prompt: 'Optimize database queries for dashboard',
       status: 'killed',
-      startedAt: now - 1800000,
+      startedAt: now - 1500000,
       completedAt: now - 1500000,
       message: 'Subagent killed by user.',
       followUpCount: 1,
@@ -136,7 +174,8 @@ function initialDemoSubagents(): LiveSubagent[] {
     {
       id: 5,
       title: 'Write documentation for new features',
-      text: 'Write documentation for new features',
+      previousEntries: [],
+      prompt: 'Write documentation for new features',
       status: 'done',
       startedAt: now - 7200000,
       completedAt: now - 6000000,

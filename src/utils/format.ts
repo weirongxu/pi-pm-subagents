@@ -17,7 +17,12 @@ export function formatElapsed(item: {
   completedAt?: number
 }): string {
   const end = item.completedAt ?? Date.now()
-  const seconds = Math.max(0, Math.floor((end - item.startedAt) / 1000))
+  const ms = Math.max(0, end - item.startedAt)
+  return formatElapsedMs(ms)
+}
+
+export function formatElapsedMs(ms: number): string {
+  const seconds = Math.floor(ms / 1000)
   if (seconds < 60) return `${seconds}s`
   const minutes = Math.floor(seconds / 60)
   const remainingSeconds = seconds % 60
