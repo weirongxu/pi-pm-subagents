@@ -32,8 +32,6 @@ const COORDINATOR_MODE_WIDGET_KEY = 'pi-modes:coordinator-mode'
 const JOB_START_EVENT = 'pi-notify:job:start'
 const JOB_END_EVENT = 'pi-notify:job:end'
 
-const REMOVE_TOOLS = ['find', 'grep', 'bash']
-
 export type { LiveSubagent, SubagentStatus }
 
 interface CoordinatorRuntime {
@@ -80,7 +78,6 @@ export async function resumeCoordinatorMode(
     promptDefinition: {
       ...def,
       extraTools: [...Object.values(SUBAGENT_TOOLS), ...(def.extraTools ?? [])],
-      removeTools: [...REMOVE_TOOLS, ...(def.removeTools ?? [])],
     },
     color: 'accent',
   })
