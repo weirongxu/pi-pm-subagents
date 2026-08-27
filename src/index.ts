@@ -28,7 +28,7 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
     coordinatorDefinition,
   })
   await setupCoordinator(pi, state, { demoEnabled, coordinatorDefinition })
-  setupModesConfig(pi)
+  setupModesConfig(pi, state)
 
   pi.on('session_before_switch', (_event, ctx) => {
     pendingModesState = getLastModesState(ctx.sessionManager.getEntries())

@@ -65,6 +65,16 @@ export async function enterCoordinatorMode(
   if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
 }
 
+export function renderCoordinatorModeWidget(ctx: ExtensionContext): void {
+  const subagentModel = getPiModesConfig().subagentDefaultModel ?? 'DEFAULT'
+  ctx.ui.setWidget(COORDINATOR_MODE_WIDGET_KEY, [
+    ctx.ui.theme.fg(
+      'accent',
+      `${ctx.ui.theme.bold('👥 COORDINATOR MODE')} - subagent model ${subagentModel}`,
+    ),
+  ])
+}
+
 export async function resumeCoordinatorMode(
   pi: ExtensionAPI,
   state: ModesState,
@@ -82,13 +92,7 @@ export async function resumeCoordinatorMode(
     color: 'accent',
   })
 
-  const subagentModel = getPiModesConfig().subagentDefaultModel ?? 'DEFAULT'
-  ctx.ui.setWidget(COORDINATOR_MODE_WIDGET_KEY, [
-    ctx.ui.theme.fg(
-      'accent',
-      `${ctx.ui.theme.bold('👥 COORDINATOR MODE')} - subagent model ${subagentModel}`,
-    ),
-  ])
+  renderCoordinatorModeWidget(ctx)
 
   fleet.update()
   activityReporter.start()

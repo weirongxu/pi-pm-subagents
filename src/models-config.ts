@@ -10,7 +10,9 @@ import type { Static } from 'typebox'
 import { Type } from 'typebox'
 import { Parse } from 'typebox/value'
 
+import { renderCoordinatorModeWidget } from './coordinator/index.js'
 import { customSelect } from './custom-select.js'
+import type { ModesState } from './types.js'
 import {
   modelRefOf,
   parseModelRef,
@@ -72,7 +74,7 @@ async function pickModel(ctx: ExtensionContext): Promise<string | undefined> {
   })
 }
 
-export function setupModesConfig(pi: ExtensionAPI): void {
+export function setupModesConfig(pi: ExtensionAPI, state: ModesState): void {
   pi.registerCommand('modes-subagent-model', {
     description: 'Configure the default model for subagents',
     handler: async (_args, ctx) => {
@@ -93,6 +95,7 @@ export function setupModesConfig(pi: ExtensionAPI): void {
       await savePiModesConfig()
 
       showModelsConfig(ctx)
+      if (state.mode === 'coordinator') renderCoordinatorModeWidget(ctx)
     },
   })
 }

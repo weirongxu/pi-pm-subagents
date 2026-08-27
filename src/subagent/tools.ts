@@ -152,7 +152,7 @@ export function registerSubagentTools(
           content: [
             {
               type: 'text',
-              text: `Subagent id #${subagent.id} background. I'll send you last message when it finishes.`,
+              text: `Subagent id #${subagent.id} running at background. I'll send you last message when it finishes.`,
             },
           ],
           details: { subagentId: subagent.id, status: subagent.status },
