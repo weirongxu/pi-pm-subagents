@@ -345,8 +345,9 @@ describe('FleetList focus gate (#123)', () => {
 
   function createFakeTheme() {
     return {
-      fg: (_variant: string, text: string) => text,
-      strikethrough: (text: string) => text,
+      fg: (variant: string, text: string) => `[FG:${variant}]${text}[/-FG]`,
+      bg: (variant: string, text: string) => `[BG:${variant}]${text}[/-BG]`,
+      strikethrough: (text: string) => `[STRIKE]${text}[/-STRIKE]`,
       borderColor: (str: string) => str,
       selectList: {
         selectedPrefix: (text: string) => text,
@@ -483,8 +484,9 @@ describe('FleetList focus gate (#123)', () => {
 describe('FleetList renderBar when inactive', () => {
   function createFakeTheme() {
     return {
-      fg: (_variant: string, text: string) => text,
-      strikethrough: (text: string) => text,
+      fg: (variant: string, text: string) => `[FG:${variant}]${text}[/-FG]`,
+      bg: (variant: string, text: string) => `[BG:${variant}]${text}[/-BG]`,
+      strikethrough: (text: string) => `[STRIKE]${text}[/-STRIKE]`,
       borderColor: (str: string) => str,
       selectList: {
         selectedPrefix: (text: string) => text,
@@ -540,7 +542,7 @@ describe('FleetList renderBar when inactive', () => {
     ).renderBar(width)
 
     // Check that main line does not contain the selected bullet (●)
-    const mainLine = render.find((line: string) => line.includes('main'))
+    const mainLine = render.find((line: string) => line.includes('subagents'))
     expect(mainLine).toBeDefined()
     expect(mainLine).not.toContain('●')
     expect(mainLine).toContain('◯')
@@ -626,7 +628,7 @@ describe('FleetList renderBar when inactive', () => {
     ).renderBar(width)
 
     // Check that main line contains the selected bullet (●)
-    const mainLine = render.find((line: string) => line.includes('main'))
+    const mainLine = render.find((line: string) => line.includes('subagents'))
     expect(mainLine).toBeDefined()
     expect(mainLine).toContain('●')
     expect(mainLine).not.toContain('◯')
@@ -643,13 +645,15 @@ describe('FleetList renderBar when inactive', () => {
             title: 'previous 1',
             status: 'done',
             followUpCount: 1,
-            setAt: now - 8000,
+            startedAt: now - 8000,
+            completedAt: now - 5000,
           },
           {
             title: 'previous 2',
             status: 'done',
             followUpCount: 0,
-            setAt: now - 10000,
+            startedAt: now - 10000,
+            completedAt: now - 5000,
           },
         ],
         status: 'done',
@@ -669,16 +673,322 @@ describe('FleetList renderBar when inactive', () => {
     fleetList.setContext(fakeContext as unknown as ExtensionContext)
     fleetList['activeSelect'] = false
 
-    const width = 100
+    const width = 200
     const render = (
       fleetList as unknown as { renderBar: (w: number) => string[] }
     ).renderBar(width)
 
     expect(render).toContainEqual(expect.stringContaining('↳'))
-    expect(render).toContainEqual(expect.stringContaining('previous 1'))
-    expect(render).toContainEqual(expect.stringContaining('previous 2'))
-    expect(render).toContainEqual(expect.stringContaining('F(1)'))
-    expect(render).toContainEqual(expect.stringContaining('F(0)'))
+    expect(render).toContainEqual(
+      expect.stringContaining('[STRIKE]previous 1[/-STRIKE]'),
+    )
+    expect(render).toContainEqual(
+      expect.stringContaining('[STRIKE]previous 2[/-STRIKE]'),
+    )
+    expect(render).toContainEqual(expect.stringContaining('⟳ 1'))
+    expect(render).toContainEqual(expect.stringContaining('⟳ 0'))
     expect(render).toContainEqual(expect.stringContaining('done'))
+    expect(render).toContainEqual(
+      expect.stringContaining('[STRIKE]current task[/-STRIKE]'),
+    )
+    expect(render).toContainEqual(
+      expect.stringContaining('[FG:dim]      0s[/-FG]'),
+    )
+    expect(render).not.toContainEqual(
+      expect.stringContaining('[FG:muted]      0s[/-FG]'),
+    )
+    expect(render).not.toContainEqual(
+      expect.stringContaining('[BG:selectedBg]'),
+    )
+  })
+})
+
+describe('FleetList renderBar selection highlight', () => {
+  function createFakeTheme() {
+    return {
+      fg: (variant: string, text: string) => `[FG:${variant}]${text}[/-FG]`,
+      bg: (variant: string, text: string) => `[BG:${variant}]${text}[/-BG]`,
+      strikethrough: (text: string) => `[STRIKE]${text}[/-STRIKE]`,
+      borderColor: (str: string) => str,
+      selectList: {
+        selectedPrefix: (text: string) => text,
+        selectedText: (text: string) => text,
+        description: (text: string) => text,
+        scrollInfo: (text: string) => text,
+        noMatch: (text: string) => text,
+      },
+    }
+  }
+
+  function createFakeContext(): Record<string, unknown> {
+    return {
+      ui: {
+        getEditorText: () => '',
+        setWidget: () => {},
+        theme: createFakeTheme(),
+        onTerminalInput: () => () => {},
+        notify: () => {},
+      },
+    }
+  }
+
+  function createFleetList(entries: FleetEntry[]): FleetList {
+    const fleetList = new FleetList({
+      list: () => entries,
+      onOpen: () => {},
+    })
+    fleetList.setContext(createFakeContext() as unknown as ExtensionContext)
+    return fleetList
+  }
+
+  function render(fleetList: FleetList, width = 200): string[] {
+    return (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(width)
+  }
+
+  it('does not highlight the main row even when selectedIndex is 0', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 0
+
+    const lines = render(fleetList)
+
+    for (const line of lines) {
+      expect(line).not.toContain('[BG:selectedBg]')
+    }
+  })
+
+  it('highlights the first item row and its previousEntries when selectedIndex is 1', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'current task',
+        previousEntries: [
+          {
+            title: 'previous 1',
+            status: 'done',
+            followUpCount: 0,
+            startedAt: now - 8000,
+            completedAt: now - 5000,
+          },
+          {
+            title: 'previous 2',
+            status: 'done',
+            followUpCount: 0,
+            startedAt: now - 10000,
+            completedAt: now - 5000,
+          },
+        ],
+        status: 'done',
+        startedAt: now - 5000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 1
+
+    const lines = render(fleetList)
+
+    const mainLine = lines.find((line) => line.includes('subagents'))
+    expect(mainLine).toBeDefined()
+    expect(mainLine).not.toContain('[BG:selectedBg]')
+
+    const itemLine = lines.find((line) => line.includes('current task'))
+    expect(itemLine).toBeDefined()
+    expect(itemLine).toContain('[BG:selectedBg]')
+
+    const prev1Line = lines.find((line) => line.includes('previous 1'))
+    expect(prev1Line).toBeDefined()
+    expect(prev1Line).toContain('[BG:selectedBg]')
+
+    const prev2Line = lines.find((line) => line.includes('previous 2'))
+    expect(prev2Line).toBeDefined()
+    expect(prev2Line).toContain('[BG:selectedBg]')
+  })
+
+  it('highlights only the middle item row when selectedIndex is 2', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 3,
+        title: 'task 3',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 1,
+        title: 'task 1',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 2
+
+    const lines = render(fleetList)
+
+    const mainLine = lines.find((line) => line.includes('subagents'))
+    expect(mainLine).toBeDefined()
+    expect(mainLine).not.toContain('[BG:selectedBg]')
+
+    const task2Line = lines.find((line) => line.includes('task 2'))
+    expect(task2Line).toBeDefined()
+    expect(task2Line).toContain('[BG:selectedBg]')
+
+    const task1Line = lines.find((line) => line.includes('task 1'))
+    expect(task1Line).toBeDefined()
+    expect(task1Line).not.toContain('[BG:selectedBg]')
+
+    const task3Line = lines.find((line) => line.includes('task 3'))
+    expect(task3Line).toBeDefined()
+    expect(task3Line).not.toContain('[BG:selectedBg]')
+  })
+
+  it('highlights no row when selection is inactive', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        previousEntries: [
+          {
+            title: 'previous 1',
+            status: 'done',
+            followUpCount: 0,
+            startedAt: now - 8000,
+            completedAt: now - 5000,
+          },
+        ],
+        status: 'done',
+        startedAt: now - 5000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = false
+
+    const lines = render(fleetList)
+
+    for (const line of lines) {
+      expect(line).not.toContain('[BG:selectedBg]')
+    }
+  })
+
+  it('drops dim and strikethrough from completed title on the selected row', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 2,
+        title: 'task two',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 10000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 1,
+        title: 'task one',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 10000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 1
+
+    const lines = render(fleetList)
+
+    const selectedLine = lines.find((line) => line.includes('task two'))
+    expect(selectedLine).toBeDefined()
+    expect(selectedLine).toContain('[BG:selectedBg]')
+    expect(selectedLine).not.toContain('[STRIKE]task two[/-STRIKE]')
+    expect(selectedLine).not.toContain('[FG:dim]task two[/-FG]')
+
+    const unselectedLine = lines.find((line) => line.includes('task one'))
+    expect(unselectedLine).toBeDefined()
+    expect(unselectedLine).not.toContain('[BG:selectedBg]')
+    expect(unselectedLine).toContain('[STRIKE]task one[/-STRIKE]')
+    expect(unselectedLine).toContain('[FG:dim][STRIKE]task one[/-STRIKE][/-FG]')
+  })
+
+  it('uses muted (not dim) for elapsedCol on the selected row', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 2,
+        title: 'task two',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 1,
+        title: 'task one',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now - 3000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 1
+
+    const lines = render(fleetList)
+
+    const selectedLine = lines.find((line) => line.includes('task two'))
+    expect(selectedLine).toBeDefined()
+    expect(selectedLine).toContain('[BG:selectedBg]')
+    expect(selectedLine).toContain('[FG:muted]')
+    expect(selectedLine).not.toContain('[FG:dim]      5s[/-FG]')
+
+    const unselectedLine = lines.find((line) => line.includes('task one'))
+    expect(unselectedLine).toBeDefined()
+    expect(unselectedLine).not.toContain('[BG:selectedBg]')
+    expect(unselectedLine).toContain('[FG:dim]      3s[/-FG]')
   })
 })

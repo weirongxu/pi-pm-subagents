@@ -3,7 +3,7 @@ import type { LiveSubagent } from './manager.js'
 
 const CHECK_INTERVAL_MS = 60 * 1000
 const NOTIFICATION_INTERVAL_MS = 5 * 60 * 1000
-const MAX_ACTIVITY_BYTES = 500
+const MAX_ACTIVITY_BYTES = 1000
 
 export class ActivityReporter {
   private timer: ReturnType<typeof setInterval> | undefined

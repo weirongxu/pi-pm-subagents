@@ -14,7 +14,7 @@ import {
 
 import { formatElapsed } from '../utils/format.js'
 import { lastMessageText, messageText } from '../utils/messages.js'
-import type { PreviousEntry } from './fleet.js'
+import type { FleetEntryBase } from './fleet.js'
 
 const SELF_DIR = fileURLToPath(new URL('../', import.meta.url))
 
@@ -42,7 +42,7 @@ export interface SpawnOptions {
 export interface LiveSubagent {
   id: number
   title: string
-  previousEntries: PreviousEntry[]
+  previousEntries: FleetEntryBase[]
   prompt: string
   status: SubagentStatus
   session: AgentSession
@@ -182,11 +182,16 @@ export class SubagentManager {
         `Subagent #${id} follow-up budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
       )
 
+    const wasRunning = followupSubagent.status === 'running'
+    const prevStartedAt = followupSubagent.startedAt
     followupSubagent.previousEntries.unshift({
       title: followupSubagent.title,
-      status: followupSubagent.status,
+      status: wasRunning ? 'done' : followupSubagent.status,
       followUpCount: followupSubagent.followUpCount,
-      setAt: followupSubagent.startedAt,
+      startedAt: prevStartedAt,
+      completedAt: wasRunning
+        ? Date.now()
+        : (followupSubagent.completedAt ?? Date.now()),
     })
     followupSubagent.title = title
     followupSubagent.prompt = prompt

@@ -35,7 +35,7 @@ export function formatElapsedMs(ms: number): string {
 export function truncateToBytes(
   text: string,
   maxBytes: number,
-  suffix = '\n\n[Output truncated. Verify remaining details with read-only tools.]',
+  suffix = '\n\n[Output truncated.]',
 ): string {
   if (Buffer.byteLength(text, 'utf8') <= maxBytes) return text
   const suffixBytes = Buffer.byteLength(suffix, 'utf8')

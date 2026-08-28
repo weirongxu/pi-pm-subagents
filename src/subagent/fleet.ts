@@ -10,12 +10,7 @@ import {
 } from '@earendil-works/pi-tui'
 import { orderBy } from 'lodash-es'
 
-import {
-  formatElapsed,
-  formatElapsedMs,
-  rightAlign,
-  strInline,
-} from '../utils/format.js'
+import { formatElapsed, rightAlign, strInline } from '../utils/format.js'
 
 const FLEET_KEY = 'pi-modes:fleet'
 const TICK_MS = 200
@@ -23,21 +18,17 @@ const MAX_ROWS = 5
 
 export type FleetEntryStatus = 'running' | 'done' | 'failed' | 'killed'
 
-export interface PreviousEntry {
+export interface FleetEntryBase {
   title: string
   status: FleetEntryStatus
   followUpCount: number
-  setAt: number
-}
-
-export interface FleetEntry {
-  id: number
-  title: string
-  previousEntries: PreviousEntry[]
-  status: FleetEntryStatus
   startedAt: number
   completedAt?: number
-  followUpCount: number
+}
+
+export interface FleetEntry extends FleetEntryBase {
+  id: number
+  previousEntries: FleetEntryBase[]
   role: string
 }
 
@@ -244,10 +235,11 @@ export class FleetList {
     const hint = this.activeSelect
       ? '↑↓ select · enter view · esc back'
       : 'esc to interrupt · ←/↓ for items'
+    const mainLine = ` ${this.bullet(0, sel, theme)} subagents`
     const lines: string[] = [
       truncateToWidth(` ${theme.fg('dim', hint)}`, width),
       '',
-      truncateToWidth(` ${this.bullet(0, sel, theme)} main`, width),
+      truncateToWidth(mainLine, width),
     ]
 
     const visible = Math.min(MAX_ROWS, rosterItems.length)
@@ -260,20 +252,27 @@ export class FleetList {
     for (let i = start; i < start + visible; i++) {
       const entry = rosterItems[i]
       if (!entry) continue
-      lines.push(this.renderItemRow(i + 1, sel, entry.item, width, theme))
-      for (const prevEntry of entry.item.previousEntries) {
-        const titleText = strInline(prevEntry.title)
-        const statusPart = theme.fg('muted', prevEntry.status)
-        const followUpPart = theme.fg('dim', `F(${prevEntry.followUpCount})`)
-        const elapsed = formatElapsedMs(
-          Math.max(0, (entry.item.completedAt ?? Date.now()) - prevEntry.setAt),
+      const item = entry.item
+      const isItemSelected = i + 1 === sel
+      const mainPrefix = ` ${this.bullet(i + 1, sel, theme)} ${theme.fg('muted', `#${item.id} [${item.role}]`)} `
+      const itemLine = this.renderItemRow(
+        item,
+        mainPrefix,
+        width,
+        isItemSelected,
+        theme,
+      )
+      lines.push(truncateToWidth(itemLine, width))
+      for (const prevEntry of item.previousEntries) {
+        const prevPrefix = `    ${theme.fg('dim', '↳')} `
+        const prevLine = this.renderItemRow(
+          prevEntry,
+          prevPrefix,
+          width,
+          isItemSelected,
+          theme,
         )
-        const right = `${statusPart} ${followUpPart} ${theme.fg('dim', elapsed)}`
-        const left = `    ${theme.fg('dim', '↳')} ${theme.fg('dim', theme.strikethrough(titleText))}`
-        const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
-        lines.push(
-          rightAlign(truncateToWidth(left, leftMaxWidth), right, width),
-        )
+        lines.push(truncateToWidth(prevLine, width))
       }
     }
     if (hiddenBelow > 0) {
@@ -289,21 +288,26 @@ export class FleetList {
   }
 
   private renderItemRow(
-    index: number,
-    sel: number,
-    item: FleetEntry,
+    entry: FleetEntryBase,
+    prefix: string,
     width: number,
+    isSelected: boolean,
     theme: Theme,
   ): string {
-    const isRunning = item.status === 'running'
-    let title = strInline(item.title)
-    if (!isRunning) title = theme.strikethrough(title)
-    const followUpPart = theme.fg('dim', `F(${item.followUpCount})`)
-    const rolePart = theme.fg('muted', `[${item.role}]`)
-    const left = ` ${this.bullet(index, sel, theme)} ${theme.fg('muted', `#${item.id}`)} ${rolePart} ${title}`
-    const right = `${theme.fg('accent', item.status)} ${followUpPart} ${theme.fg('dim', formatElapsed(item))}`
+    const inlineTitle = strInline(entry.title)
+    const processedTitle =
+      entry.status !== 'running'
+        ? theme.strikethrough(inlineTitle)
+        : inlineTitle
+    const left = prefix + processedTitle
+    const statusCol = entry.status.padStart(7, ' ')
+    const followCol = `⟳ ${entry.followUpCount}`.padStart(5, ' ')
+    const elapsedCol = formatElapsed(entry).padStart(8, ' ')
+    const elapsedStyled = theme.fg('muted', elapsedCol)
+    const right = `${theme.fg('accent', statusCol)} ${theme.fg('border', followCol)} ${elapsedStyled}`
     const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
-    return rightAlign(truncateToWidth(left, leftMaxWidth), right, width)
+    const line = rightAlign(truncateToWidth(left, leftMaxWidth), right, width)
+    return isSelected ? theme.bg('selectedBg', line) : line
   }
 
   private ensureTimer(): void {

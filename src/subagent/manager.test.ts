@@ -207,6 +207,26 @@ describe('SubagentManager.followup', () => {
 
       expect(steerMock).not.toHaveBeenCalled()
     })
+
+    it('saves previousEntry.status as done (not running)', async () => {
+      const { session, steerMock } = makeStubSession()
+      const manager = new SubagentManager()
+      const subagent = registerSubagent(manager, session, {
+        id: 1,
+        status: 'running',
+        followUpCount: 0,
+      })
+
+      await manager.followup(1, 'New Title', 'task')
+
+      expect(steerMock).toHaveBeenCalled()
+      expect(subagent.previousEntries).toHaveLength(1)
+      expect(subagent.previousEntries[0]).toMatchObject({
+        title: 'Task 1',
+        status: 'done',
+        followUpCount: 0,
+      })
+    })
   })
 
   describe('previousEntries accumulation', () => {

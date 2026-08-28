@@ -15,9 +15,11 @@ export class MessageBatcher {
 
   add(subagent: LiveSubagent, type: string, message: string): void {
     const item = [
-      formatSubagentSummary(subagent),
-      `<notify-type>${type}</notify-type>`,
-      `<message>\n${message}\n</message>`,
+      `<subagent-notify>`,
+      `<type>${type}</type>`,
+      `<job>${formatSubagentSummary(subagent)}</job>`,
+      `<message>${message}</message>`,
+      `</subagent-notify>`,
     ].join('\n')
     this.items.push(item)
     if (this.timer !== undefined) clearTimeout(this.timer)
