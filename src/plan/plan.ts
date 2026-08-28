@@ -199,16 +199,25 @@ async function askHowToProceed(
     const executePlan = `Execute the plan below.${planBlock}`
 
     switch (choice) {
-      case 'Execute directly': {
-        await exitPlanMode(pi, state, ctx)
-        pi.sendUserMessage(executePlan, {
-          deliverAs: 'followUp',
-        })
-        break
-      }
+      case 'Execute directly':
       case 'Execute via subagents': {
+        state.clearContextOnNextTurn = true
+        ctx.ui.notify(
+          'Context trimmed — executing plan from clean slate.',
+          'info',
+        )
         await exitPlanMode(pi, state, ctx)
-        await enterCoordinatorMode(pi, state, executePlan, ctx, coordinatorDef)
+        if (choice === 'Execute directly') {
+          pi.sendUserMessage(executePlan, { deliverAs: 'followUp' })
+        } else {
+          await enterCoordinatorMode(
+            pi,
+            state,
+            executePlan,
+            ctx,
+            coordinatorDef,
+          )
+        }
         break
       }
       case 'Update the plan': {
@@ -249,6 +258,13 @@ export async function setupPlan(
   pi.on('before_agent_start', async (event) => {
     if (state.mode !== 'plan') return
     return { systemPrompt: `${event.systemPrompt}\n\n${planPrompt}` }
+  })
+
+  pi.on('context', () => {
+    if (!state.clearContextOnNextTurn) return
+    state.clearContextOnNextTurn = false
+
+    return { messages: [] }
   })
 
   pi.registerCommand('plan', {

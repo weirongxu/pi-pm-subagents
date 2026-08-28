@@ -55,7 +55,7 @@ function requiredRuntime(): CoordinatorRuntime {
 export async function enterCoordinatorMode(
   pi: ExtensionAPI,
   state: ModesState,
-  request: string | undefined,
+  prompt: string | undefined,
   ctx: ExtensionContext,
   def: PromptDefinition,
 ): Promise<void> {
@@ -63,7 +63,7 @@ export async function enterCoordinatorMode(
   state.mode = 'coordinator'
   await resumeCoordinatorMode(pi, state, ctx, def)
   persist(pi, state)
-  if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
+  if (prompt) pi.sendUserMessage(prompt, { deliverAs: 'followUp' })
 }
 
 export function renderCoordinatorModeWidget(
