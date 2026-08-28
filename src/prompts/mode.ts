@@ -3,8 +3,11 @@ import { fileURLToPath } from 'node:url'
 
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
-import { readOptional } from '../utils/fs.js'
-import { loadMarkdown, type PromptDefinition } from '../utils/markdown.js'
+import {
+  loadMarkdown,
+  mergePromptDefinitions,
+  type PromptDefinition,
+} from '../utils/markdown.js'
 
 export async function readModePrompt(name: string): Promise<PromptDefinition> {
   const here = dirname(fileURLToPath(import.meta.url))
@@ -18,14 +21,11 @@ export async function readModePrompt(name: string): Promise<PromptDefinition> {
   const base =
     (await loadMarkdown(overridePath)) ?? (await loadMarkdown(bundledPath))
 
-  const append = await readOptional(appendPath)
+  const append = await loadMarkdown(appendPath)
 
   if (!base) throw new Error(`Mode prompt "${name}" not found`)
 
-  if (append === undefined) return base
+  if (!append) return base
 
-  return {
-    ...base,
-    systemPrompt: `${base.systemPrompt}\n\n${append}`,
-  }
+  return mergePromptDefinitions(base, append)
 }

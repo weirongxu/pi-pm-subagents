@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { loadMarkdown } from './markdown.js'
+import { loadMarkdown, mergePromptDefinitions } from './markdown.js'
 import { composeTools, normalizeTools } from './tools.js'
 
 describe('normalizeTools', () => {
@@ -228,5 +228,85 @@ Test prompt.`,
 
     const result = await loadMarkdown(filePath)
     expect(result?.tools).toEqual(['read', 'write', 'grep', 'glob'])
+  })
+})
+
+describe('mergePromptDefinitions', () => {
+  const base = {
+    description: 'Base description.',
+    model: 'base/model',
+    tools: ['read', 'write'] as readonly string[],
+    extraTools: ['bash'] as readonly string[],
+    removeTools: ['write'] as readonly string[],
+    systemPrompt: 'Base prompt.',
+  }
+
+  it('append description overrides base description', () => {
+    const result = mergePromptDefinitions(base, {
+      ...base,
+      description: 'Append description.',
+    })
+    expect(result.description).toBe('Append description.')
+  })
+
+  it('keeps base description when append has none', () => {
+    const result = mergePromptDefinitions(base, {
+      ...base,
+      description: undefined,
+    })
+    expect(result.description).toBe('Base description.')
+  })
+
+  it('append model overrides base model', () => {
+    const result = mergePromptDefinitions(base, {
+      ...base,
+      model: 'append/model',
+    })
+    expect(result.model).toBe('append/model')
+  })
+
+  it('merges tools arrays as union, preserving order with dedup', () => {
+    const result = mergePromptDefinitions(base, {
+      ...base,
+      tools: ['write', 'grep', 'read'],
+    })
+    expect(result.tools).toEqual(['read', 'write', 'grep'])
+  })
+
+  it('merges extraTools and removeTools as union, preserving order with dedup', () => {
+    const result = mergePromptDefinitions(base, {
+      ...base,
+      extraTools: ['bash', 'glob'],
+      removeTools: ['write', 'edit'],
+    })
+    expect(result.extraTools).toEqual(['bash', 'glob'])
+    expect(result.removeTools).toEqual(['write', 'edit'])
+  })
+
+  it('does not throw with empty / partial fields', () => {
+    const result = mergePromptDefinitions(
+      {
+        systemPrompt: 'Base.',
+      },
+      {
+        systemPrompt: '',
+      },
+    )
+    expect(result).toEqual({
+      description: undefined,
+      model: undefined,
+      tools: undefined,
+      extraTools: undefined,
+      removeTools: undefined,
+      systemPrompt: 'Base.',
+    })
+  })
+
+  it('joins systemPrompt with a blank line', () => {
+    const result = mergePromptDefinitions(
+      { ...base, systemPrompt: 'First.' },
+      { ...base, systemPrompt: 'Second.' },
+    )
+    expect(result.systemPrompt).toBe('First.\n\nSecond.')
   })
 })

@@ -30,3 +30,29 @@ export async function loadMarkdown(
     systemPrompt: body.trim(),
   }
 }
+
+function mergeUnique(
+  base: readonly string[] | undefined,
+  append: readonly string[] | undefined,
+): readonly string[] | undefined {
+  const merged = new Set<string>()
+  for (const item of base ?? []) merged.add(item)
+  for (const item of append ?? []) merged.add(item)
+  return merged.size > 0 ? [...merged] : undefined
+}
+
+export function mergePromptDefinitions(
+  base: PromptDefinition,
+  append: PromptDefinition,
+): PromptDefinition {
+  return {
+    description: append.description ?? base.description,
+    model: append.model ?? base.model,
+    tools: mergeUnique(base.tools, append.tools),
+    extraTools: mergeUnique(base.extraTools, append.extraTools),
+    removeTools: mergeUnique(base.removeTools, append.removeTools),
+    systemPrompt: append.systemPrompt
+      ? `${base.systemPrompt}\n\n${append.systemPrompt}`
+      : base.systemPrompt,
+  }
+}

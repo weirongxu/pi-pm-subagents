@@ -259,5 +259,74 @@ Base content.`,
       expect(result.tools).toEqual(['read'])
       expect(result.systemPrompt).toBe('Base content.\n\nAppend content.')
     })
+
+    it('append tools merge with base tools (union, deduped)', async () => {
+      await writeFile(
+        join(modesDir, 'tools-merge.md'),
+        `---
+tools: [read, write]
+---
+Base content.`,
+      )
+      await writeFile(
+        join(modesDir, 'tools-merge-append.md'),
+        `---
+tools: [write, grep]
+---
+`,
+      )
+
+      const result = await readModePrompt('tools-merge')
+      expect(result.tools).toEqual(['read', 'write', 'grep'])
+    })
+
+    it('merges description, model, tools, and systemPrompt from append', async () => {
+      await writeFile(
+        join(modesDir, 'all-merge.md'),
+        `---
+description: Base description.
+model: base/model
+tools: [read, write]
+---
+Base content.`,
+      )
+      await writeFile(
+        join(modesDir, 'all-merge-append.md'),
+        `---
+description: Append description.
+model: append/model
+tools: [grep]
+---
+Append body.`,
+      )
+
+      const result = await readModePrompt('all-merge')
+      expect(result.description).toBe('Append description.')
+      expect(result.model).toBe('append/model')
+      expect(result.tools).toEqual(['read', 'write', 'grep'])
+      expect(result.systemPrompt).toBe('Base content.\n\nAppend body.')
+    })
+
+    it('append with frontmatter only and empty body merges cleanly', async () => {
+      await writeFile(
+        join(modesDir, 'empty-body.md'),
+        `---
+description: Base description.
+---
+Base content.`,
+      )
+      await writeFile(
+        join(modesDir, 'empty-body-append.md'),
+        `---
+model: append/model
+---
+`,
+      )
+
+      const result = await readModePrompt('empty-body')
+      expect(result.description).toBe('Base description.')
+      expect(result.model).toBe('append/model')
+      expect(result.systemPrompt).toBe('Base content.')
+    })
   })
 })
