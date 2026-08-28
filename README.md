@@ -35,8 +35,12 @@ Cycle pool of models. Stored in `pi-modes.json`. Can include `DEFAULT` marker.
 
 ### Shortcuts (coordinator mode)
 
-- `Ctrl+Alt+P` — cycle forward to next model in scope, syncs to `subagentModel`
-- `Ctrl+Shift+Alt+P` — cycle backward to previous model in scope, syncs to `subagentModel`
+- `Alt+N` — cycle forward to next model in scope, syncs to `subagentModel`
+
+> **Terminal/tmux compatibility note**:
+> `Alt+N` requires terminal support for Kitty keyboard protocol,
+> or enable `set -g extended-keys on` in tmux.
+> In standard xterm and similar terminals, `Alt+letter` is sent as an ESC sequence and may be unreliable.
 
 ### Widget display
 

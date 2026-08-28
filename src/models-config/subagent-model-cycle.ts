@@ -44,17 +44,10 @@ export function setupSubagentModelCycle(
   const config = getPiModesConfig()
   state.sessionSubagentModel ??= config.subagentModel
 
-  pi.registerShortcut(Key.ctrl('n'), {
+  pi.registerShortcut(Key.alt('n'), {
     description: 'Cycle subagent model forward',
     handler: (ctx) => {
       cycleAndApply(ctx, state, 1)
-    },
-  })
-
-  pi.registerShortcut(Key.ctrlShift('n'), {
-    description: 'Cycle subagent model backward',
-    handler: (ctx) => {
-      cycleAndApply(ctx, state, -1)
     },
   })
 }
