@@ -16,7 +16,35 @@ Let the agent delegate some subagents to work and supervise them.
 
 ## Model configuration
 
-`/modes-subagent-model` configures the default model for subagents
+**Model priority (spawn time):** `role.model > subagentModel > ctx.model`
+
+### `subagentModel`
+
+Single-element model for subagents. Stored in `pi-modes.json`.
+
+- **`/modes-subagent-model`** — Select a model for subagents
+- When set to `DEFAULT`, pi uses its built-in agent default model
+
+### `subagentModelScoped`
+
+Cycle pool of models. Stored in `pi-modes.json`. Can include `DEFAULT` marker.
+
+- **`/modes-subagent-scoped`** — Manage the scope (multi-select UI with Space to toggle, Enter to save)
+
+**`DEFAULT` marker:** When `DEFAULT` is selected, pi uses its built-in agent default model instead of a specific model reference.
+
+### Shortcuts (coordinator mode)
+
+- `Ctrl+Alt+P` — cycle forward to next model in scope, syncs to `subagentModel`
+- `Ctrl+Shift+Alt+P` — cycle backward to previous model in scope, syncs to `subagentModel`
+
+### Widget display
+
+```
+👥 COORDINATOR MODE - subagent: <model-ref> (i/n)
+```
+
+Shows `(i/n)` when scope is non-empty, where `i` is the index of current default in scope.
 
 ## Customizing prompts
 

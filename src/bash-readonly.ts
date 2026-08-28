@@ -7,7 +7,7 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { parse as parseShell } from 'shell-quote'
 
-import { registerOptionalTools } from './pi-utils.js'
+import { registerOptionalTools } from './utils/tools.js'
 
 export type BashSafetyIssue =
   { allowed: true } | { allowed: false; subCommand: string }

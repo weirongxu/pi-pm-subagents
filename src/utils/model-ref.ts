@@ -1,8 +1,19 @@
 import type { Api, Model } from '@earendil-works/pi-ai'
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
 
+import { MODEL_DEFAULT } from '../models-config/subagent-model-constants.js'
+
+export interface ModelOption {
+  key: string
+  text: string
+}
+
 export function modelRefOf(model: Model<Api>): string {
   return `${model.provider}/${model.id}`
+}
+
+export function modelOptionOf(model: Model<Api>): ModelOption {
+  return { key: modelRefOf(model), text: `${model.provider}/${model.name}` }
 }
 
 export function parseModelRef(
@@ -18,7 +29,7 @@ export function resolveModelRef(
   ref: readonly (string | undefined)[],
 ): Model<Api> | undefined {
   for (const r of ref) {
-    if (!r) continue
+    if (!r || r === MODEL_DEFAULT) continue
     const parsed = parseModelRef(r)
     if (!parsed) continue
     const model = ctx.modelRegistry.find(parsed.provider, parsed.id)

@@ -2,7 +2,11 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 import { setupBashReadonlyTool } from './bash-readonly.js'
 import { resumeCoordinatorMode, setupCoordinator } from './coordinator/index.js'
-import { loadPiModesConfig, setupModesConfig } from './models-config.js'
+import {
+  loadPiModesConfig,
+  setupModesConfig,
+} from './models-config/models-config.js'
+import { setupSubagentModelCycle } from './models-config/subagent-model-cycle.js'
 import { resumePlanMode, setupPlan } from './plan/index.js'
 import { readModePrompt } from './prompts/mode.js'
 import type { ModesState } from './types.js'
@@ -29,6 +33,7 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
   })
   await setupCoordinator(pi, state, { demoEnabled, coordinatorDefinition })
   setupModesConfig(pi, state)
+  setupSubagentModelCycle(pi, state)
 
   pi.on('session_before_switch', (_event, ctx) => {
     pendingModesState = getLastModesState(ctx.sessionManager.getEntries())
@@ -51,6 +56,7 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
       state.planMarkdown = data.planMarkdown
       state.previousActiveTools = data.previousActiveTools
       state.previousModel = data.previousModel
+      state.sessionSubagentModel = data.sessionSubagentModel
 
       if (state.mode === 'plan') {
         await resumePlanMode(pi, state, ctx, planDefinition)

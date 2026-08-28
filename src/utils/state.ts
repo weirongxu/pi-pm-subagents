@@ -17,6 +17,7 @@ export function persist(pi: ExtensionAPI, state: ModesState): void {
     planMarkdown: state.planMarkdown,
     previousActiveTools: state.previousActiveTools,
     previousModel: state.previousModel,
+    sessionSubagentModel: state.sessionSubagentModel,
   })
 }
 

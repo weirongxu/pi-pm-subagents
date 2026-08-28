@@ -6,11 +6,10 @@ import {
 import { orderBy } from 'lodash-es'
 import { Type } from 'typebox'
 
-import { getPiModesConfig } from '../models-config.js'
-import { registerOptionalTools } from '../pi-utils.js'
+import { resolveSubagentModelForSpawn } from '../models-config/subagent-model-utils.js'
 import { resolveRole, rolesDescription } from '../prompts/roles.js'
 import type { ModesState } from '../types.js'
-import { resolveModelRef } from '../utils/model-ref.js'
+import { registerOptionalTools } from '../utils/tools.js'
 import { composeTools } from '../utils/tools.js'
 import type { FleetList } from './fleet.js'
 import type { SubagentManager } from './manager.js'
@@ -121,11 +120,11 @@ export function registerSubagentTools(
           removeTools: role.removeTools,
         })
 
-        const model =
-          resolveModelRef(ctx, [
-            role.model,
-            getPiModesConfig().subagentDefaultModel,
-          ]) ?? ctx.model
+        const model = resolveSubagentModelForSpawn(
+          ctx,
+          role.model,
+          state.sessionSubagentModel,
+        )
 
         let subagent: LiveSubagent
         try {

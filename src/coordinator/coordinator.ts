@@ -8,7 +8,8 @@ import {
   assertModeIdle,
   exitReadOnly,
 } from '../mode-switcher.js'
-import { getPiModesConfig } from '../models-config.js'
+import { getPiModesConfig } from '../models-config/models-config.js'
+import { formatSubagentModelLabel } from '../models-config/subagent-model-utils.js'
 import { exitPlanMode } from '../plan/index.js'
 import { loadRoles } from '../prompts/roles.js'
 import { ActivityReporter } from '../subagent/activity.js'
@@ -65,12 +66,18 @@ export async function enterCoordinatorMode(
   if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
 }
 
-export function renderCoordinatorModeWidget(ctx: ExtensionContext): void {
-  const subagentModel = getPiModesConfig().subagentDefaultModel ?? 'DEFAULT'
+export function renderCoordinatorModeWidget(
+  ctx: ExtensionContext,
+  state?: ModesState,
+): void {
+  const config = getPiModesConfig()
+  const scope = config.subagentModelScoped ?? []
+  const currentRef = state?.sessionSubagentModel ?? config.subagentModel
+  const label = formatSubagentModelLabel(scope, currentRef)
   ctx.ui.setWidget(COORDINATOR_MODE_WIDGET_KEY, [
     ctx.ui.theme.fg(
       'accent',
-      `${ctx.ui.theme.bold('👥 COORDINATOR MODE')} - subagent model ${subagentModel}`,
+      `${ctx.ui.theme.bold('👥 COORDINATOR MODE')} - subagent: ${label}`,
     ),
   ])
 }
@@ -92,7 +99,7 @@ export async function resumeCoordinatorMode(
     color: 'accent',
   })
 
-  renderCoordinatorModeWidget(ctx)
+  renderCoordinatorModeWidget(ctx, state)
 
   fleet.update()
   activityReporter.start()

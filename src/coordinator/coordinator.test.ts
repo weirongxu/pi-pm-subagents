@@ -13,7 +13,13 @@ describe('coordinator mode prompt', () => {
     const coordinatorPath = join(repoRoot, 'modes-prompts', 'coordinator.md')
     const result = await loadMarkdown(coordinatorPath)
     expect(result).toBeDefined()
-    expect(result?.removeTools).toEqual(['find', 'grep', 'bash'])
+    expect(result?.removeTools).toEqual([
+      'find',
+      'grep',
+      'bash',
+      'web_search',
+      'web_fetch',
+    ])
   })
 
   it('omits removeTools in plan.md', async () => {
