@@ -9,6 +9,4 @@ export interface ModesState {
   previousModel?: string
   /** Session-scoped subagent model. Source of truth for spawn. */
   sessionSubagentModel?: string
-  /** Transient: filter out planning context on the next LLM call. */
-  clearContextOnNextTurn?: boolean
 }

@@ -164,8 +164,7 @@ describe('lastAssistantText with maxBytes', () => {
       assistant({ text: 'a'.repeat(1000) }),
     ]
     const result = lastAssistantText(messages, 50)
-    const defaultSuffix =
-      '\n\n[Output truncated. Verify remaining details with read-only tools.]'
+    const defaultSuffix = '\n\n[Output truncated.]'
     expect(result).toContain(defaultSuffix)
     expect(result?.length).toBeLessThanOrEqual(50 + defaultSuffix.length + 10)
   })
@@ -341,8 +340,7 @@ describe('lastMessageText with maxBytes', () => {
       assistant({ text: 'a'.repeat(1000) }),
     ]
     const result = lastMessageText(messages, 50)
-    const defaultSuffix =
-      '\n\n[Output truncated. Verify remaining details with read-only tools.]'
+    const defaultSuffix = '\n\n[Output truncated.]'
     expect(result).toContain(defaultSuffix)
     expect(result?.length).toBeLessThanOrEqual(50 + defaultSuffix.length + 10)
   })

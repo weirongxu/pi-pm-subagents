@@ -22,6 +22,8 @@ import { lastAssistantText } from '../utils/messages.js'
 import { persist } from '../utils/state.js'
 import { setupPlanDemo } from './demo.js'
 
+let clearContextOnNextTurn = false
+
 const PLAN_CHOICES = [
   'Execute directly',
   'Execute via subagents',
@@ -201,7 +203,7 @@ async function askHowToProceed(
     switch (choice) {
       case 'Execute directly':
       case 'Execute via subagents': {
-        state.clearContextOnNextTurn = true
+        clearContextOnNextTurn = true
         ctx.ui.notify(
           'Context trimmed — executing plan from clean slate.',
           'info',
@@ -261,10 +263,18 @@ export async function setupPlan(
   })
 
   pi.on('context', () => {
-    if (!state.clearContextOnNextTurn) return
-    state.clearContextOnNextTurn = false
+    if (!clearContextOnNextTurn) return
+    clearContextOnNextTurn = false
 
-    return { messages: [] }
+    return {
+      messages: [
+        {
+          role: 'user',
+          content: state.planMarkdown ?? '',
+          timestamp: Date.now(),
+        },
+      ],
+    }
   })
 
   pi.registerCommand('plan', {

@@ -692,10 +692,10 @@ describe('FleetList renderBar when inactive', () => {
       expect.stringContaining('[STRIKE]current task[/-STRIKE]'),
     )
     expect(render).toContainEqual(
-      expect.stringContaining('[FG:dim]      0s[/-FG]'),
+      expect.stringContaining('[FG:muted]      0s[/-FG]'),
     )
     expect(render).not.toContainEqual(
-      expect.stringContaining('[FG:muted]      0s[/-FG]'),
+      expect.stringContaining('[FG:dim]      0s[/-FG]'),
     )
     expect(render).not.toContainEqual(
       expect.stringContaining('[BG:selectedBg]'),
@@ -942,14 +942,14 @@ describe('FleetList renderBar selection highlight', () => {
     const selectedLine = lines.find((line) => line.includes('task two'))
     expect(selectedLine).toBeDefined()
     expect(selectedLine).toContain('[BG:selectedBg]')
-    expect(selectedLine).not.toContain('[STRIKE]task two[/-STRIKE]')
+    expect(selectedLine).toContain('[STRIKE]task two[/-STRIKE]')
     expect(selectedLine).not.toContain('[FG:dim]task two[/-FG]')
 
     const unselectedLine = lines.find((line) => line.includes('task one'))
     expect(unselectedLine).toBeDefined()
     expect(unselectedLine).not.toContain('[BG:selectedBg]')
     expect(unselectedLine).toContain('[STRIKE]task one[/-STRIKE]')
-    expect(unselectedLine).toContain('[FG:dim][STRIKE]task one[/-STRIKE][/-FG]')
+    expect(unselectedLine).not.toContain('[FG:dim][STRIKE]')
   })
 
   it('uses muted (not dim) for elapsedCol on the selected row', () => {
@@ -989,6 +989,6 @@ describe('FleetList renderBar selection highlight', () => {
     const unselectedLine = lines.find((line) => line.includes('task one'))
     expect(unselectedLine).toBeDefined()
     expect(unselectedLine).not.toContain('[BG:selectedBg]')
-    expect(unselectedLine).toContain('[FG:dim]      3s[/-FG]')
+    expect(unselectedLine).toContain('[FG:muted]      3s[/-FG]')
   })
 })

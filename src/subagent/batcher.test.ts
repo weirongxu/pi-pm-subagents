@@ -40,8 +40,8 @@ describe('MessageBatcher', () => {
     expect(flushed).toHaveLength(1)
     const firstFlush = flushed[0]
     expect(firstFlush?.[0]).toContain('done #1')
-    expect(firstFlush?.[0]).toContain('<notify-type>done</notify-type>')
-    expect(firstFlush?.[0]).toContain('<message>\nTask completed\n</message>')
+    expect(firstFlush?.[0]).toContain('<type>done</type>')
+    expect(firstFlush?.[0]).toContain('<message>Task completed</message>')
     expect(batcher.pending).toEqual([])
   })
 

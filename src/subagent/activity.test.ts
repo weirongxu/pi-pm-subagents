@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { ActivityReporter } from './activity.js'
+import { ActivityReporter, MAX_ACTIVITY_BYTES } from './activity.js'
 import type { LiveSubagent } from './manager.js'
 
 const makeSubagent = (id: number, messages: unknown[]): LiveSubagent =>
@@ -37,7 +37,7 @@ describe('ActivityReporter.formatActivityReport', () => {
   })
 
   it('truncates long message text to MAX_ACTIVITY_BYTES', () => {
-    const longText = 'a'.repeat(1000)
+    const longText = 'a'.repeat(MAX_ACTIVITY_BYTES * 2)
     const messages = [assistant(longText)]
     const subagent = makeSubagent(1, messages)
     const report = ActivityReporter.formatActivityReport(subagent)

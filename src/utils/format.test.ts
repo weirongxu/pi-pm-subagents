@@ -3,8 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { truncateToBytes } from './format.js'
 
 describe('truncateToBytes', () => {
-  const defaultSuffix =
-    '\n\n[Output truncated. Verify remaining details with read-only tools.]'
+  const defaultSuffix = '\n\n[Output truncated.]'
 
   it('returns original text when under byte limit', () => {
     const text = 'Hello world'
