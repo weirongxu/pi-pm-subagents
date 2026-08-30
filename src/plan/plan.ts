@@ -22,6 +22,7 @@ import { lastAssistantText } from '../utils/messages.js'
 import { persist } from '../utils/state.js'
 import { setupPlanDemo } from './demo.js'
 
+let inAsking = false
 let clearContextOnNextTurn = false
 
 const PLAN_CHOICES = [
@@ -74,7 +75,6 @@ export async function exitPlanMode(
   ctx: ExtensionContext,
 ): Promise<void> {
   state.mode = undefined
-  state.planMarkdown = undefined
   ctx.ui.setWidget(PLAN_MODE_WIDGET_KEY, undefined)
   await exitReadOnly(pi, state, ctx, 'plan')
 }
@@ -194,11 +194,11 @@ async function askHowToProceed(
   const plan = state.planMarkdown
   if (!plan) return
 
+  inAsking = true
   ctx.ui.setWorkingVisible(false)
   try {
     const choice = await renderPlanPager(ctx, plan)
-    const planBlock = `<plan>\n${plan}\n</plan>`
-    const executePlan = `Execute the plan below.${planBlock}`
+    const executePlan = `Execute the plan`
 
     switch (choice) {
       case 'Execute directly':
@@ -238,6 +238,7 @@ async function askHowToProceed(
     }
   } finally {
     ctx.ui.setWorkingVisible(true)
+    inAsking = false
   }
 }
 
@@ -254,7 +255,6 @@ export async function setupPlan(
     coordinatorDefinition: PromptDefinition
   },
 ): Promise<void> {
-  let reviewInFlight = false
   const planPrompt = planDefinition.systemPrompt
 
   pi.on('before_agent_start', async (event) => {
@@ -264,13 +264,16 @@ export async function setupPlan(
 
   pi.on('context', () => {
     if (!clearContextOnNextTurn) return
+    if (!state.planMarkdown) return
     clearContextOnNextTurn = false
 
+    const planBlock = `<plan>${state.planMarkdown}</plan>`
+    state.planMarkdown = undefined
     return {
       messages: [
         {
           role: 'user',
-          content: state.planMarkdown ?? '',
+          content: planBlock,
           timestamp: Date.now(),
         },
       ],
@@ -279,20 +282,9 @@ export async function setupPlan(
 
   pi.registerCommand('plan', {
     description:
-      'Plan mode (read-only planning, then review). Subcommands: /plan [toggle] · /plan show · /plan <request>',
-    getArgumentCompletions: (prefix: string) => {
-      const subs = ['show', 'toggle']
-      const items = subs
-        .filter((s) => s.startsWith(prefix))
-        .map((s) => ({ value: s, label: s }))
-      return items.length > 0 ? items : null
-    },
+      'Plan mode (read-only planning, then review). Usage: /plan · /plan <request>',
     handler: async (args, ctx) => {
       const request = args.trim()
-      if (request === 'show') {
-        await askHowToProceed(pi, state, ctx, coordinatorDefinition)
-        return
-      }
       if (state.mode === 'plan') {
         await exitPlanMode(pi, state, ctx)
         ctx.ui.notify('Plan mode off.', 'info')
@@ -301,25 +293,18 @@ export async function setupPlan(
       if (state.mode === 'coordinator')
         await exitCoordinatorMode(pi, state, ctx)
       await enterPlanMode(pi, state, ctx, planDefinition)
-      if (request && request !== 'toggle')
-        pi.sendUserMessage(request, { deliverAs: 'followUp' })
+      if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
     },
   })
 
   // When the plan lands, open a review pager and dispatch the chosen action.
   pi.on('agent_end', async (event, ctx) => {
-    if (state.mode !== 'plan' || reviewInFlight || !ctx.hasUI) return
+    if (state.mode !== 'plan' || inAsking || !ctx.hasUI) return
     const plan = lastAssistantText(event.messages)
     if (!plan) return
 
     state.planMarkdown = plan
-    reviewInFlight = true
-
-    try {
-      await askHowToProceed(pi, state, ctx, coordinatorDefinition)
-    } finally {
-      reviewInFlight = false
-    }
+    await askHowToProceed(pi, state, ctx, coordinatorDefinition)
   })
 
   if (demoEnabled) {
