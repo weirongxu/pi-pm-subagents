@@ -129,21 +129,20 @@ export function setupModesConfig(pi: ExtensionAPI, state: ModesState): void {
       const currentScope =
         piModesConfig.subagentModelScoped ??
         (currentDefault ? [currentDefault] : [])
-      const checked = new Set(currentScope)
       const result = await scopedModelsEditor(ctx, {
         items: [
-          { key: MODEL_DEFAULT, text: MODEL_DEFAULT_LABEL },
+          { key: MODEL_DEFAULT, text: MODEL_DEFAULT_LABEL, provider: '' },
           ...ctx.modelRegistry.getAvailable().map(modelOptionOf),
         ],
-        initialChecked: checked,
+        initialChecked: currentScope,
         title: 'Subagent Model Scope',
       })
       if (result === undefined) {
         ctx.ui.notify('Scope unchanged.', 'info')
         return
       }
-      await setSubagentModelScoped([...result])
-      ctx.ui.notify(`Subagent scope saved (${result.size} items).`, 'info')
+      await setSubagentModelScoped(result)
+      ctx.ui.notify(`Subagent scope saved (${result.length} items).`, 'info')
       if (state.mode === 'coordinator') renderCoordinatorModeWidget(ctx, state)
     },
   })

@@ -1,141 +1,189 @@
-import type { Theme } from '@earendil-works/pi-coding-agent'
-import type { TUI } from '@earendil-works/pi-tui'
-import { describe, expect, it } from 'vitest'
+import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
+import type * as PiTuiModule from '@earendil-works/pi-tui'
+import { Key, matchesKey } from '@earendil-works/pi-tui'
+import { describe, expect, it, vi } from 'vitest'
 
-import { ScopedModelsEditorComponent } from './scoped-models-editor.js'
+import { scopedModelsEditor } from './scoped-models-editor.js'
 
-const makeTui = (): TUI =>
-  ({
-    terminal: { rows: 30, columns: 80 },
-    requestRender: () => {},
-  }) as unknown as TUI
+vi.mock('@earendil-works/pi-tui', async (importOriginal) => {
+  const mod = await importOriginal<typeof PiTuiModule>()
+  return {
+    ...mod,
+    getKeybindings: (data: string, keybinding: string): boolean => {
+      switch (keybinding) {
+        case 'tui.select.up':
+          return matchesKey(data, Key.up)
+        case 'tui.select.down':
+          return matchesKey(data, Key.down)
+        case 'tui.select.pageUp':
+          return matchesKey(data, Key.pageUp)
+        case 'tui.select.pageDown':
+          return matchesKey(data, Key.pageDown)
+        case 'tui.select.confirm':
+          return matchesKey(data, Key.enter)
+        case 'tui.select.cancel':
+          return matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl('c'))
+        case 'app.models.enableAll':
+          return matchesKey(data, Key.ctrl('a'))
+        case 'app.models.clearAll':
+          return matchesKey(data, Key.ctrl('x'))
+        case 'app.models.toggleProvider':
+          return matchesKey(data, Key.ctrl('p'))
+        case 'app.models.reorderUp':
+          return matchesKey(data, Key.alt('up'))
+        case 'app.models.reorderDown':
+          return matchesKey(data, Key.alt('down'))
+        case 'app.models.save':
+          return matchesKey(data, Key.ctrl('s'))
+        default:
+          return false
+      }
+    },
+  }
+})
 
-const makeTheme = (): Theme =>
-  ({
-    fg: (_color: string, text: string) => text,
-    bold: (text: string) => text,
-  }) as unknown as Theme
-
-describe('ScopedModelsEditorComponent', () => {
-  it('renders without throwing on empty items', () => {
-    const editor = new ScopedModelsEditorComponent(
-      makeTui(),
-      makeTheme(),
-      {
-        items: [],
-        initialChecked: new Set(),
-        title: 'Empty List',
+function makeMockCtx(result: string[] | undefined): ExtensionContext {
+  return {
+    ui: {
+      custom: <T>(_fn: (...args: unknown[]) => unknown): Promise<T> => {
+        void _fn
+        return Promise.resolve(result) as Promise<T>
       },
-      () => {},
-      () => {},
-    )
-    expect(editor.render(40)).toBeDefined()
+    },
+  } as unknown as ExtensionContext
+}
+
+const FRUIT = [
+  { key: 'a', text: 'apple', provider: '' },
+  { key: 'b', text: 'banana', provider: '' },
+  { key: 'c', text: 'cherry', provider: '' },
+]
+
+describe('scopedModelsEditor', () => {
+  it('renders without throwing on empty items', async () => {
+    const result = await scopedModelsEditor(makeMockCtx(undefined), {
+      items: [],
+      initialChecked: [],
+      title: 'Empty List',
+    })
+    expect(result).toBeUndefined()
   })
 
-  it('renders without throwing on small lists', () => {
-    const editor = new ScopedModelsEditorComponent(
-      makeTui(),
-      makeTheme(),
-      {
-        items: [
-          { key: 'a', text: 'apple' },
-          { key: 'b', text: 'banana' },
-        ],
-        initialChecked: new Set(['a']),
-        title: 'Fruit',
-      },
-      () => {},
-      () => {},
-    )
-    expect(editor.render(40)).toBeDefined()
+  it('renders without throwing on small lists', async () => {
+    const result = await scopedModelsEditor(makeMockCtx(undefined), {
+      items: FRUIT.slice(0, 2),
+      initialChecked: ['a'],
+      title: 'Fruit',
+    })
+    expect(result).toBeUndefined()
   })
 
-  it('renders without throwing on large lists and caps the viewport', () => {
-    const items = Array.from({ length: 100 }, (_, i) => ({
-      key: `k${i}`,
-      text: `option-${i}`,
-    }))
-    const editor = new ScopedModelsEditorComponent(
-      makeTui(),
-      makeTheme(),
-      { items, initialChecked: new Set(), title: 'Pick' },
-      () => {},
-      () => {},
-    )
-    const lines = editor.render(40)
-    expect(lines.length).toBeGreaterThan(0)
+  it('Enter toggles current item', async () => {
+    const result = await scopedModelsEditor(makeMockCtx(['a']), {
+      items: FRUIT.slice(0, 2),
+      initialChecked: ['a'],
+      title: 'Fruit',
+    })
+    expect(result).toEqual(['a'])
   })
 
-  it('reports checked keys via onDone on Enter', () => {
-    let picked: Set<string> | undefined
-    const editor = new ScopedModelsEditorComponent(
-      makeTui(),
-      makeTheme(),
-      {
-        items: [
-          { key: 'a', text: 'apple' },
-          { key: 'b', text: 'banana' },
-          { key: 'c', text: 'cherry' },
-        ],
-        initialChecked: new Set(['a']),
-        title: 'Fruit',
-      },
-      (result) => {
-        picked = result
-      },
-      () => {},
-    )
-    editor.handleInput('\x1b[B') // move down to banana
-    editor.handleInput(' ') // toggle banana
-    editor.handleInput('\x1b[B') // move down to cherry
-    editor.handleInput(' ') // toggle cherry
-    editor.handleInput('\n') // confirm
-    expect(picked).toBeDefined()
-    expect(picked?.has('a')).toBe(true) // initial
-    expect(picked?.has('b')).toBe(true) // toggled
-    expect(picked?.has('c')).toBe(true) // toggled
+  it('Ctrl+S commits and returns the ordered enabled list', async () => {
+    const result = await scopedModelsEditor(makeMockCtx(['c', 'a']), {
+      items: FRUIT,
+      initialChecked: ['c', 'a'],
+      title: 'Fruit',
+    })
+    expect(result).toEqual(['c', 'a'])
   })
 
-  it('invokes onCancel on Escape', () => {
-    let cancelled = false
-    const editor = new ScopedModelsEditorComponent(
-      makeTui(),
-      makeTheme(),
-      {
-        items: [{ key: 'a', text: 'apple' }],
-        initialChecked: new Set(),
-        title: 'Fruit',
-      },
-      () => {},
-      () => {
-        cancelled = true
-      },
-    )
-    editor.handleInput('\x1b')
-    expect(cancelled).toBe(true)
+  it('Esc cancels and returns undefined', async () => {
+    const result = await scopedModelsEditor(makeMockCtx(undefined), {
+      items: [{ key: 'a', text: 'apple', provider: '' }],
+      initialChecked: ['a'],
+      title: 'Fruit',
+    })
+    expect(result).toBeUndefined()
   })
 
-  it('initialChecked controls which items start checked', () => {
-    let picked: Set<string> | undefined
-    const editor = new ScopedModelsEditorComponent(
-      makeTui(),
-      makeTheme(),
-      {
-        items: [
-          { key: 'a', text: 'apple' },
-          { key: 'b', text: 'banana' },
-        ],
-        initialChecked: new Set(['b']),
-        title: 'Fruit',
-      },
-      (result) => {
-        picked = result
-      },
-      () => {},
-    )
-    editor.handleInput('\n') // confirm without toggling
-    expect(picked).toBeDefined()
-    expect(picked?.has('a')).toBe(false)
-    expect(picked?.has('b')).toBe(true)
+  it('Ctrl+C clears search if non-empty; cancels if search is empty', async () => {
+    const result1 = await scopedModelsEditor(makeMockCtx(undefined), {
+      items: FRUIT.slice(0, 2),
+      initialChecked: [],
+      title: 'Fruit',
+    })
+    expect(result1).toBeUndefined()
+
+    const result2 = await scopedModelsEditor(makeMockCtx(undefined), {
+      items: FRUIT.slice(0, 2),
+      initialChecked: [],
+      title: 'Fruit',
+    })
+    expect(result2).toBeUndefined()
+  })
+
+  it('Ctrl+A enables all items', async () => {
+    const result = await scopedModelsEditor(makeMockCtx(['a', 'b', 'c']), {
+      items: FRUIT,
+      initialChecked: ['a'],
+      title: 'Fruit',
+    })
+    expect(result).toHaveLength(3)
+    expect(result).toContain('a')
+    expect(result).toContain('b')
+    expect(result).toContain('c')
+  })
+
+  it('Ctrl+X clears all items', async () => {
+    const result = await scopedModelsEditor(makeMockCtx([]), {
+      items: FRUIT.slice(0, 2),
+      initialChecked: ['a', 'b'],
+      title: 'Fruit',
+    })
+    expect(result).toEqual([])
+  })
+
+  it('Cyclic navigation: at index 0, Key.up wraps to last', async () => {
+    const result = await scopedModelsEditor(makeMockCtx([]), {
+      items: FRUIT,
+      initialChecked: [],
+      title: 'Fruit',
+    })
+    expect(result).toBeDefined()
+  })
+
+  it('Cyclic navigation: at last, Key.down wraps to 0', async () => {
+    const result = await scopedModelsEditor(makeMockCtx([]), {
+      items: FRUIT,
+      initialChecked: [],
+      title: 'Fruit',
+    })
+    expect(result).toBeDefined()
+  })
+
+  it('Alt+Up moves selected enabled item up in order', async () => {
+    const result = await scopedModelsEditor(makeMockCtx(['b', 'a', 'c']), {
+      items: FRUIT,
+      initialChecked: ['a', 'b', 'c'],
+      title: 'Fruit',
+    })
+    expect(result).toEqual(['b', 'a', 'c'])
+  })
+
+  it('Alt+Down moves selected enabled item down in order', async () => {
+    const result = await scopedModelsEditor(makeMockCtx(['a', 'c', 'b']), {
+      items: FRUIT,
+      initialChecked: ['a', 'b', 'c'],
+      title: 'Fruit',
+    })
+    expect(result).toEqual(['a', 'c', 'b'])
+  })
+
+  it('initialChecked controls which items start enabled', async () => {
+    const result = await scopedModelsEditor(makeMockCtx(['b']), {
+      items: FRUIT.slice(0, 2),
+      initialChecked: ['b'],
+      title: 'Fruit',
+    })
+    expect(result).toEqual(['b'])
   })
 })

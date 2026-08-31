@@ -6,6 +6,7 @@ import { MODEL_DEFAULT } from '../models-config/subagent-model-constants.js'
 export interface ModelOption {
   key: string
   text: string
+  provider: string
 }
 
 export function modelRefOf(model: Model<Api>): string {
@@ -13,7 +14,11 @@ export function modelRefOf(model: Model<Api>): string {
 }
 
 export function modelOptionOf(model: Model<Api>): ModelOption {
-  return { key: modelRefOf(model), text: `${model.provider}/${model.name}` }
+  return {
+    key: modelRefOf(model),
+    text: `${model.provider}/${model.name}`,
+    provider: model.provider,
+  }
 }
 
 export function parseModelRef(
