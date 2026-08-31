@@ -23,7 +23,6 @@ import { persist } from '../utils/state.js'
 import { setupPlanDemo } from './demo.js'
 
 let inAsking = false
-let clearContextOnNextTurn = false
 
 const PLAN_CHOICES = [
   'Execute directly',
@@ -197,29 +196,22 @@ async function askHowToProceed(
   inAsking = true
   ctx.ui.setWorkingVisible(false)
   try {
+    const planBlock = `<plan>${plan}</plan>`
     const choice = await renderPlanPager(ctx, plan)
-    const executePlan = `Execute the plan`
 
     switch (choice) {
-      case 'Execute directly':
-      case 'Execute via subagents': {
-        clearContextOnNextTurn = true
-        ctx.ui.notify(
-          'Context trimmed — executing plan from clean slate.',
-          'info',
-        )
+      case 'Execute directly': {
         await exitPlanMode(pi, state, ctx)
-        if (choice === 'Execute directly') {
-          pi.sendUserMessage(executePlan, { deliverAs: 'followUp' })
-        } else {
-          await enterCoordinatorMode(
-            pi,
-            state,
-            executePlan,
-            ctx,
-            coordinatorDef,
-          )
-        }
+        const prompt = [planBlock, 'Now you exit plan mode, execute it'].join(
+          '\n',
+        )
+        pi.sendUserMessage(prompt, { deliverAs: 'followUp' })
+        break
+      }
+      case 'Execute via subagents': {
+        await exitPlanMode(pi, state, ctx)
+        const prompt = [planBlock, 'Now you exit plan mode'].join('\n')
+        await enterCoordinatorMode(pi, state, prompt, ctx, coordinatorDef)
         break
       }
       case 'Update the plan': {
@@ -260,24 +252,6 @@ export async function setupPlan(
   pi.on('before_agent_start', async (event) => {
     if (state.mode !== 'plan') return
     return { systemPrompt: `${event.systemPrompt}\n\n${planPrompt}` }
-  })
-
-  pi.on('context', () => {
-    if (!clearContextOnNextTurn) return
-    if (!state.planMarkdown) return
-    clearContextOnNextTurn = false
-
-    const planBlock = `<plan>${state.planMarkdown}</plan>`
-    state.planMarkdown = undefined
-    return {
-      messages: [
-        {
-          role: 'user',
-          content: planBlock,
-          timestamp: Date.now(),
-        },
-      ],
-    }
   })
 
   pi.registerCommand('plan', {
