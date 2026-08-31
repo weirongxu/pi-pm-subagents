@@ -115,14 +115,14 @@ export function registerSubagentTools(
         const role = resolveRole(params.role)
 
         const tools = composeTools(state.previousActiveTools ?? [], {
-          tools: role.tools,
-          extraTools: role.extraTools,
-          removeTools: role.removeTools,
+          tools: role.fm.tools,
+          extraTools: role.fm.extraTools,
+          removeTools: role.fm.removeTools,
         })
 
         const model = resolveSubagentModelForSpawn(
           ctx,
-          role.model,
+          role.fm.model,
           state.sessionSubagentModel,
         )
 

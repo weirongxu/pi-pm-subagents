@@ -48,10 +48,10 @@ const BASH_REPLACEMENT: ReadonlyMap<string, string> = new Map([
 ])
 
 export function applyModeTools(
-  base: readonly string[],
+  baseTools: readonly string[],
   config: ToolConfig,
 ): string[] {
-  const composed = composeTools(base, config)
+  const composed = composeTools(baseTools, config)
   return composed
     .filter((name) => !WRITE_TOOLS.has(name))
     .map((name) => BASH_REPLACEMENT.get(name) ?? name)
@@ -119,11 +119,7 @@ export async function applyModeSetup(
   ctx: ExtensionContext,
   options: ModeSetupOptions,
 ): Promise<void> {
-  enterReadOnly(pi, state, {
-    tools: options.promptDefinition.tools,
-    extraTools: options.promptDefinition.extraTools,
-    removeTools: options.promptDefinition.removeTools,
-  })
-  await applyModeModel(pi, state, ctx, options.promptDefinition.model)
+  enterReadOnly(pi, state, options.promptDefinition.fm)
+  await applyModeModel(pi, state, ctx, options.promptDefinition.fm.model)
   ctx.ui.setStatus(modeType, ctx.ui.theme.fg(options.color, modeType))
 }

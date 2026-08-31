@@ -38,8 +38,8 @@ This is a test mode prompt.`,
       )
 
       const result = await readModePrompt('test-mode')
-      expect(result.description).toBe('A test mode.')
-      expect(result.tools).toEqual(['read', 'write'])
+      expect(result.fm.description).toBe('A test mode.')
+      expect(result.fm.tools).toEqual(['read', 'write'])
       expect(result.systemPrompt).toBe('This is a test mode prompt.')
     })
 
@@ -50,8 +50,8 @@ This is a test mode prompt.`,
       )
 
       const result = await readModePrompt('no-fm')
-      expect(result.description).toBeUndefined()
-      expect(result.tools).toBeUndefined()
+      expect(result.fm.description).toBeUndefined()
+      expect(result.fm.tools).toBeUndefined()
       expect(result.systemPrompt).toBe('Plain prompt without frontmatter.')
     })
 
@@ -65,20 +65,7 @@ Test prompt.`,
       )
 
       const result = await readModePrompt('array-tools')
-      expect(result.tools).toEqual(['read', 'write', 'edit'])
-    })
-
-    it('supports tools as comma-separated string', async () => {
-      await writeFile(
-        join(modesDir, 'string-tools.md'),
-        `---
-tools: read, write, edit, grep
----
-Test prompt.`,
-      )
-
-      const result = await readModePrompt('string-tools')
-      expect(result.tools).toEqual(['read', 'write', 'edit', 'grep'])
+      expect(result.fm.tools).toEqual(['read', 'write', 'edit'])
     })
 
     it('supports extraTools as array', async () => {
@@ -91,20 +78,7 @@ Test prompt.`,
       )
 
       const result = await readModePrompt('extra-array')
-      expect(result.extraTools).toEqual(['bash', 'grep'])
-    })
-
-    it('supports extraTools as comma-separated string', async () => {
-      await writeFile(
-        join(modesDir, 'extra-string.md'),
-        `---
-extraTools: bash, grep, glob
----
-Test prompt.`,
-      )
-
-      const result = await readModePrompt('extra-string')
-      expect(result.extraTools).toEqual(['bash', 'grep', 'glob'])
+      expect(result.fm.extraTools).toEqual(['bash', 'grep'])
     })
 
     it('supports removeTools as array', async () => {
@@ -117,20 +91,7 @@ Test prompt.`,
       )
 
       const result = await readModePrompt('remove-array')
-      expect(result.removeTools).toEqual(['write', 'bash'])
-    })
-
-    it('supports removeTools as comma-separated string', async () => {
-      await writeFile(
-        join(modesDir, 'remove-string.md'),
-        `---
-removeTools: write, bash, edit
----
-Test prompt.`,
-      )
-
-      const result = await readModePrompt('remove-string')
-      expect(result.removeTools).toEqual(['write', 'bash', 'edit'])
+      expect(result.fm.removeTools).toEqual(['write', 'bash'])
     })
 
     it('supports model field', async () => {
@@ -143,7 +104,7 @@ Test prompt.`,
       )
 
       const result = await readModePrompt('model-test')
-      expect(result.model).toBe('anthropic/claude-sonnet-4-5')
+      expect(result.fm.model).toBe('anthropic/claude-sonnet-4-5')
     })
 
     it('appends extra content from -append.md', async () => {
@@ -160,7 +121,7 @@ Base prompt content.`,
       )
 
       const result = await readModePrompt('with-append')
-      expect(result.description).toBe('Base mode.')
+      expect(result.fm.description).toBe('Base mode.')
       expect(result.systemPrompt).toBe(
         'Base prompt content.\n\nAppended extra content.',
       )
@@ -188,20 +149,7 @@ Test prompt.`,
       )
 
       const result = await readModePrompt('empty-tools')
-      expect(result.tools).toBeUndefined()
-    })
-
-    it('handles empty tools string', async () => {
-      await writeFile(
-        join(modesDir, 'empty-tools-str.md'),
-        `---
-tools: ''
----
-Test prompt.`,
-      )
-
-      const result = await readModePrompt('empty-tools-str')
-      expect(result.tools).toBeUndefined()
+      expect(result.fm.tools).toEqual([])
     })
 
     it('handles empty extraTools array', async () => {
@@ -214,7 +162,7 @@ Test prompt.`,
       )
 
       const result = await readModePrompt('empty-extra')
-      expect(result.extraTools).toBeUndefined()
+      expect(result.fm.extraTools).toEqual([])
     })
 
     it('handles empty removeTools array', async () => {
@@ -227,20 +175,7 @@ Test prompt.`,
       )
 
       const result = await readModePrompt('empty-remove')
-      expect(result.removeTools).toBeUndefined()
-    })
-
-    it('trims whitespace in comma-separated tools', async () => {
-      await writeFile(
-        join(modesDir, 'whitespace-tools.md'),
-        `---
-tools: read, write , grep ,glob
----
-Test prompt.`,
-      )
-
-      const result = await readModePrompt('whitespace-tools')
-      expect(result.tools).toEqual(['read', 'write', 'grep', 'glob'])
+      expect(result.fm.removeTools).toEqual([])
     })
 
     it('frontmatter from base is preserved when append exists', async () => {
@@ -255,8 +190,8 @@ Base content.`,
       await writeFile(join(modesDir, 'fm-base-append.md'), 'Append content.')
 
       const result = await readModePrompt('fm-base')
-      expect(result.description).toBe('Frontmatter from base.')
-      expect(result.tools).toEqual(['read'])
+      expect(result.fm.description).toBe('Frontmatter from base.')
+      expect(result.fm.tools).toEqual(['read'])
       expect(result.systemPrompt).toBe('Base content.\n\nAppend content.')
     })
 
@@ -277,7 +212,7 @@ tools: [write, grep]
       )
 
       const result = await readModePrompt('tools-merge')
-      expect(result.tools).toEqual(['read', 'write', 'grep'])
+      expect(result.fm.tools).toEqual(['read', 'write', 'grep'])
     })
 
     it('merges description, model, tools, and systemPrompt from append', async () => {
@@ -301,9 +236,9 @@ Append body.`,
       )
 
       const result = await readModePrompt('all-merge')
-      expect(result.description).toBe('Append description.')
-      expect(result.model).toBe('append/model')
-      expect(result.tools).toEqual(['read', 'write', 'grep'])
+      expect(result.fm.description).toBe('Append description.')
+      expect(result.fm.model).toBe('append/model')
+      expect(result.fm.tools).toEqual(['read', 'write', 'grep'])
       expect(result.systemPrompt).toBe('Base content.\n\nAppend body.')
     })
 
@@ -324,8 +259,8 @@ model: append/model
       )
 
       const result = await readModePrompt('empty-body')
-      expect(result.description).toBe('Base description.')
-      expect(result.model).toBe('append/model')
+      expect(result.fm.description).toBe('Base description.')
+      expect(result.fm.model).toBe('append/model')
       expect(result.systemPrompt).toBe('Base content.')
     })
   })

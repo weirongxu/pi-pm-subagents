@@ -24,7 +24,10 @@ import {
 import { registerSubagentTools, SUBAGENT_TOOLS } from '../subagent/tools.js'
 import { openSubagentViewer } from '../subagent/viewer.js'
 import type { ModesState } from '../types.js'
-import type { PromptDefinition } from '../utils/markdown.js'
+import {
+  mergePromptDefinitions,
+  type PromptDefinition,
+} from '../utils/markdown.js'
 import { persist } from '../utils/state.js'
 
 const COORDINATOR_MODE_WIDGET_KEY = 'pi-modes:coordinator-mode'
@@ -92,10 +95,11 @@ export async function resumeCoordinatorMode(
   fleet.setContext(ctx)
 
   await applyModeSetup(pi, state, 'coordinator', ctx, {
-    promptDefinition: {
-      ...def,
-      extraTools: [...Object.values(SUBAGENT_TOOLS), ...(def.extraTools ?? [])],
-    },
+    promptDefinition: mergePromptDefinitions(def, {
+      fm: {
+        extraTools: Object.values(SUBAGENT_TOOLS),
+      },
+    }),
     color: 'accent',
   })
 

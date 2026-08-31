@@ -33,17 +33,30 @@ describe('roles', () => {
         await loadRoles('/fake/cwd')
         const worker = resolveRole('worker')
         expect(worker.systemPrompt).toBe('')
-        expect(worker.tools).toBeUndefined()
-        expect(worker.removeTools).toBeUndefined()
-        expect(worker.model).toBeUndefined()
+        expect(worker.fm.tools).toBeUndefined()
+        expect(worker.fm.removeTools).toBeUndefined()
+        expect(worker.fm.model).toBeUndefined()
+        expect(worker.fm.reviewOnEnd).toBeUndefined()
+      })
+
+      it('includes plan role with reviewOnEnd enabled', async () => {
+        await loadRoles('/fake/cwd')
+        const plan = resolveRole('plan')
+        expect(plan.systemPrompt).toContain('planning subagent')
+        expect(plan.fm.reviewOnEnd).toBe(true)
+        expect(plan.fm.removeTools).toEqual(['bash', 'web_search', 'web_fetch'])
+        expect(plan.fm.description).toBe(
+          'Planning subagent; user reviews output before it goes to PM',
+        )
       })
 
       it('returns built-ins when no directories exist', async () => {
         const tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-empty-'))
         try {
           await loadRoles(tempDir)
-          expect(listRoles()).toEqual(['worker'])
+          expect(listRoles()).toEqual(['worker', 'plan'])
           resolveRole('worker')
+          resolveRole('plan')
         } finally {
           await rm(tempDir, { recursive: true, force: true })
         }
@@ -78,14 +91,15 @@ You are a code improver.`,
           join(agentsDir, 'tester.md'),
           `---
 description: Runs tests.
-tools: test
+tools: [test]
 ---
 You are a tester.`,
         )
 
         await loadRoles(tempDir)
-        expect(listRoles()).toHaveLength(3)
+        expect(listRoles()).toHaveLength(4)
         expect(() => resolveRole('worker')).not.toThrow()
+        expect(() => resolveRole('plan')).not.toThrow()
         expect(() => resolveRole('code-improver')).not.toThrow()
         expect(() => resolveRole('tester')).not.toThrow()
       })
@@ -104,28 +118,15 @@ You are a code improver.`,
 
         await loadRoles(tempDir)
         const role = resolveRole('code-improver')
-        expect(role.description).toBe('Scans files and suggests improvements.')
-        expect(role.tools).toEqual(['read', 'grep', 'glob'])
-        expect(role.model).toBe('sonnet')
+        expect(role.fm.description).toBe(
+          'Scans files and suggests improvements.',
+        )
+        expect(role.fm.tools).toEqual(['read', 'grep', 'glob'])
+        expect(role.fm.model).toBe('sonnet')
         expect(role.systemPrompt).toBe('You are a code improver.')
       })
 
-      it('parses tools as comma-separated string in frontmatter', async () => {
-        const rolePath = join(agentsDir, 'comma-tools.md')
-        await writeFile(
-          rolePath,
-          `---
-tools: read, grep, glob, write
----
-You have limited tools.`,
-        )
-
-        await loadRoles(tempDir)
-        const role = resolveRole('comma-tools')
-        expect(role.tools).toEqual(['read', 'grep', 'glob', 'write'])
-      })
-
-      it('handles empty tools array or string', async () => {
+      it('handles empty tools array', async () => {
         const rolePath = join(agentsDir, 'no-tools.md')
         await writeFile(
           rolePath,
@@ -136,19 +137,7 @@ No tools needed.`,
         )
 
         await loadRoles(tempDir)
-        expect(resolveRole('no-tools').tools).toBeUndefined()
-
-        const rolePath2 = join(agentsDir, 'empty-tools.md')
-        await writeFile(
-          rolePath2,
-          `---
-tools: ''
----
-No tools either.`,
-        )
-
-        await loadRoles(tempDir)
-        expect(resolveRole('empty-tools').tools).toBeUndefined()
+        expect(resolveRole('no-tools').fm.tools).toEqual([])
       })
 
       it('parses extraTools as array in frontmatter', async () => {
@@ -163,25 +152,10 @@ You have extra tools.`,
 
         await loadRoles(tempDir)
         const role = resolveRole('extra-array')
-        expect(role.extraTools).toEqual(['bash_readonly', 'grep'])
+        expect(role.fm.extraTools).toEqual(['bash_readonly', 'grep'])
       })
 
-      it('parses extraTools as comma-separated string', async () => {
-        const rolePath = join(agentsDir, 'extra-string.md')
-        await writeFile(
-          rolePath,
-          `---
-extraTools: read, grep, glob
----
-You have extra tools as string.`,
-        )
-
-        await loadRoles(tempDir)
-        const role = resolveRole('extra-string')
-        expect(role.extraTools).toEqual(['read', 'grep', 'glob'])
-      })
-
-      it('handles empty extraTools array or string', async () => {
+      it('handles empty extraTools array', async () => {
         const rolePath = join(agentsDir, 'no-extra.md')
         await writeFile(
           rolePath,
@@ -192,19 +166,7 @@ No extra tools needed.`,
         )
 
         await loadRoles(tempDir)
-        expect(resolveRole('no-extra').extraTools).toBeUndefined()
-
-        const rolePath2 = join(agentsDir, 'empty-extra.md')
-        await writeFile(
-          rolePath2,
-          `---
-extraTools: ''
----
-No extra tools either.`,
-        )
-
-        await loadRoles(tempDir)
-        expect(resolveRole('empty-extra').extraTools).toBeUndefined()
+        expect(resolveRole('no-extra').fm.extraTools).toEqual([])
       })
 
       it('parses removeTools as array in frontmatter', async () => {
@@ -219,25 +181,10 @@ You have removed tools.`,
 
         await loadRoles(tempDir)
         const role = resolveRole('remove-array')
-        expect(role.removeTools).toEqual(['write', 'bash'])
+        expect(role.fm.removeTools).toEqual(['write', 'bash'])
       })
 
-      it('parses removeTools as comma-separated string', async () => {
-        const rolePath = join(agentsDir, 'remove-string.md')
-        await writeFile(
-          rolePath,
-          `---
-removeTools: write, bash, edit
----
-You have removed tools as string.`,
-        )
-
-        await loadRoles(tempDir)
-        const role = resolveRole('remove-string')
-        expect(role.removeTools).toEqual(['write', 'bash', 'edit'])
-      })
-
-      it('handles empty removeTools array or string', async () => {
+      it('handles empty removeTools array', async () => {
         const rolePath = join(agentsDir, 'no-remove.md')
         await writeFile(
           rolePath,
@@ -248,19 +195,7 @@ No tools to remove.`,
         )
 
         await loadRoles(tempDir)
-        expect(resolveRole('no-remove').removeTools).toBeUndefined()
-
-        const rolePath2 = join(agentsDir, 'empty-remove.md')
-        await writeFile(
-          rolePath2,
-          `---
-removeTools: ''
----
-No tools to remove either.`,
-        )
-
-        await loadRoles(tempDir)
-        expect(resolveRole('empty-remove').removeTools).toBeUndefined()
+        expect(resolveRole('no-remove').fm.removeTools).toEqual([])
       })
 
       it('tools field is not affected by extraTools', async () => {
@@ -276,8 +211,8 @@ You have both tools.`,
 
         await loadRoles(tempDir)
         const role = resolveRole('both-tools')
-        expect(role.tools).toEqual(['read', 'write'])
-        expect(role.extraTools).toEqual(['grep', 'glob'])
+        expect(role.fm.tools).toEqual(['read', 'write'])
+        expect(role.fm.extraTools).toEqual(['grep', 'glob'])
       })
 
       it('skips non-.md files', async () => {
@@ -288,7 +223,7 @@ You have both tools.`,
         await writeFile(join(agentsDir, 'valid.md'), 'This should be loaded.')
 
         await loadRoles(tempDir)
-        expect(listRoles()).toHaveLength(2)
+        expect(listRoles()).toHaveLength(3)
         expect(() => resolveRole('valid')).not.toThrow()
         expect(() => resolveRole('not-a-role')).toThrow()
       })
@@ -326,7 +261,7 @@ Global role content.`,
 
         await loadRoles(tempDir)
         const role = resolveRole('global-role')
-        expect(role.description).toBe('A global role.')
+        expect(role.fm.description).toBe('A global role.')
         expect(role.systemPrompt).toBe('Global role content.')
       })
 
@@ -347,8 +282,9 @@ Second global content.`,
         )
 
         await loadRoles(tempDir)
-        expect(listRoles()).toHaveLength(3)
+        expect(listRoles()).toHaveLength(4)
         expect(() => resolveRole('worker')).not.toThrow()
+        expect(() => resolveRole('plan')).not.toThrow()
         expect(() => resolveRole('global-role')).not.toThrow()
         expect(() => resolveRole('another-global')).not.toThrow()
       })
@@ -398,7 +334,7 @@ Project content.`,
 
         await loadRoles(tempDir)
         const role = resolveRole('override-me')
-        expect(role.description).toBe('Project version.')
+        expect(role.fm.description).toBe('Project version.')
         expect(role.systemPrompt).toBe('Project content.')
       })
 
@@ -413,7 +349,7 @@ Custom worker prompt.`,
 
         await loadRoles(tempDir)
         const worker = resolveRole('worker')
-        expect(worker.description).toBe('Custom worker.')
+        expect(worker.fm.description).toBe('Custom worker.')
         expect(worker.systemPrompt).toBe('Custom worker prompt.')
       })
 
@@ -429,7 +365,7 @@ Only global content.`,
 
         await loadRoles(tempDir)
         const role = resolveRole('global-only')
-        expect(role.description).toBe('Only global.')
+        expect(role.fm.description).toBe('Only global.')
         expect(role.systemPrompt).toBe('Only global content.')
       })
 
@@ -444,7 +380,7 @@ Only global content.`,
         )
 
         await loadRoles(tempDir)
-        expect(listRoles()).toHaveLength(3)
+        expect(listRoles()).toHaveLength(4)
         expect(resolveRole('global-only').systemPrompt).toBe('Global content.')
         expect(resolveRole('project-only').systemPrompt).toBe(
           'Project content.',
@@ -475,7 +411,7 @@ Custom prompt.`,
 
         await loadRoles(tempDir)
         const role = resolveRole('custom')
-        expect(role.description).toBe('Custom role.')
+        expect(role.fm.description).toBe('Custom role.')
         expect(role.systemPrompt).toBe('Custom prompt.')
       } finally {
         await rm(tempDir, { recursive: true, force: true })
@@ -506,7 +442,7 @@ Custom prompt.`,
     it('lists built-in roles first in stable order', async () => {
       await loadRoles('/fake/cwd')
       const names = listRoles()
-      expect(names).toEqual(['worker'])
+      expect(names).toEqual(['worker', 'plan'])
     })
 
     it('lists project roles after built-ins', async () => {
@@ -522,7 +458,7 @@ Custom prompt.`,
         const names = listRoles()
         expect(names[0]).toBe('worker')
         expect(new Set(names)).toEqual(
-          new Set(['worker', 'alpha', 'beta', 'zeta']),
+          new Set(['worker', 'plan', 'alpha', 'beta', 'zeta']),
         )
       } finally {
         await rm(tempDir, { recursive: true, force: true })
@@ -544,7 +480,10 @@ Custom prompt.`,
         await loadRoles('/fake/cwd')
         const names = listRoles()
         expect(names[0]).toBe('worker')
-        expect(new Set(names)).toEqual(new Set(['worker', 'delta', 'gamma']))
+        expect(names[1]).toBe('plan')
+        expect(new Set(names)).toEqual(
+          new Set(['worker', 'plan', 'delta', 'gamma']),
+        )
       } finally {
         await rm(globalTempDir, { recursive: true, force: true })
         process.env[MOCK_AGENT_DIR_VAR] = originalAgentDir
@@ -581,7 +520,7 @@ Custom prompt.`,
         const names = listRoles()
         expect(names[0]).toBe('worker')
         expect(new Set(names)).toEqual(
-          new Set(['worker', 'alpha', 'beta', 'omega']),
+          new Set(['worker', 'plan', 'alpha', 'beta', 'omega']),
         )
       } finally {
         await rm(tempDir, { recursive: true, force: true })

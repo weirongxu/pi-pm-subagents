@@ -36,9 +36,23 @@ export async function loadMarkdownRolesFromDir(
 }
 
 async function loadBuiltins(): Promise<Map<string, PromptDefinition>> {
-  return new Map<string, PromptDefinition>([
-    [DEFAULT_ROLE, { systemPrompt: '' }],
+  const builtins = new Map<string, PromptDefinition>([
+    [DEFAULT_ROLE, { fm: {}, systemPrompt: '' }],
+    [
+      'plan',
+      {
+        fm: {
+          reviewOnEnd: true,
+          removeTools: ['bash', 'web_search', 'web_fetch'],
+          description:
+            'Planning subagent; user reviews output before it goes to PM',
+        },
+        systemPrompt:
+          'You are a planning subagent. Analyze the request thoroughly using read-only tools and produce a clear, actionable implementation plan as Markdown. The user will review your output before it is forwarded to the project manager — be concrete and complete.',
+      },
+    ],
   ])
+  return builtins
 }
 
 export async function loadRoles(cwd: string): Promise<void> {
@@ -73,11 +87,11 @@ export function listRoles(): string[] {
 
 function formatRoleEntry([name, role]: [string, PromptDefinition]): string {
   const parts: string[] = []
-  if (role.description) {
-    parts.push(role.description)
+  if (role.fm.description) {
+    parts.push(role.fm.description)
   }
-  if (role.tools && role.tools.length > 0) {
-    parts.push(`tools: ${role.tools.join(', ')}`)
+  if (role.fm.tools && role.fm.tools.length > 0) {
+    parts.push(`tools: ${role.fm.tools.join(', ')}`)
   }
   if (parts.length > 0) {
     return `  - ${name}: ${parts.join('; ')}`

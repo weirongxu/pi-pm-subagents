@@ -1,18 +1,26 @@
 import { parseFrontmatter } from '@earendil-works/pi-coding-agent'
+import type { Static } from 'typebox'
+import { Type } from 'typebox'
+import { Parse } from 'typebox/value'
 
 import { readOptional } from './fs.js'
-import { normalizeTools } from './tools.js'
 
-export interface PromptFrontmatter extends Record<string, unknown> {
-  description?: string
-  model?: string
-  tools?: readonly string[]
-  extraTools?: readonly string[]
-  removeTools?: readonly string[]
-}
+const StringList = Type.Array(Type.String())
 
-export interface PromptDefinition extends PromptFrontmatter {
-  systemPrompt: string
+const PromptFrontmatterSchema = Type.Object({
+  description: Type.Optional(Type.String()),
+  model: Type.Optional(Type.String()),
+  tools: Type.Optional(StringList),
+  extraTools: Type.Optional(StringList),
+  removeTools: Type.Optional(StringList),
+  reviewOnEnd: Type.Optional(Type.Boolean()),
+})
+
+export type PromptFrontmatter = Static<typeof PromptFrontmatterSchema>
+
+export interface PromptDefinition {
+  fm: PromptFrontmatter
+  systemPrompt?: string
 }
 
 export async function loadMarkdown(
@@ -20,39 +28,40 @@ export async function loadMarkdown(
 ): Promise<PromptDefinition | undefined> {
   const content = await readOptional(path)
   if (content === undefined) return undefined
-  const { frontmatter, body } = parseFrontmatter<PromptFrontmatter>(content)
-  return {
-    description: frontmatter.description,
-    tools: normalizeTools(frontmatter.tools),
-    extraTools: normalizeTools(frontmatter.extraTools),
-    removeTools: normalizeTools(frontmatter.removeTools),
-    model: frontmatter.model,
-    systemPrompt: body.trim(),
-  }
+  const { frontmatter, body } = parseFrontmatter(content)
+  const fm = Parse(PromptFrontmatterSchema, frontmatter)
+  return { fm, systemPrompt: body.trim() }
 }
 
-function mergeUnique(
-  base: readonly string[] | undefined,
-  append: readonly string[] | undefined,
-): readonly string[] | undefined {
-  const merged = new Set<string>()
-  for (const item of base ?? []) merged.add(item)
-  for (const item of append ?? []) merged.add(item)
+function mergeUniqueTools(
+  baseTools: readonly string[] | undefined,
+  appendTools: readonly string[] | undefined,
+): string[] | undefined {
+  const merged = new Set([...(baseTools ?? []), ...(appendTools ?? [])])
   return merged.size > 0 ? [...merged] : undefined
 }
 
 export function mergePromptDefinitions(
-  base: PromptDefinition,
+  baseTools: PromptDefinition,
   append: PromptDefinition,
 ): PromptDefinition {
   return {
-    description: append.description ?? base.description,
-    model: append.model ?? base.model,
-    tools: mergeUnique(base.tools, append.tools),
-    extraTools: mergeUnique(base.extraTools, append.extraTools),
-    removeTools: mergeUnique(base.removeTools, append.removeTools),
+    fm: {
+      description: append.fm.description ?? baseTools.fm.description,
+      model: append.fm.model ?? baseTools.fm.model,
+      tools: mergeUniqueTools(baseTools.fm.tools, append.fm.tools),
+      extraTools: mergeUniqueTools(
+        baseTools.fm.extraTools,
+        append.fm.extraTools,
+      ),
+      removeTools: mergeUniqueTools(
+        baseTools.fm.removeTools,
+        append.fm.removeTools,
+      ),
+      reviewOnEnd: append.fm.reviewOnEnd ?? baseTools.fm.reviewOnEnd,
+    },
     systemPrompt: append.systemPrompt
-      ? `${base.systemPrompt}\n\n${append.systemPrompt}`
-      : base.systemPrompt,
+      ? `${baseTools.systemPrompt}\n\n${append.systemPrompt}`
+      : baseTools.systemPrompt,
   }
 }
