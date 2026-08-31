@@ -14,8 +14,8 @@ import {
   wrapTextWithAnsi,
 } from '@earendil-works/pi-tui'
 
-import { BorderView } from '../border-view.js'
-import { ScrollView } from '../scroll-view.js'
+import { BorderView } from '../ui/border-view.js'
+import { ScrollView } from '../ui/scroll-view.js'
 import { rightAlign, strInline } from '../utils/format.js'
 import type {
   LiveSubagent,

@@ -1,11 +1,8 @@
-import {
-  type ExtensionAPI,
-  type ExtensionContext,
-  getMarkdownTheme,
+import type {
+  ExtensionAPI,
+  ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-import { Markdown, matchesKey, truncateToWidth } from '@earendil-works/pi-tui'
 
-import { BorderView } from '../border-view.js'
 import {
   enterCoordinatorMode,
   exitCoordinatorMode,
@@ -15,28 +12,13 @@ import {
   assertModeIdle,
   exitReadOnly,
 } from '../mode-switcher.js'
-import { ScrollView } from '../scroll-view.js'
 import type { ModesState } from '../types.js'
+import { askHowToProceed, type ReviewChoice } from '../ui/review-pager.js'
 import type { PromptDefinition } from '../utils/markdown.js'
 import { lastAssistantText } from '../utils/messages.js'
 import { persist } from '../utils/state.js'
 import { setupPlanDemo } from './demo.js'
 
-let inAsking = false
-
-const PLAN_CHOICES = [
-  'Execute directly',
-  'Execute via subagents',
-  'Update the plan',
-  'Cancel',
-] as const
-
-/** Terminal-row percentage the plan overlay occupies. */
-const VIEWPORT_HEIGHT_PCT = 80
-/** Lines outside the scroll view: title + separator + choices + hint. */
-const CHROME_LINES = PLAN_CHOICES.length + 3
-/** Overlay width as a percentage of the terminal. */
-const OVERLAY_WIDTH_PCT = '90%'
 const PLAN_MODE_WIDGET_KEY = 'pi-modes:plan-mode'
 
 export async function enterPlanMode(
@@ -48,12 +30,12 @@ export async function enterPlanMode(
   assertModeIdle(state, 'plan')
   state.mode = 'plan'
   state.planMarkdown = undefined
-  await resumePlanMode(pi, state, ctx, def)
+  await applyPlanMode(pi, state, ctx, def)
   ctx.ui.notify('Plan mode on — read-only. Produce a plan for review.', 'info')
   persist(pi, state)
 }
 
-export async function resumePlanMode(
+export async function applyPlanMode(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
@@ -76,162 +58,6 @@ export async function exitPlanMode(
   state.mode = undefined
   ctx.ui.setWidget(PLAN_MODE_WIDGET_KEY, undefined)
   await exitReadOnly(pi, state, ctx, 'plan')
-}
-
-export function renderPlanPager(
-  ctx: ExtensionContext,
-  plan: string,
-): Promise<string | undefined> {
-  return ctx.ui.custom<string | undefined>(
-    (tui, theme, _keybindings, done) => {
-      const choices = PLAN_CHOICES
-      let selected = 0
-      const markdown = new Markdown(plan, 0, 0, getMarkdownTheme())
-
-      const scroll = new ScrollView(tui, theme, {
-        child: markdown,
-        // title + separator + choices + hint live outside the scroll view
-        viewportHeight: () =>
-          Math.max(
-            3,
-            Math.floor((tui.terminal.rows * VIEWPORT_HEIGHT_PCT) / 100) -
-              CHROME_LINES -
-              3,
-          ),
-      })
-
-      const component = {
-        render(width: number) {
-          const rows = scroll.render(width)
-          return [
-            theme.fg('accent', theme.bold('📋 Plan')),
-            ...rows,
-            theme.fg('muted', '─'.repeat(width)),
-            ...choices.map((choice, index) =>
-              index === selected
-                ? theme.fg('accent', `→ ${choice}`)
-                : `  ${choice}`,
-            ),
-            theme.fg('muted', '─'.repeat(width)),
-            this.footerLine(width),
-          ]
-        },
-        footerLine(width: number) {
-          const th = theme
-          const sep = th.fg('dim', ' · ')
-          const keys: [string, string][] = []
-
-          keys.push(
-            ['↑↓', 'select'],
-            [`1-${choices.length}`, 'jump'],
-            ['j/k line', 'line'],
-            ['u/d ␣', 'PageUp/Dn page'],
-            ['g/G', 'Home/End jump'],
-            ['Enter', 'confirm'],
-            ['q/esc', 'cancel'],
-          )
-          return truncateToWidth(
-            keys
-              .map(
-                ([key, desc]) =>
-                  `${th.fg('syntaxKeyword', key)} ${th.fg('success', desc)}`,
-              )
-              .join(sep),
-            width,
-          )
-        },
-        handleInput(data: string) {
-          const index = /^[1-9]$/.test(data) ? Number(data) - 1 : -1
-          if (index >= 0 && choices[index]) {
-            done(choices[index])
-            return
-          }
-          if (matchesKey(data, 'up')) {
-            selected = Math.max(0, selected - 1)
-            tui.requestRender()
-            return
-          }
-          if (matchesKey(data, 'down')) {
-            selected = Math.min(choices.length - 1, selected + 1)
-            tui.requestRender()
-            return
-          }
-          if (matchesKey(data, 'enter')) {
-            done(choices[selected])
-            return
-          }
-          if (matchesKey(data, 'escape') || data === 'q') {
-            done(undefined)
-            return
-          }
-          scroll.handleInput(data)
-        },
-        invalidate() {
-          scroll.invalidate()
-        },
-      }
-
-      return new BorderView(theme, { child: component })
-    },
-    {
-      overlay: true,
-      overlayOptions: {
-        anchor: 'center',
-        width: OVERLAY_WIDTH_PCT,
-        maxHeight: `${VIEWPORT_HEIGHT_PCT}%`,
-      },
-    },
-  )
-}
-
-async function askHowToProceed(
-  pi: ExtensionAPI,
-  state: ModesState,
-  ctx: ExtensionContext,
-  coordinatorDef: PromptDefinition,
-): Promise<void> {
-  const plan = state.planMarkdown
-  if (!plan) return
-
-  inAsking = true
-  ctx.ui.setWorkingVisible(false)
-  try {
-    const planBlock = `<plan>${plan}</plan>`
-    const choice = await renderPlanPager(ctx, plan)
-
-    switch (choice) {
-      case 'Execute directly': {
-        await exitPlanMode(pi, state, ctx)
-        const prompt = [planBlock, 'Now you exit plan mode, execute it'].join(
-          '\n',
-        )
-        pi.sendUserMessage(prompt, { deliverAs: 'followUp' })
-        break
-      }
-      case 'Execute via subagents': {
-        await exitPlanMode(pi, state, ctx)
-        const prompt = [planBlock, 'Now you exit plan mode'].join('\n')
-        await enterCoordinatorMode(pi, state, prompt, ctx, coordinatorDef)
-        break
-      }
-      case 'Update the plan': {
-        const updatePrompt = await ctx.ui.editor('Update the plan:', '')
-        if (updatePrompt?.trim()) {
-          pi.sendUserMessage(
-            `Update the plan based on:\n\n${updatePrompt.trim()}`,
-            { deliverAs: 'steer' },
-          )
-        }
-        break
-      }
-      case 'Cancel':
-        await exitPlanMode(pi, state, ctx)
-        break
-    }
-  } finally {
-    ctx.ui.setWorkingVisible(true)
-    inAsking = false
-  }
 }
 
 export async function setupPlan(
@@ -271,14 +97,68 @@ export async function setupPlan(
     },
   })
 
-  // When the plan lands, open a review pager and dispatch the chosen action.
   pi.on('agent_end', async (event, ctx) => {
-    if (state.mode !== 'plan' || inAsking || !ctx.hasUI) return
+    if (state.mode !== 'plan' || !ctx.hasUI) return
     const plan = lastAssistantText(event.messages)
     if (!plan) return
 
     state.planMarkdown = plan
-    await askHowToProceed(pi, state, ctx, coordinatorDefinition)
+
+    const planChoices: readonly ReviewChoice[] = [
+      {
+        id: 'execute-directly',
+        label: 'Execute directly',
+        action: async () => {
+          await exitPlanMode(pi, state, ctx)
+          const planBlock = `<plan>${state.planMarkdown ?? ''}</plan>`
+          pi.sendUserMessage(
+            [planBlock, 'Now you exit plan mode, execute it'].join('\n'),
+            { deliverAs: 'followUp' },
+          )
+        },
+      },
+      {
+        id: 'execute-via-subagents',
+        label: 'Execute via subagents',
+        action: async () => {
+          await exitPlanMode(pi, state, ctx)
+          const planBlock = `<plan>${state.planMarkdown ?? ''}</plan>`
+          await enterCoordinatorMode(
+            pi,
+            state,
+            planBlock,
+            ctx,
+            coordinatorDefinition,
+          )
+        },
+      },
+      {
+        id: 'update-the-plan',
+        label: 'Update the plan',
+        action: async () => {
+          const updatePrompt = await ctx.ui.editor('Update the plan:', '')
+          if (updatePrompt?.trim()) {
+            pi.sendUserMessage(
+              `Update the plan based on:\n\n${updatePrompt.trim()}`,
+              { deliverAs: 'steer' },
+            )
+          }
+        },
+      },
+      {
+        id: 'cancel',
+        label: 'Cancel',
+        action: async () => {
+          await exitPlanMode(pi, state, ctx)
+        },
+      },
+    ]
+
+    await askHowToProceed(ctx, {
+      title: '📋 Plan',
+      plan,
+      choices: planChoices,
+    })
   })
 
   if (demoEnabled) {

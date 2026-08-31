@@ -64,7 +64,7 @@ export async function enterCoordinatorMode(
 ): Promise<void> {
   assertModeIdle(state, 'coordinator')
   state.mode = 'coordinator'
-  await resumeCoordinatorMode(pi, state, ctx, def)
+  await applyCoordinatorMode(pi, state, ctx, def)
   persist(pi, state)
   if (prompt) pi.sendUserMessage(prompt, { deliverAs: 'followUp' })
 }
@@ -85,7 +85,7 @@ export function renderCoordinatorModeWidget(
   ])
 }
 
-export async function resumeCoordinatorMode(
+export async function applyCoordinatorMode(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
@@ -129,8 +129,13 @@ export async function setupCoordinator(
   state: ModesState,
   {
     demoEnabled,
+    planDefinition,
     coordinatorDefinition,
-  }: { demoEnabled: boolean; coordinatorDefinition: PromptDefinition },
+  }: {
+    demoEnabled: boolean
+    planDefinition: PromptDefinition
+    coordinatorDefinition: PromptDefinition
+  },
 ): Promise<void> {
   const batcher = new MessageBatcher((messages: readonly string[]) => {
     if (state.mode !== 'coordinator') return
@@ -147,9 +152,6 @@ export async function setupCoordinator(
       pi.events.emit(JOB_END_EVENT, {
         id: `pi-modes:session:${subagent.id}`,
       })
-      if (state.mode !== 'coordinator') return
-      if (subagent.status === 'killed') return
-      batcher.add(subagent, 'done', subagent.message ?? '(no message)')
     },
   })
   const activityReporter = new ActivityReporter({
@@ -167,7 +169,7 @@ export async function setupCoordinator(
     },
   })
 
-  await loadRoles(process.cwd())
+  await loadRoles(process.cwd(), planDefinition)
 
   runtime = {
     manager,
@@ -177,7 +179,7 @@ export async function setupCoordinator(
     batcher,
   }
 
-  registerSubagentTools(pi, state, manager, fleet)
+  registerSubagentTools(pi, state, manager, fleet, batcher)
 
   const coordinatorPrompt = coordinatorDefinition.systemPrompt
 

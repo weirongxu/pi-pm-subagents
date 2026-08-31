@@ -6,6 +6,7 @@ import type { ThinkingLevel } from '@earendil-works/pi-agent-core'
 import type { Api, Model } from '@earendil-works/pi-ai'
 import {
   type AgentSession,
+  type ContextUsage,
   createAgentSession,
   DefaultResourceLoader,
   getAgentDir,
@@ -13,7 +14,8 @@ import {
 } from '@earendil-works/pi-coding-agent'
 
 import { formatElapsed } from '../utils/format.js'
-import { lastMessageText, messageText } from '../utils/messages.js'
+import { lastMessageText } from '../utils/messages.js'
+import { FOLLOW_SYMBOL } from './consts.ts'
 import type { FleetEntryBase } from './fleet.js'
 
 const SELF_DIR = fileURLToPath(new URL('../', import.meta.url))
@@ -25,7 +27,7 @@ const subagentDirFor = (cwd: string, agentDir: string): string => {
 
 const MAX_SUBAGENT_OUTPUT_BYTES = 50 * 1024
 
-export const MAX_REUSE_FOLLOWUPS = 10
+export const MAX_REUSE_FOLLOWUPS = 50
 export const MAX_CONCURRENCY_SUBAGENT = 5
 
 export type SubagentStatus = 'running' | 'done' | 'failed' | 'killed'
@@ -37,6 +39,7 @@ export interface SpawnOptions {
   tools?: readonly string[]
   systemPrompt?: string
   role?: string
+  onComplete?: (subagent: LiveSubagent) => Promise<void>
 }
 
 export interface LiveSubagent {
@@ -48,15 +51,18 @@ export interface LiveSubagent {
   session: AgentSession
   startedAt: number
   completedAt?: number
+  // FIXME: 重命名成 lastMessage, 用到 message 的地方是不是只有 complete, 那是不是局部变量加参数就可以了
   message?: string
   followUpCount: number
   enabledTools: Set<string>
-  responseText?: string
   role: string
+  contextUsage?: ContextUsage
+  onComplete?: (subagent: LiveSubagent) => Promise<void>
 }
 
 export interface SubagentManagerOptions {
   onStatusChange?: () => void
+  // FIXME: 应该改名成 onEachStart 和 onEachEnd
   onStart?: (subagent: LiveSubagent) => void
   onEnd?: (subagent: LiveSubagent) => void
 }
@@ -69,7 +75,7 @@ export function formatSubagentSummary(
     subagent.status,
     `#${subagent.id}`,
     subagent.title.slice(0, titleWidth),
-    `F(${subagent.followUpCount})`,
+    `${FOLLOW_SYMBOL}${subagent.followUpCount}`,
     formatElapsed(subagent),
   ].join(' ')
 }
@@ -160,6 +166,7 @@ export class SubagentManager {
       followUpCount: 0,
       enabledTools,
       role: options.role ?? 'worker',
+      onComplete: options.onComplete,
     }
 
     this.subagents.set(id, subagent)
@@ -247,15 +254,10 @@ export class SubagentManager {
   }
 
   private subscribe(subagent: LiveSubagent): void {
+    subagent.contextUsage = subagent.session.getContextUsage()
     subagent.session.subscribe((event) => {
-      switch (event.type) {
-        case 'message_update':
-          if (event.assistantMessageEvent.type === 'text_delta') {
-            subagent.responseText = messageText(event.message)
-          }
-          break
-        default:
-          break
+      if (event.type === 'message_end') {
+        subagent.contextUsage = subagent.session.getContextUsage()
       }
     })
   }
@@ -281,8 +283,8 @@ export class SubagentManager {
       }
     } finally {
       subagent.completedAt = Date.now()
-      subagent.responseText = undefined
       this.options.onStatusChange?.()
+      await subagent.onComplete?.(subagent)
       this.options.onEnd?.(subagent)
     }
   }

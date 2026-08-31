@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import { CONFIG_DIR_NAME, getAgentDir } from '@earendil-works/pi-coding-agent'
 
+import { BASH_READONLY_TOOL_NAME } from '../bash-readonly.ts'
 import { loadMarkdown, type PromptDefinition } from '../utils/markdown.js'
 
 const DEFAULT_ROLE = 'worker'
@@ -35,27 +36,31 @@ export async function loadMarkdownRolesFromDir(
   return loadedRoles
 }
 
-async function loadBuiltins(): Promise<Map<string, PromptDefinition>> {
+async function loadBuiltins(
+  planDefinition: PromptDefinition,
+): Promise<Map<string, PromptDefinition>> {
   const builtins = new Map<string, PromptDefinition>([
     [DEFAULT_ROLE, { fm: {}, systemPrompt: '' }],
     [
-      'plan',
+      'planner',
       {
         fm: {
+          removeTools: ['write', 'edit', 'bash'],
+          extraTools: [BASH_READONLY_TOOL_NAME],
+          description: 'Planning subagent',
           reviewOnEnd: true,
-          removeTools: ['bash', 'web_search', 'web_fetch'],
-          description:
-            'Planning subagent; user reviews output before it goes to PM',
         },
-        systemPrompt:
-          'You are a planning subagent. Analyze the request thoroughly using read-only tools and produce a clear, actionable implementation plan as Markdown. The user will review your output before it is forwarded to the project manager — be concrete and complete.',
+        systemPrompt: planDefinition.systemPrompt,
       },
     ],
   ])
   return builtins
 }
 
-export async function loadRoles(cwd: string): Promise<void> {
+export async function loadRoles(
+  cwd: string,
+  planDefinition: PromptDefinition,
+): Promise<void> {
   roles.clear()
   const addRoles = (newRoles: Map<string, PromptDefinition>) => {
     for (const [name, role] of newRoles) {
@@ -63,7 +68,7 @@ export async function loadRoles(cwd: string): Promise<void> {
     }
   }
 
-  addRoles(await loadBuiltins())
+  addRoles(await loadBuiltins(planDefinition))
   addRoles(await loadMarkdownRolesFromDir(join(getAgentDir(), 'agents')))
   addRoles(await loadMarkdownRolesFromDir(join(cwd, CONFIG_DIR_NAME, 'agents')))
 }

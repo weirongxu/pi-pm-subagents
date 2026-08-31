@@ -967,3 +967,180 @@ describe('FleetList renderBar selection highlight', () => {
     expect(unselectedLine).toContain('[FG:muted]      3s[/-FG]')
   })
 })
+
+describe('FleetList context usage rendering', () => {
+  function createFakeContext(): Record<string, unknown> {
+    return {
+      ui: {
+        getEditorText: () => '',
+        setWidget: () => {},
+        theme: createFakeTheme(),
+        onTerminalInput: () => () => {},
+        notify: () => {},
+      },
+    }
+  }
+
+  function createFleetList(entries: FleetEntry[]): FleetList {
+    const fleetList = new FleetList({
+      list: () => entries,
+      onOpen: () => {},
+    })
+    fleetList.setContext(createFakeContext() as unknown as ExtensionContext)
+    return fleetList
+  }
+
+  function render(fleetList: FleetList, width = 200): string[] {
+    return (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(width)
+  }
+
+  it('renders normal context usage with muted color', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'test task',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+        contextUsage: { tokens: 60000, contextWindow: 200000, percent: 30.0 },
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = false
+
+    const lines = render(fleetList)
+    const itemLine = lines.find((line) => line.includes('test task'))
+    expect(itemLine).toBeDefined()
+    expect(itemLine).toContain('[FG:muted]')
+    expect(itemLine).toContain('60k')
+    expect(itemLine).toContain('200k')
+  })
+
+  it('renders unknown tokens as ?', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'test task',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+        contextUsage: { tokens: null, contextWindow: 200000, percent: null },
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = false
+
+    const lines = render(fleetList)
+    const itemLine = lines.find((line) => line.includes('test task'))
+    expect(itemLine).toBeDefined()
+    expect(itemLine).toContain('[FG:muted]')
+    expect(itemLine).toContain('?')
+    expect(itemLine).not.toContain('?/')
+  })
+
+  it('hides context column when contextUsage is undefined', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'test task',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = false
+
+    const lines = render(fleetList)
+    const itemLine = lines.find((line) => line.includes('test task'))
+    expect(itemLine).toBeDefined()
+    expect(itemLine).not.toContain('%/')
+    expect(itemLine).not.toContain('?/')
+  })
+
+  it('hides context column when contextWindow is 0', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'test task',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+        contextUsage: { tokens: 1000, contextWindow: 0, percent: 10.0 },
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = false
+
+    const lines = render(fleetList)
+    const itemLine = lines.find((line) => line.includes('test task'))
+    expect(itemLine).toBeDefined()
+    expect(itemLine).not.toContain('%/')
+  })
+
+  it('uses error color when context usage > 90%', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'test task',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+        contextUsage: { tokens: 190000, contextWindow: 200000, percent: 95.0 },
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = false
+
+    const lines = render(fleetList)
+    const itemLine = lines.find((line) => line.includes('test task'))
+    expect(itemLine).toBeDefined()
+    expect(itemLine).toContain('[FG:error]')
+    expect(itemLine).not.toContain('[FG:warning]')
+    expect(itemLine).toContain('190k')
+    expect(itemLine).toContain('200k')
+  })
+
+  it('uses warning color when context usage > 70% and <= 90%', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'test task',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+        contextUsage: { tokens: 160000, contextWindow: 200000, percent: 80.0 },
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = false
+
+    const lines = render(fleetList)
+    const itemLine = lines.find((line) => line.includes('test task'))
+    expect(itemLine).toBeDefined()
+    expect(itemLine).toContain('[FG:warning]')
+    expect(itemLine).not.toContain('[FG:error]')
+    expect(itemLine).toContain('160k')
+    expect(itemLine).toContain('200k')
+  })
+})

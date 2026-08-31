@@ -9,13 +9,15 @@ import { Type } from 'typebox'
 import { resolveSubagentModelForSpawn } from '../models-config/subagent-model-utils.js'
 import { resolveRole, rolesDescription } from '../prompts/roles.js'
 import type { ModesState } from '../types.js'
+import { askHowToProceed } from '../ui/review-pager.js'
 import { registerOptionalTools } from '../utils/tools.js'
 import { composeTools } from '../utils/tools.js'
+import type { MessageBatcher } from './batcher.js'
 import type { FleetList } from './fleet.js'
 import type { SubagentManager } from './manager.js'
+import type { LiveSubagent } from './manager.js'
 import {
   formatSubagentSummary,
-  type LiveSubagent,
   MAX_CONCURRENCY_SUBAGENT,
   MAX_REUSE_FOLLOWUPS,
 } from './manager.js'
@@ -50,6 +52,7 @@ export function registerSubagentTools(
   state: ModesState,
   manager: SubagentManager,
   fleet: FleetList,
+  batcher: MessageBatcher,
 ): void {
   const tools = [
     defineTool({
@@ -113,6 +116,7 @@ export function registerSubagentTools(
         ctx,
       ): Promise<AgentToolResult<unknown>> {
         const role = resolveRole(params.role)
+        const reviewOnEnd = role.fm.reviewOnEnd ?? false
 
         const tools = composeTools(state.previousActiveTools ?? [], {
           tools: role.fm.tools,
@@ -138,6 +142,57 @@ export function registerSubagentTools(
               tools,
               systemPrompt: role.systemPrompt,
               role: params.role,
+              onComplete: async (subagent) => {
+                if (state.mode !== 'coordinator') return
+                if (subagent.status === 'killed') return
+                if (!subagent.message) return
+                if (subagent.status === 'failed') {
+                  batcher.add(subagent, 'done', subagent.message)
+                  return
+                }
+                if (!reviewOnEnd || !ctx.hasUI) {
+                  batcher.add(subagent, 'done', subagent.message)
+                  return
+                }
+
+                await askHowToProceed(ctx, {
+                  title: '📋 Planner Review',
+                  plan: subagent.message,
+                  choices: [
+                    {
+                      id: 'send-to-coordinator',
+                      label: 'Send plan to coordinator',
+                      action: () => {
+                        if (subagent.message) {
+                          batcher.add(subagent, 'done', subagent.message)
+                        }
+                      },
+                    },
+                    {
+                      id: 'update-the-plan',
+                      label: 'Update the plan',
+                      action: async () => {
+                        const updatePrompt = await ctx.ui.editor(
+                          'Update the plan:',
+                          '',
+                        )
+                        if (updatePrompt?.trim()) {
+                          await manager.followup(
+                            subagent.id,
+                            `${subagent.title} (revised)`,
+                            `Update the plan based on:\n\n${updatePrompt.trim()}`,
+                          )
+                        }
+                      },
+                    },
+                    {
+                      id: 'discard',
+                      label: 'Discard',
+                      action: () => {},
+                    },
+                  ],
+                })
+              },
             },
           )
           fleet.update()

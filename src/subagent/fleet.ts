@@ -1,4 +1,8 @@
-import type { ExtensionContext, Theme } from '@earendil-works/pi-coding-agent'
+import type {
+  ContextUsage,
+  ExtensionContext,
+  Theme,
+} from '@earendil-works/pi-coding-agent'
 import type { TUI } from '@earendil-works/pi-tui'
 import { Editor } from '@earendil-works/pi-tui'
 import {
@@ -11,10 +15,19 @@ import {
 import { orderBy } from 'lodash-es'
 
 import { formatElapsed, rightAlign, strInline } from '../utils/format.js'
+import { FOLLOW_SYMBOL } from './consts.ts'
 
 const FLEET_KEY = 'pi-modes:fleet'
 const TICK_MS = 200
 const MAX_ROWS = 5
+
+function formatTokens(count: number): string {
+  if (count < 1000) return count.toString()
+  if (count < 10000) return `${(count / 1000).toFixed(1)}k`
+  if (count < 1000000) return `${Math.round(count / 1000)}k`
+  if (count < 10000000) return `${(count / 1000000).toFixed(1)}M`
+  return `${Math.round(count / 1000000)}M`
+}
 
 export type FleetEntryStatus = 'running' | 'done' | 'failed' | 'killed'
 
@@ -24,6 +37,7 @@ export interface FleetEntryBase {
   followUpCount: number
   startedAt: number
   completedAt?: number
+  contextUsage?: ContextUsage
 }
 
 export interface FleetEntry extends FleetEntryBase {
@@ -302,13 +316,33 @@ export class FleetList {
         : inlineTitle
     const left = prefix + processedTitle
     const statusCol = entry.status.padStart(7, ' ')
-    const followCol = `⟳ ${entry.followUpCount}`.padStart(5, ' ')
+    const followCol = `${FOLLOW_SYMBOL}${entry.followUpCount}`.padStart(3, ' ')
     const elapsedCol = formatElapsed(entry).padStart(8, ' ')
     const elapsedStyled = theme.fg('muted', elapsedCol)
-    const right = `${theme.fg('accent', statusCol)} ${theme.fg('border', followCol)} ${elapsedStyled}`
+    const contextCol = this.renderContextCol(entry, theme)
+    const right = `${theme.fg('accent', statusCol)} ${theme.fg('border', followCol)}${contextCol} ${elapsedStyled}`
     const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
     const line = rightAlign(truncateToWidth(left, leftMaxWidth), right, width)
     return isSelected ? theme.bg('selectedBg', line) : line
+  }
+
+  private renderContextCol(entry: FleetEntryBase, theme: Theme): string {
+    const cu = entry.contextUsage
+    if (!cu || cu.contextWindow === 0) return ''
+    const tokens = cu.tokens
+    const content =
+      tokens !== null
+        ? `${formatTokens(tokens)}/${formatTokens(cu.contextWindow)}`
+        : '?'
+    const padded = content.padStart(12, ' ')
+    const percent = cu.percent
+    const color =
+      percent !== null && percent > 90
+        ? 'error'
+        : percent !== null && percent > 70
+          ? 'warning'
+          : 'muted'
+    return theme.fg(color, padded)
   }
 
   private ensureTimer(): void {

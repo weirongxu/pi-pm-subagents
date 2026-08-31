@@ -11,6 +11,7 @@ import type {
 import type {
   AgentSession,
   AgentSessionEventListener,
+  ContextUsage,
   PromptOptions,
 } from '@earendil-works/pi-coding-agent'
 
@@ -68,9 +69,9 @@ export class SubagentManagerDemo extends SubagentManager {
       message: undefined,
       followUpCount: 0,
       enabledTools: new Set(['read', 'write', 'bash']),
-      responseText: undefined,
       session: mockSessionFor('2'),
       role: 'worker',
+      contextUsage: normalContextUsage(),
     })
   }
 }
@@ -104,9 +105,9 @@ function initialDemoSubagents(): LiveSubagent[] {
       message: 'Fixed JWT token validation and updated error handling.',
       followUpCount: 2,
       enabledTools: new Set(['read', 'edit', 'bash']),
-      responseText: undefined,
       session: mockSessionFor('1', 6),
       role: 'reviewer',
+      contextUsage: normalContextUsage(),
     },
     {
       id: 2,
@@ -119,9 +120,9 @@ function initialDemoSubagents(): LiveSubagent[] {
       message: undefined,
       followUpCount: 0,
       enabledTools: new Set(['read', 'write', 'bash']),
-      responseText: undefined,
       session: mockSessionFor('2', 6),
       role: 'tester',
+      contextUsage: normalContextUsage(),
     },
     {
       id: 3,
@@ -149,9 +150,9 @@ function initialDemoSubagents(): LiveSubagent[] {
       message: 'Error: Peer dependency conflict with React 19.',
       followUpCount: 2,
       enabledTools: new Set(['read', 'bash']),
-      responseText: undefined,
       session: mockSessionFor('3', 6),
       role: 'investigator',
+      contextUsage: highContextUsage(),
     },
     {
       id: 4,
@@ -172,9 +173,9 @@ function initialDemoSubagents(): LiveSubagent[] {
       message: 'Subagent killed by user.',
       followUpCount: 1,
       enabledTools: new Set(['read', 'edit']),
-      responseText: undefined,
       session: mockSessionFor('4', 6),
       role: 'worker',
+      contextUsage: unknownTokensContextUsage(),
     },
     {
       id: 5,
@@ -187,11 +188,22 @@ function initialDemoSubagents(): LiveSubagent[] {
       message: 'Updated README and added API reference docs.',
       followUpCount: 0,
       enabledTools: new Set(['read', 'write']),
-      responseText: undefined,
       session: mockSessionFor('5', 6),
       role: 'docs',
     },
   ]
+}
+
+function normalContextUsage(): ContextUsage {
+  return { tokens: 60000, contextWindow: 200000, percent: 30.0 }
+}
+
+function highContextUsage(): ContextUsage {
+  return { tokens: 160000, contextWindow: 200000, percent: 80.0 }
+}
+
+function unknownTokensContextUsage(): ContextUsage {
+  return { tokens: null, contextWindow: 200000, percent: null }
 }
 
 const MOCK_USAGE: Usage = {

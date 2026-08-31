@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
-import { renderPlanPager } from './plan.js'
+import { renderReviewPager } from '../ui/review-pager.js'
 
 const DEMO_PLAN = `# Refactor the subagent pool
 
@@ -34,9 +34,34 @@ export function setupPlanDemo(pi: ExtensionAPI): void {
         ctx.ui.notify('plan-demo requires a TTY UI.', 'warning')
         return
       }
-      const choice = await renderPlanPager(ctx, DEMO_PLAN.repeat(10))
+      const choiceId = await renderReviewPager(ctx, {
+        title: '📋 Plan',
+        plan: DEMO_PLAN.repeat(10),
+        choices: [
+          {
+            id: 'execute-directly',
+            label: 'Execute directly',
+            action: async () => {},
+          },
+          {
+            id: 'execute-via-subagents',
+            label: 'Execute via subagents',
+            action: async () => {},
+          },
+          {
+            id: 'update-the-plan',
+            label: 'Update the plan',
+            action: async () => {},
+          },
+          {
+            id: 'cancel',
+            label: 'Cancel',
+            action: async () => {},
+          },
+        ],
+      })
       ctx.ui.notify(
-        choice ? `plan-demo: would do "${choice}"` : 'plan-demo: cancelled',
+        choiceId ? `plan-demo: would do "${choiceId}"` : 'plan-demo: cancelled',
         'info',
       )
     },

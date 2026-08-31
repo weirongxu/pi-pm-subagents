@@ -1,14 +1,17 @@
-import type { AgentSession } from '@earendil-works/pi-coding-agent'
+import type {
+  AgentSession,
+  ContextUsage,
+} from '@earendil-works/pi-coding-agent'
 import { describe, expect, it, vi } from 'vitest'
 
 import { type LiveSubagent, SubagentManager } from './manager.js'
 
 type StubSession = Pick<
   AgentSession,
-  'dispose' | 'abort' | 'steer' | 'subscribe' | 'prompt'
+  'dispose' | 'abort' | 'steer' | 'subscribe' | 'prompt' | 'getContextUsage'
 > & { messages: AgentSession['messages'] }
 
-function makeStubSession(): {
+function makeStubSession(contextUsage?: ContextUsage): {
   session: StubSession
   steerMock: ReturnType<typeof vi.fn>
   promptMock: ReturnType<typeof vi.fn>
@@ -25,6 +28,7 @@ function makeStubSession(): {
     steer: steerMock,
     subscribe: () => () => {},
     prompt: promptMock,
+    getContextUsage: vi.fn().mockReturnValue(contextUsage),
   }
 
   return { session, steerMock, promptMock, abortMock }
@@ -276,5 +280,69 @@ describe('SubagentManager.followup', () => {
       expect(subagent.previousEntries).toEqual([])
       expect(subagent.title).toBe('Task 1')
     })
+  })
+})
+
+describe('SubagentManager subscribe contextUsage', () => {
+  it('initializes contextUsage on subscribe', () => {
+    const contextUsage: ContextUsage = {
+      tokens: 50000,
+      contextWindow: 200000,
+      percent: 25.0,
+    }
+    const { session } = makeStubSession(contextUsage)
+    const manager = new SubagentManager()
+    const subagent = registerSubagent(manager, session, { id: 1 })
+
+    expect(subagent.contextUsage).toBeUndefined()
+    ;(manager as unknown as { subscribe: (s: LiveSubagent) => void }).subscribe(
+      subagent,
+    )
+
+    expect(subagent.contextUsage).toEqual(contextUsage)
+  })
+
+  it('updates contextUsage on message_end event', () => {
+    const initialUsage: ContextUsage = {
+      tokens: 50000,
+      contextWindow: 200000,
+      percent: 25.0,
+    }
+    const updatedUsage: ContextUsage = {
+      tokens: 100000,
+      contextWindow: 200000,
+      percent: 50.0,
+    }
+
+    const subscribeMock = vi.fn().mockReturnValue(() => {})
+    const getContextUsageMock = vi.fn().mockReturnValue(initialUsage)
+
+    const session = {
+      messages: [],
+      dispose: () => {},
+      abort: vi.fn().mockResolvedValue(undefined),
+      steer: vi.fn().mockResolvedValue(undefined),
+      subscribe: subscribeMock,
+      prompt: vi.fn().mockResolvedValue(undefined),
+      getContextUsage: getContextUsageMock,
+    } as unknown as StubSession
+
+    const manager = new SubagentManager()
+    const subagent = registerSubagent(manager, session, { id: 1 })
+    ;(manager as unknown as { subscribe: (s: LiveSubagent) => void }).subscribe(
+      subagent,
+    )
+
+    expect(subagent.contextUsage).toEqual(initialUsage)
+
+    getContextUsageMock.mockReturnValue(updatedUsage)
+    const calls = subscribeMock.mock.calls
+    expect(calls.length).toBeGreaterThan(0)
+    const subscribeCallback = calls[0]?.[0]
+    if (subscribeCallback) {
+      subscribeCallback({ type: 'message_end', turnIndex: 0 })
+    }
+
+    expect(subagent.contextUsage).toEqual(updatedUsage)
   })
 })
