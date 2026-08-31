@@ -142,7 +142,8 @@ export class FleetList {
 
   private clampSelection(): void {
     const max = this.roster().length - 1
-    this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, max))
+    const min = this.activeSelect ? 1 : 0
+    this.selectedIndex = Math.max(min, Math.min(this.selectedIndex, max))
   }
 
   private handleKey(data: string): { consume?: boolean } | undefined {
@@ -165,7 +166,7 @@ export class FleetList {
         ctx.ui.getEditorText() === ''
       ) {
         this.activeSelect = true
-        this.selectedIndex = 0
+        this.selectedIndex = 1
         this.update()
         return { consume: true }
       }
@@ -179,7 +180,7 @@ export class FleetList {
       return { consume: true }
     }
     if (matchesKey(data, 'up')) {
-      if (this.selectedIndex === 0) {
+      if (this.selectedIndex === 1) {
         this.deactivate()
         return { consume: true }
       }
@@ -235,7 +236,7 @@ export class FleetList {
     const hint = this.activeSelect
       ? '↑↓ select · enter view · esc back'
       : 'esc to interrupt · ←/↓ for items'
-    const mainLine = ` ${this.bullet(0, sel, theme)} subagents`
+    const mainLine = ` ${theme.fg('dim', 'subagents')}`
     const lines: string[] = [
       truncateToWidth(` ${theme.fg('dim', hint)}`, width),
       '',

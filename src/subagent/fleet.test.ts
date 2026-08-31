@@ -6,6 +6,22 @@ import { describe, expect, it } from 'vitest'
 import { formatElapsed } from '../utils/format.js'
 import { type FleetEntry, FleetList } from './fleet.js'
 
+function createFakeTheme() {
+  return {
+    fg: (variant: string, text: string) => `[FG:${variant}]${text}[/-FG]`,
+    bg: (variant: string, text: string) => `[BG:${variant}]${text}[/-BG]`,
+    strikethrough: (text: string) => `[STRIKE]${text}[/-STRIKE]`,
+    borderColor: (str: string) => str,
+    selectList: {
+      selectedPrefix: (text: string) => text,
+      selectedText: (text: string) => text,
+      description: (text: string) => text,
+      scrollInfo: (text: string) => text,
+      noMatch: (text: string) => text,
+    },
+  }
+}
+
 describe('FleetList roster sorting', () => {
   const now = Date.now()
 
@@ -343,22 +359,6 @@ describe('FleetList focus gate (#123)', () => {
     options?: unknown,
   ) => void
 
-  function createFakeTheme() {
-    return {
-      fg: (variant: string, text: string) => `[FG:${variant}]${text}[/-FG]`,
-      bg: (variant: string, text: string) => `[BG:${variant}]${text}[/-BG]`,
-      strikethrough: (text: string) => `[STRIKE]${text}[/-STRIKE]`,
-      borderColor: (str: string) => str,
-      selectList: {
-        selectedPrefix: (text: string) => text,
-        selectedText: (text: string) => text,
-        description: (text: string) => text,
-        scrollInfo: (text: string) => text,
-        noMatch: (text: string) => text,
-      },
-    }
-  }
-
   function createFakeContext(): Record<string, unknown> {
     const fakeContext = {
       ui: {
@@ -482,22 +482,6 @@ describe('FleetList focus gate (#123)', () => {
 })
 
 describe('FleetList renderBar when inactive', () => {
-  function createFakeTheme() {
-    return {
-      fg: (variant: string, text: string) => `[FG:${variant}]${text}[/-FG]`,
-      bg: (variant: string, text: string) => `[BG:${variant}]${text}[/-BG]`,
-      strikethrough: (text: string) => `[STRIKE]${text}[/-STRIKE]`,
-      borderColor: (str: string) => str,
-      selectList: {
-        selectedPrefix: (text: string) => text,
-        selectedText: (text: string) => text,
-        description: (text: string) => text,
-        scrollInfo: (text: string) => text,
-        noMatch: (text: string) => text,
-      },
-    }
-  }
-
   function createFakeContext(): Record<string, unknown> {
     return {
       ui: {
@@ -510,7 +494,7 @@ describe('FleetList renderBar when inactive', () => {
     }
   }
 
-  it('renders main without selected bullet (●) when inactive', () => {
+  it('renders main line without any bullet', () => {
     const now = Date.now()
     const entries: FleetEntry[] = [
       {
@@ -541,11 +525,11 @@ describe('FleetList renderBar when inactive', () => {
       fleetList as unknown as { renderBar: (w: number) => string[] }
     ).renderBar(width)
 
-    // Check that main line does not contain the selected bullet (●)
+    // Check that main line does not contain any bullet
     const mainLine = render.find((line: string) => line.includes('subagents'))
     expect(mainLine).toBeDefined()
     expect(mainLine).not.toContain('●')
-    expect(mainLine).toContain('◯')
+    expect(mainLine).not.toContain('◯')
   })
 
   it('renders all subagents without selected bullet (●) when inactive', () => {
@@ -595,7 +579,7 @@ describe('FleetList renderBar when inactive', () => {
     }
   })
 
-  it('renders selected bullet (●) when active', () => {
+  it('renders first item with selected bullet (●) when active and selectedIndex is 1', () => {
     const now = Date.now()
     const entries: FleetEntry[] = [
       {
@@ -617,21 +601,28 @@ describe('FleetList renderBar when inactive', () => {
     const fakeContext = createFakeContext()
     fleetList.setContext(fakeContext as unknown as ExtensionContext)
 
-    // Simulate active state (activeSelect = true, selectedIndex = 0 for main)
+    // Simulate active state (activeSelect = true, selectedIndex = 1 for first item)
     fleetList['activeSelect'] = true
-    fleetList['selectedIndex'] = 0
+    fleetList['selectedIndex'] = 1
 
     // Get the render output
-    const width = 100
+    const width = 200
     const render = (
       fleetList as unknown as { renderBar: (w: number) => string[] }
     ).renderBar(width)
 
-    // Check that main line contains the selected bullet (●)
+    // Check that main line has no bullet
     const mainLine = render.find((line: string) => line.includes('subagents'))
     expect(mainLine).toBeDefined()
-    expect(mainLine).toContain('●')
+    expect(mainLine).not.toContain('●')
     expect(mainLine).not.toContain('◯')
+
+    // Check that an item line contains the selected bullet (●)
+    const itemLine = render.find((line: string) =>
+      line.includes('[BG:selectedBg]'),
+    )
+    expect(itemLine).toBeDefined()
+    expect(itemLine).toContain('●')
   })
 
   it('renders previousEntries with strikethrough, status, followUpCount, and elapsed', () => {
@@ -704,22 +695,6 @@ describe('FleetList renderBar when inactive', () => {
 })
 
 describe('FleetList renderBar selection highlight', () => {
-  function createFakeTheme() {
-    return {
-      fg: (variant: string, text: string) => `[FG:${variant}]${text}[/-FG]`,
-      bg: (variant: string, text: string) => `[BG:${variant}]${text}[/-BG]`,
-      strikethrough: (text: string) => `[STRIKE]${text}[/-STRIKE]`,
-      borderColor: (str: string) => str,
-      selectList: {
-        selectedPrefix: (text: string) => text,
-        selectedText: (text: string) => text,
-        description: (text: string) => text,
-        scrollInfo: (text: string) => text,
-        noMatch: (text: string) => text,
-      },
-    }
-  }
-
   function createFakeContext(): Record<string, unknown> {
     return {
       ui: {
