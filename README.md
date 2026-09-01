@@ -42,14 +42,6 @@ Cycle pool of models. Stored in `pi-modes.json`. Can include `DEFAULT` marker.
 > or enable `set -g extended-keys on` in tmux.
 > In standard xterm and similar terminals, `Alt+letter` is sent as an ESC sequence and may be unreliable.
 
-### Widget display
-
-```
-👥 COORDINATOR MODE - subagent: <model-ref> (i/n)
-```
-
-Shows `(i/n)` when scope is non-empty, where `i` is the index of current default in scope.
-
 ## Customizing prompts
 
 Each mode's prompt is a Markdown file under `<agentDir>/modes-prompts/` (`plan.md`, `coordinator.md`).
