@@ -3,10 +3,7 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
 
-import {
-  enterCoordinatorMode,
-  exitCoordinatorMode,
-} from '../coordinator/coordinator.js'
+import { enterCoordinatorMode } from '../coordinator/coordinator.js'
 import {
   applyModeSetup,
   assertModeIdle,
@@ -82,7 +79,7 @@ export async function setupPlan(
 
   pi.registerCommand('plan', {
     description:
-      'Plan mode (read-only planning, then review). Usage: /plan · /plan <request>',
+      'Toggle plan mode, or /plan <request> in pm mode to delegate a planner subagent. Usage: /plan · /plan <request>',
     handler: async (args, ctx) => {
       const request = args.trim()
       if (state.mode === 'plan') {
@@ -90,8 +87,21 @@ export async function setupPlan(
         ctx.ui.notify('Plan mode off.', 'info')
         return
       }
-      if (state.mode === 'coordinator')
-        await exitCoordinatorMode(pi, state, ctx)
+      if (state.mode === 'coordinator') {
+        let requestInput: string | undefined = request
+        if (!requestInput) {
+          requestInput = await ctx.ui.editor('Enter the request to plan:', '')
+        }
+        if (!requestInput?.trim()) {
+          return
+        }
+        const planBlock = `<planRequest>${requestInput}</planRequest>`
+        pi.sendUserMessage(
+          [planBlock, "Use role 'planner' to create a plan."].join('\n'),
+          { deliverAs: 'followUp' },
+        )
+        return
+      }
       await enterPlanMode(pi, state, ctx, planDefinition)
       if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
     },

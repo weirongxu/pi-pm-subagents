@@ -320,7 +320,7 @@ export class FleetList {
     const elapsedCol = formatElapsed(entry).padStart(8, ' ')
     const elapsedStyled = theme.fg('muted', elapsedCol)
     const contextCol = this.renderContextCol(entry, theme)
-    const right = `${theme.fg('accent', statusCol)} ${theme.fg('border', followCol)}${contextCol} ${elapsedStyled}`
+    const right = `${theme.fg('accent', statusCol)} ${contextCol} ${theme.fg('border', followCol)} ${elapsedStyled}`
     const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
     const line = rightAlign(truncateToWidth(left, leftMaxWidth), right, width)
     return isSelected ? theme.bg('selectedBg', line) : line
