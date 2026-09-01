@@ -6,7 +6,7 @@ import type {
 import {
   enterCoordinatorMode,
   exitCoordinatorMode,
-} from '../coordinator/index.js'
+} from '../coordinator/coordinator.js'
 import {
   applyModeSetup,
   assertModeIdle,

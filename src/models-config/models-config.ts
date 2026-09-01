@@ -10,7 +10,7 @@ import type { Static } from 'typebox'
 import { Type } from 'typebox'
 import { Parse } from 'typebox/value'
 
-import { renderCoordinatorModeWidget } from '../coordinator/index.js'
+import { renderCoordinatorModeWidget } from '../coordinator/coordinator.js'
 import { customSelect } from '../custom-select.js'
 import type { ModesState } from '../types.js'
 import {

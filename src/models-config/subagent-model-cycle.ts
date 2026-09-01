@@ -4,7 +4,7 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import { Key } from '@earendil-works/pi-tui'
 
-import { renderCoordinatorModeWidget } from '../coordinator/index.js'
+import { renderCoordinatorModeWidget } from '../coordinator/coordinator.js'
 import type { ModesState } from '../types.js'
 import { getPiModesConfig } from './models-config.js'
 import { MODEL_DEFAULT } from './subagent-model-constants.js'

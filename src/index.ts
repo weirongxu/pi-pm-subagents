@@ -1,13 +1,16 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 import { setupBashReadonlyTool } from './bash-readonly.js'
-import { applyCoordinatorMode, setupCoordinator } from './coordinator/index.js'
+import {
+  applyCoordinatorMode,
+  setupCoordinator,
+} from './coordinator/coordinator.js'
 import {
   loadPiModesConfig,
   setupModesConfig,
 } from './models-config/models-config.js'
 import { setupSubagentModelCycle } from './models-config/subagent-model-cycle.js'
-import { applyPlanMode, setupPlan } from './plan/index.js'
+import { applyPlanMode, setupPlan } from './plan/plan.js'
 import { readModePrompt } from './prompts/mode.js'
 import type { ModesState } from './types.js'
 import { createState, getLastModesState, persist } from './utils/state.js'

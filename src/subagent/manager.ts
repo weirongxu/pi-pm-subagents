@@ -39,7 +39,7 @@ export interface SpawnOptions {
   tools?: readonly string[]
   systemPrompt?: string
   role?: string
-  onComplete?: (subagent: LiveSubagent) => Promise<void>
+  onComplete?: (subagent: LiveSubagent, lastMessage: string) => Promise<void>
 }
 
 export interface LiveSubagent {
@@ -51,20 +51,17 @@ export interface LiveSubagent {
   session: AgentSession
   startedAt: number
   completedAt?: number
-  // FIXME: 重命名成 lastMessage, 用到 message 的地方是不是只有 complete, 那是不是局部变量加参数就可以了
-  message?: string
   followUpCount: number
   enabledTools: Set<string>
   role: string
   contextUsage?: ContextUsage
-  onComplete?: (subagent: LiveSubagent) => Promise<void>
+  onComplete?: (subagent: LiveSubagent, lastMessage: string) => Promise<void>
 }
 
 export interface SubagentManagerOptions {
   onStatusChange?: () => void
-  // FIXME: 应该改名成 onEachStart 和 onEachEnd
-  onStart?: (subagent: LiveSubagent) => void
-  onEnd?: (subagent: LiveSubagent) => void
+  onEachStart?: (subagent: LiveSubagent) => void
+  onEachEnd?: (subagent: LiveSubagent) => void
 }
 
 export function formatSubagentSummary(
@@ -75,7 +72,7 @@ export function formatSubagentSummary(
     subagent.status,
     `#${subagent.id}`,
     subagent.title.slice(0, titleWidth),
-    `${FOLLOW_SYMBOL}${subagent.followUpCount}`,
+    `${FOLLOW_SYMBOL} ${subagent.followUpCount}`,
     formatElapsed(subagent),
   ].join(' ')
 }
@@ -171,7 +168,7 @@ export class SubagentManager {
 
     this.subagents.set(id, subagent)
     this.subscribe(subagent)
-    this.options.onStart?.(subagent)
+    this.options.onEachStart?.(subagent)
     this.options.onStatusChange?.()
     void this.run(subagent, prompt)
     return subagent
@@ -213,9 +210,8 @@ export class SubagentManager {
     followupSubagent.status = 'running'
     followupSubagent.startedAt = Date.now()
     followupSubagent.completedAt = undefined
-    followupSubagent.message = undefined
     this.options.onStatusChange?.()
-    this.options.onStart?.(followupSubagent)
+    this.options.onEachStart?.(followupSubagent)
     void this.run(followupSubagent, prompt)
     return followupSubagent
   }
@@ -231,7 +227,6 @@ export class SubagentManager {
     const subagent = this.subagents.get(id)
     if (!subagent || subagent.status !== 'running') return false
     subagent.status = 'killed'
-    subagent.message = '(Subagent killed.)'
     this.options.onStatusChange?.()
     await subagent.session.abort()
     return true
@@ -242,8 +237,7 @@ export class SubagentManager {
     for (const subagent of this.subagents.values()) {
       if (subagent.status === 'running') {
         subagent.status = 'killed'
-        subagent.message = '(Subagent disposed.)'
-        this.options.onEnd?.(subagent)
+        this.options.onEachEnd?.(subagent)
       }
       if (!disposedSessions.has(subagent.session)) {
         subagent.session.dispose()
@@ -263,29 +257,25 @@ export class SubagentManager {
   }
 
   private async run(subagent: LiveSubagent, prompt: string): Promise<void> {
+    let lastMessage: string | undefined
     try {
       await subagent.session.prompt(prompt)
-      const lastMessage = lastMessageText(
+      const finalText = lastMessageText(
         subagent.session.messages,
         MAX_SUBAGENT_OUTPUT_BYTES,
       )
-      if (!lastMessage) {
-        subagent.message = '(Subagent finished without a final message.)'
-      } else {
-        subagent.message = lastMessage
-      }
+      lastMessage = finalText ?? '(Subagent finished without a final message.)'
       if (subagent.status === 'running') subagent.status = 'done'
     } catch (error) {
       if (subagent.status === 'running') {
-        subagent.message =
-          error instanceof Error ? error.message : String(error)
+        lastMessage = error instanceof Error ? error.message : String(error)
         subagent.status = 'failed'
       }
     } finally {
       subagent.completedAt = Date.now()
       this.options.onStatusChange?.()
-      await subagent.onComplete?.(subagent)
-      this.options.onEnd?.(subagent)
+      await subagent.onComplete?.(subagent, lastMessage ?? '')
+      this.options.onEachEnd?.(subagent)
     }
   }
 }

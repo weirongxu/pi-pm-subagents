@@ -53,7 +53,6 @@ export class SubagentManagerDemo extends SubagentManager {
     if (!subagent || subagent.status !== 'running') return false
     subagent.status = 'killed'
     subagent.completedAt = Date.now()
-    subagent.message = '(Subagent killed.)'
     return true
   }
 
@@ -66,7 +65,6 @@ export class SubagentManagerDemo extends SubagentManager {
       status: 'running',
       startedAt: Date.now() - 600000,
       completedAt: undefined,
-      message: undefined,
       followUpCount: 0,
       enabledTools: new Set(['read', 'write', 'bash']),
       session: mockSessionFor('2'),
@@ -102,7 +100,6 @@ function initialDemoSubagents(): LiveSubagent[] {
       status: 'done',
       startedAt: now - 3000000,
       completedAt: now - 3000000,
-      message: 'Fixed JWT token validation and updated error handling.',
       followUpCount: 2,
       enabledTools: new Set(['read', 'edit', 'bash']),
       session: mockSessionFor('1', 6),
@@ -117,7 +114,6 @@ function initialDemoSubagents(): LiveSubagent[] {
       status: 'running',
       startedAt: now - 600000,
       completedAt: undefined,
-      message: undefined,
       followUpCount: 0,
       enabledTools: new Set(['read', 'write', 'bash']),
       session: mockSessionFor('2', 6),
@@ -147,7 +143,6 @@ function initialDemoSubagents(): LiveSubagent[] {
       status: 'failed',
       startedAt: now - 900000,
       completedAt: now - 900000,
-      message: 'Error: Peer dependency conflict with React 19.',
       followUpCount: 2,
       enabledTools: new Set(['read', 'bash']),
       session: mockSessionFor('3', 6),
@@ -170,7 +165,6 @@ function initialDemoSubagents(): LiveSubagent[] {
       status: 'killed',
       startedAt: now - 1500000,
       completedAt: now - 1500000,
-      message: 'Subagent killed by user.',
       followUpCount: 1,
       enabledTools: new Set(['read', 'edit']),
       session: mockSessionFor('4', 6),
@@ -185,7 +179,6 @@ function initialDemoSubagents(): LiveSubagent[] {
       status: 'done',
       startedAt: now - 7200000,
       completedAt: now - 6000000,
-      message: 'Updated README and added API reference docs.',
       followUpCount: 0,
       enabledTools: new Set(['read', 'write']),
       session: mockSessionFor('5', 6),

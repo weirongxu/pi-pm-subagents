@@ -10,7 +10,7 @@ import {
 } from '../mode-switcher.js'
 import { getPiModesConfig } from '../models-config/models-config.js'
 import { formatSubagentModelLabel } from '../models-config/subagent-model-utils.js'
-import { exitPlanMode } from '../plan/index.js'
+import { exitPlanMode } from '../plan/plan.js'
 import { loadRoles } from '../prompts/roles.js'
 import { ActivityReporter } from '../subagent/activity.js'
 import { MessageBatcher } from '../subagent/batcher.js'
@@ -143,12 +143,12 @@ export async function setupCoordinator(
   })
   const manager = new SubagentManager({
     onStatusChange: () => runtime?.fleet.update(),
-    onStart: (subagent) => {
+    onEachStart: (subagent) => {
       pi.events.emit(JOB_START_EVENT, {
         id: `pi-modes:session:${subagent.id}`,
       })
     },
-    onEnd: (subagent) => {
+    onEachEnd: (subagent) => {
       pi.events.emit(JOB_END_EVENT, {
         id: `pi-modes:session:${subagent.id}`,
       })

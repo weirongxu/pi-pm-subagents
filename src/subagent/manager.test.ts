@@ -4,7 +4,11 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import { describe, expect, it, vi } from 'vitest'
 
-import { type LiveSubagent, SubagentManager } from './manager.js'
+import {
+  type LiveSubagent,
+  MAX_REUSE_FOLLOWUPS,
+  SubagentManager,
+} from './manager.js'
 
 type StubSession = Pick<
   AgentSession,
@@ -56,7 +60,6 @@ function registerSubagent(
     session: session as unknown as AgentSession,
     startedAt: Date.now() - 1000,
     completedAt: status !== 'running' ? Date.now() : undefined,
-    message: status !== 'running' ? 'done' : undefined,
     followUpCount,
     enabledTools: new Set<string>(),
     role: 'worker',
@@ -84,7 +87,7 @@ describe('SubagentManager.followup', () => {
       const onStartMock = vi.fn()
       const onStatusChangeMock = vi.fn()
       const manager = new SubagentManager({
-        onStart: onStartMock,
+        onEachStart: onStartMock,
         onStatusChange: onStatusChangeMock,
       })
 
@@ -104,23 +107,22 @@ describe('SubagentManager.followup', () => {
       expect(result.followUpCount).toBe(1)
       expect(result.startedAt).toBeGreaterThan(0)
       expect(result.completedAt).toBeUndefined()
-      expect(result.message).toBeUndefined()
       expect(onStartMock).toHaveBeenCalledOnce()
       expect(onStatusChangeMock).toHaveBeenCalled()
       expect(promptMock).toHaveBeenCalledOnce()
     })
 
-    it('throws when followUpCount reaches MAX_REUSE_FOLLOWUPS (10)', async () => {
+    it(`throws when followUpCount reaches MAX_REUSE_FOLLOWUPS (${MAX_REUSE_FOLLOWUPS})`, async () => {
       const { session } = makeStubSession()
       const manager = new SubagentManager()
       registerSubagent(manager, session, {
         id: 1,
         status: 'done',
-        followUpCount: 10,
+        followUpCount: MAX_REUSE_FOLLOWUPS,
       })
 
       await expect(manager.followup(1, 'title', 'task')).rejects.toThrow(
-        'Subagent #1 follow-up budget exhausted (10/10). Start a fresh subagent instead.',
+        `Subagent #1 follow-up budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
       )
 
       expect(session.prompt).not.toHaveBeenCalled()
@@ -133,7 +135,7 @@ describe('SubagentManager.followup', () => {
       const onStartMock = vi.fn()
       const onStatusChangeMock = vi.fn()
       const manager = new SubagentManager({
-        onStart: onStartMock,
+        onEachStart: onStartMock,
         onStatusChange: onStatusChangeMock,
       })
 
@@ -172,7 +174,6 @@ describe('SubagentManager.followup', () => {
       expect(steerMock).toHaveBeenCalled()
       expect(subagent.startedAt).toBe(originalStartedAt)
       expect(subagent.completedAt).toBeUndefined()
-      expect(subagent.message).toBeUndefined()
     })
 
     it('increments followUpCount each time', async () => {
@@ -196,17 +197,17 @@ describe('SubagentManager.followup', () => {
       expect(subagent?.followUpCount).toBe(5)
     })
 
-    it('throws when followUpCount reaches MAX_REUSE_FOLLOWUPS (10)', async () => {
+    it(`throws when followUpCount reaches MAX_REUSE_FOLLOWUPS (${MAX_REUSE_FOLLOWUPS})`, async () => {
       const { session, steerMock } = makeStubSession()
       const manager = new SubagentManager()
       registerSubagent(manager, session, {
         id: 1,
         status: 'running',
-        followUpCount: 10,
+        followUpCount: MAX_REUSE_FOLLOWUPS,
       })
 
       await expect(manager.followup(1, 'title', 'task')).rejects.toThrow(
-        'Subagent #1 follow-up budget exhausted (10/10). Start a fresh subagent instead.',
+        `Subagent #1 follow-up budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
       )
 
       expect(steerMock).not.toHaveBeenCalled()
@@ -272,7 +273,7 @@ describe('SubagentManager.followup', () => {
       const subagent = registerSubagent(manager, session, {
         id: 1,
         status: 'done',
-        followUpCount: 10,
+        followUpCount: MAX_REUSE_FOLLOWUPS,
       })
 
       await expect(manager.followup(1, 'New Title', 'task')).rejects.toThrow()

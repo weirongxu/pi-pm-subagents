@@ -316,7 +316,7 @@ export class FleetList {
         : inlineTitle
     const left = prefix + processedTitle
     const statusCol = entry.status.padStart(7, ' ')
-    const followCol = `${FOLLOW_SYMBOL}${entry.followUpCount}`.padStart(3, ' ')
+    const followCol = `${FOLLOW_SYMBOL} ${entry.followUpCount}`.padStart(3, ' ')
     const elapsedCol = formatElapsed(entry).padStart(8, ' ')
     const elapsedStyled = theme.fg('muted', elapsedCol)
     const contextCol = this.renderContextCol(entry, theme)

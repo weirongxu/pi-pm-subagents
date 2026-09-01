@@ -142,30 +142,28 @@ export function registerSubagentTools(
               tools,
               systemPrompt: role.systemPrompt,
               role: params.role,
-              onComplete: async (subagent) => {
+              onComplete: async (subagent, lastMessage) => {
                 if (state.mode !== 'coordinator') return
                 if (subagent.status === 'killed') return
-                if (!subagent.message) return
+                if (!lastMessage) return
                 if (subagent.status === 'failed') {
-                  batcher.add(subagent, 'done', subagent.message)
+                  batcher.add(subagent, 'done', lastMessage)
                   return
                 }
                 if (!reviewOnEnd || !ctx.hasUI) {
-                  batcher.add(subagent, 'done', subagent.message)
+                  batcher.add(subagent, 'done', lastMessage)
                   return
                 }
 
                 await askHowToProceed(ctx, {
                   title: '📋 Planner Review',
-                  plan: subagent.message,
+                  plan: lastMessage,
                   choices: [
                     {
                       id: 'send-to-coordinator',
                       label: 'Send plan to coordinator',
                       action: () => {
-                        if (subagent.message) {
-                          batcher.add(subagent, 'done', subagent.message)
-                        }
+                        batcher.add(subagent, 'done', lastMessage)
                       },
                     },
                     {
