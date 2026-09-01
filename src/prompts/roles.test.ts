@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { BASH_READONLY_TOOL_NAME } from '../bash-readonly.js'
 import type { PromptDefinition } from '../utils/markdown.js'
 import {
   clearRoles,
@@ -157,7 +158,7 @@ You have extra tools.`,
 
         await loadRoles(tempDir, TEST_PLAN_DEFINITION)
         const role = resolveRole('extra-array')
-        expect(role.fm.extraTools).toEqual(['bash_readonly', 'grep'])
+        expect(role.fm.extraTools).toEqual([BASH_READONLY_TOOL_NAME, 'grep'])
       })
 
       it('handles empty extraTools array', async () => {

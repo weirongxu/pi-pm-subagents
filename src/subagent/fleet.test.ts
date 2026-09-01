@@ -1046,7 +1046,7 @@ describe('FleetList context usage rendering', () => {
     expect(itemLine).not.toContain('?/')
   })
 
-  it('hides context column when contextUsage is undefined', () => {
+  it('shows placeholder when contextUsage is undefined', () => {
     const now = Date.now()
     const entries: FleetEntry[] = [
       {
@@ -1067,9 +1067,11 @@ describe('FleetList context usage rendering', () => {
     expect(itemLine).toBeDefined()
     expect(itemLine).not.toContain('%/')
     expect(itemLine).not.toContain('?/')
+    expect(itemLine).toContain('[FG:muted]')
+    expect(itemLine).toContain('            ')
   })
 
-  it('hides context column when contextWindow is 0', () => {
+  it('shows placeholder when contextWindow is 0', () => {
     const now = Date.now()
     const entries: FleetEntry[] = [
       {
@@ -1090,6 +1092,8 @@ describe('FleetList context usage rendering', () => {
     const itemLine = lines.find((line) => line.includes('test task'))
     expect(itemLine).toBeDefined()
     expect(itemLine).not.toContain('%/')
+    expect(itemLine).toContain('[FG:muted]')
+    expect(itemLine).toContain('            ')
   })
 
   it('uses error color when context usage > 90%', () => {

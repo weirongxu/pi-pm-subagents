@@ -328,7 +328,7 @@ export class FleetList {
 
   private renderContextCol(entry: FleetEntryBase, theme: Theme): string {
     const cu = entry.contextUsage
-    if (!cu || cu.contextWindow === 0) return ''
+    if (!cu || cu.contextWindow === 0) return theme.fg('muted', ' '.repeat(12))
     const tokens = cu.tokens
     const content =
       tokens !== null

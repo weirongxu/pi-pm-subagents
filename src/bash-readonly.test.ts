@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { checkBashSafety, isBashReadonlyCommand } from './bash-readonly.js'
+import {
+  BASH_READONLY_TOOL_NAME,
+  checkBashSafety,
+  isBashReadonlyCommand,
+} from './bash-readonly.js'
 import { applyModeTools } from './mode-switcher.js'
 
 describe('isBashReadonlyCommand', () => {
@@ -73,7 +77,7 @@ describe('applyModeTools', () => {
       applyModeTools(['read', 'edit', 'write', 'bash'], {
         extraTools: ['subagent_delegate'],
       }),
-    ).toEqual(['read', 'bash_readonly', 'subagent_delegate'])
+    ).toEqual(['read', BASH_READONLY_TOOL_NAME, 'subagent_delegate'])
   })
 
   it('deduplicates', () => {
@@ -87,16 +91,16 @@ describe('applyModeTools', () => {
   })
 
   it('passes through bash_readonly unchanged when already present', () => {
-    expect(applyModeTools(['read', 'bash_readonly'], {})).toEqual([
+    expect(applyModeTools(['read', BASH_READONLY_TOOL_NAME], {})).toEqual([
       'read',
-      'bash_readonly',
+      BASH_READONLY_TOOL_NAME,
     ])
   })
 
   it('removes specified tools', () => {
     expect(
       applyModeTools(['read', 'bash', 'grep'], { removeTools: ['grep'] }),
-    ).toEqual(['read', 'bash_readonly'])
+    ).toEqual(['read', BASH_READONLY_TOOL_NAME])
   })
 
   it('restricts to tools list when provided', () => {

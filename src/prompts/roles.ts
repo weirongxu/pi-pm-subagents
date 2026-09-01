@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import { CONFIG_DIR_NAME, getAgentDir } from '@earendil-works/pi-coding-agent'
 
-import { BASH_READONLY_TOOL_NAME } from '../bash-readonly.ts'
+import { BASH_READONLY_TOOL_NAME } from '../bash-readonly.js'
 import { loadMarkdown, type PromptDefinition } from '../utils/markdown.js'
 
 const DEFAULT_ROLE = 'worker'
