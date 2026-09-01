@@ -22,7 +22,8 @@ const DESTRUCTIVE_BASH_PATTERNS = [
   /^\s*pip\s+(install|uninstall)\b/i,
   /^\s*apt(-get)?\s+(install|remove|purge|update|upgrade)\b/i,
   /^\s*brew\s+(install|uninstall|upgrade)\b/i,
-  /^\s*git\s+(add|commit|push|pull|merge|rebase|reset|checkout|stash|cherry-pick|revert|tag|init|clone)\b/i,
+  /^\s*git\s+(add|commit|push|pull|merge|rebase|reset|checkout|cherry-pick|revert|tag|init|clone)\b/i,
+  /^\s*git\s+stash\s+(push|pop|apply|drop|clear|save|create|branch|store|import|export)\b/i,
   /^\s*sudo\b/i,
   /^\s*(kill|pkill|killall|reboot|shutdown)\b/i,
   /^\s*(vim?|nano|emacs|code|subl)\b/i,
@@ -31,6 +32,7 @@ const DESTRUCTIVE_BASH_PATTERNS = [
 const BASH_READONLY_PATTERNS = [
   /^\s*(cat|head|tail|less|more|grep|find|ls|cd|pwd|echo|printf|wc|sort|uniq|diff|file|stat|du|df|tree|which|whereis|type|env|printenv|uname|whoami|id|date|uptime|ps|free)\b/,
   /^\s*git\s+(status|log|diff|show|branch|remote|ls-)/i,
+  /^\s*git\s+stash\s+(list|show)\b/i,
   /^\s*(npm|yarn|pnpm)\s+(list|ls|view|info|outdated|audit)\b/i,
   /^\s*(npm|yarn|pnpm)\s+(run\s+)?(test|test:.*)\b/i,
   /^\s*(node|python|python3)\s+--version/i,

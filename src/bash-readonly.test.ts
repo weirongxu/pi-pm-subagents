@@ -69,6 +69,20 @@ describe('isBashReadonlyCommand', () => {
     expect(isBashReadonlyCommand('rtk npm install')).toBe(false)
     expect(isBashReadonlyCommand('rtk git commit -m x')).toBe(false)
   })
+
+  it('allows git stash read-only subcommands', () => {
+    expect(isBashReadonlyCommand('git stash list')).toBe(true)
+    expect(isBashReadonlyCommand('git stash show')).toBe(true)
+    expect(isBashReadonlyCommand('git stash list -n 5')).toBe(true)
+    expect(isBashReadonlyCommand('git stash show -p stash@{0}')).toBe(true)
+    expect(isBashReadonlyCommand('git stash')).toBe(false)
+    expect(isBashReadonlyCommand('git stash push -m "wip"')).toBe(false)
+    expect(isBashReadonlyCommand('git stash pop')).toBe(false)
+    expect(isBashReadonlyCommand('git stash apply')).toBe(false)
+    expect(isBashReadonlyCommand('git stash drop')).toBe(false)
+    expect(isBashReadonlyCommand('git stash clear')).toBe(false)
+    expect(isBashReadonlyCommand('git stash save "msg"')).toBe(false)
+  })
 })
 
 describe('applyModeTools', () => {
@@ -233,6 +247,51 @@ describe('checkBashSafety', () => {
     expect(checkBashSafety('ls &>> out.txt')).toEqual({
       allowed: false,
       subCommand: 'ls',
+    })
+  })
+
+  it('allows git stash list and show, rejects destructive stash subcommands', () => {
+    expect(checkBashSafety('git stash list')).toEqual({ allowed: true })
+    expect(checkBashSafety('git stash show')).toEqual({ allowed: true })
+    expect(checkBashSafety('git stash list -n 5')).toEqual({ allowed: true })
+    expect(checkBashSafety('git stash show -p stash@{0}')).toEqual({
+      allowed: true,
+    })
+    expect(checkBashSafety('git stash push -m x')).toEqual({
+      allowed: false,
+      subCommand: 'git stash push -m x',
+    })
+    expect(checkBashSafety('git stash pop')).toEqual({
+      allowed: false,
+      subCommand: 'git stash pop',
+    })
+    expect(checkBashSafety('git stash apply')).toEqual({
+      allowed: false,
+      subCommand: 'git stash apply',
+    })
+    expect(checkBashSafety('git stash drop')).toEqual({
+      allowed: false,
+      subCommand: 'git stash drop',
+    })
+    expect(checkBashSafety('git stash clear')).toEqual({
+      allowed: false,
+      subCommand: 'git stash clear',
+    })
+    expect(checkBashSafety('git stash save msg')).toEqual({
+      allowed: false,
+      subCommand: 'git stash save msg',
+    })
+    expect(checkBashSafety('git stash create')).toEqual({
+      allowed: false,
+      subCommand: 'git stash create',
+    })
+    expect(checkBashSafety('git stash branch')).toEqual({
+      allowed: false,
+      subCommand: 'git stash branch',
+    })
+    expect(checkBashSafety('git stash store')).toEqual({
+      allowed: false,
+      subCommand: 'git stash store',
     })
   })
 })
