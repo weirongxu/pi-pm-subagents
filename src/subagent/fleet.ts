@@ -307,6 +307,22 @@ export class FleetList {
     return lines
   }
 
+  private renderTitle(
+    status: FleetEntryStatus,
+    title: string,
+    theme: Theme,
+  ): string {
+    switch (status) {
+      case 'running':
+        return theme.fg('syntaxVariable', theme.bold(title))
+      case 'done':
+        return title
+      case 'failed':
+      case 'killed':
+        return theme.fg('error', title)
+    }
+  }
+
   private bullet(highlight: boolean, theme: Theme): string {
     return highlight ? theme.fg('accent', '●') : theme.fg('dim', '◯')
   }
@@ -319,10 +335,7 @@ export class FleetList {
     theme: Theme,
   ): string {
     const inlineTitle = strInline(entry.title)
-    const processedTitle =
-      entry.status !== 'running'
-        ? theme.strikethrough(inlineTitle)
-        : inlineTitle
+    const processedTitle = this.renderTitle(entry.status, inlineTitle, theme)
     const left = prefix + processedTitle
     const statusCol = entry.status.padStart(7, ' ')
     const followCol = `${FOLLOW_SYMBOL} ${entry.followUpCount}`.padStart(3, ' ')

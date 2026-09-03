@@ -10,7 +10,7 @@ function createFakeTheme() {
   return {
     fg: (variant: string, text: string) => `[FG:${variant}]${text}[/-FG]`,
     bg: (variant: string, text: string) => `[BG:${variant}]${text}[/-BG]`,
-    strikethrough: (text: string) => `[STRIKE]${text}[/-STRIKE]`,
+    bold: (text: string) => `[BOLD]${text}[/BOLD]`,
     borderColor: (str: string) => str,
     selectList: {
       selectedPrefix: (text: string) => text,
@@ -625,7 +625,7 @@ describe('FleetList renderBar when inactive', () => {
     expect(itemLine).toContain('●')
   })
 
-  it('renders previousEntries with strikethrough, status, followUpCount, and elapsed', () => {
+  it('renders previousEntries with status-colored titles, status, followUpCount, and elapsed', () => {
     const now = Date.now()
     const entries: FleetEntry[] = [
       {
@@ -671,16 +671,16 @@ describe('FleetList renderBar when inactive', () => {
 
     expect(render).toContainEqual(expect.stringContaining('↳'))
     expect(render).toContainEqual(
-      expect.stringContaining('[STRIKE]previous 1[/-STRIKE]'),
+      expect.stringContaining('[FG:syntaxVariable]previous 1[/-FG]'),
     )
     expect(render).toContainEqual(
-      expect.stringContaining('[STRIKE]previous 2[/-STRIKE]'),
+      expect.stringContaining('[FG:syntaxVariable]previous 2[/-FG]'),
     )
     expect(render).toContainEqual(expect.stringContaining('⟳ 1'))
     expect(render).toContainEqual(expect.stringContaining('⟳ 0'))
     expect(render).toContainEqual(expect.stringContaining('done'))
     expect(render).toContainEqual(
-      expect.stringContaining('[STRIKE]current task[/-STRIKE]'),
+      expect.stringContaining('[FG:syntaxVariable]current task[/-FG]'),
     )
     expect(render).toContainEqual(
       expect.stringContaining('[FG:muted]      0s[/-FG]'),
@@ -884,7 +884,7 @@ describe('FleetList renderBar selection highlight', () => {
     }
   })
 
-  it('drops dim and strikethrough from completed title on the selected row', () => {
+  it('keeps title styling on the selected row', () => {
     const now = Date.now()
     const entries: FleetEntry[] = [
       {
@@ -917,14 +917,52 @@ describe('FleetList renderBar selection highlight', () => {
     const selectedLine = lines.find((line) => line.includes('task two'))
     expect(selectedLine).toBeDefined()
     expect(selectedLine).toContain('[BG:selectedBg]')
-    expect(selectedLine).toContain('[STRIKE]task two[/-STRIKE]')
+    expect(selectedLine).toContain('[FG:syntaxVariable]task two[/-FG]')
     expect(selectedLine).not.toContain('[FG:dim]task two[/-FG]')
 
     const unselectedLine = lines.find((line) => line.includes('task one'))
     expect(unselectedLine).toBeDefined()
     expect(unselectedLine).not.toContain('[BG:selectedBg]')
-    expect(unselectedLine).toContain('[STRIKE]task one[/-STRIKE]')
-    expect(unselectedLine).not.toContain('[FG:dim][STRIKE]')
+    expect(unselectedLine).toContain('[FG:syntaxVariable]task one[/-FG]')
+  })
+
+  it('renders failed and killed titles with error', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'failed task',
+        previousEntries: [],
+        status: 'failed',
+        startedAt: now - 10000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 2,
+        title: 'killed task',
+        previousEntries: [],
+        status: 'killed',
+        startedAt: now - 10000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = false
+
+    const lines = (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(200)
+
+    expect(lines).toContainEqual(
+      expect.stringContaining('[FG:error]failed task[/-FG]'),
+    )
+    expect(lines).toContainEqual(
+      expect.stringContaining('[FG:error]killed task[/-FG]'),
+    )
   })
 
   it('uses muted (not dim) for elapsedCol on the selected row', () => {
@@ -958,12 +996,14 @@ describe('FleetList renderBar selection highlight', () => {
     const selectedLine = lines.find((line) => line.includes('task two'))
     expect(selectedLine).toBeDefined()
     expect(selectedLine).toContain('[BG:selectedBg]')
+    expect(selectedLine).toContain('[BOLD]task two[/BOLD]')
     expect(selectedLine).toContain('[FG:muted]')
     expect(selectedLine).not.toContain('[FG:dim]      5s[/-FG]')
 
     const unselectedLine = lines.find((line) => line.includes('task one'))
     expect(unselectedLine).toBeDefined()
     expect(unselectedLine).not.toContain('[BG:selectedBg]')
+    expect(unselectedLine).toContain('[BOLD]task one[/BOLD]')
     expect(unselectedLine).toContain('[FG:muted]      3s[/-FG]')
   })
 })
