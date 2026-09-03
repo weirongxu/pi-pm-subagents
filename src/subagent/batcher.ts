@@ -14,12 +14,13 @@ export class MessageBatcher {
   }
 
   add(subagent: LiveSubagent, type: string, message: string): void {
+    const tagName = type === 'done' ? 'subagent-done' : 'subagent-notify'
     const item = [
-      `<subagent-notify>`,
+      `<${tagName}>`,
       `<type>${type}</type>`,
       `<job>${formatSubagentSummary(subagent)}</job>`,
       `<message>${message}</message>`,
-      `</subagent-notify>`,
+      `</${tagName}>`,
     ].join('\n')
     this.items.push(item)
     if (this.timer !== undefined) clearTimeout(this.timer)
