@@ -3,9 +3,11 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { setupBashReadonlyTool } from './bash-readonly.js'
 import {
   applyCoordinatorMode,
+  enterCoordinatorMode,
   setupCoordinator,
 } from './coordinator/coordinator.js'
 import {
+  getPiModesConfig,
   loadPiModesConfig,
   setupModesConfig,
 } from './models-config/models-config.js'
@@ -72,6 +74,17 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
       }
 
       persist(pi, state)
+      return
+    }
+
+    if (getPiModesConfig().defaultMode === 'coordinator') {
+      await enterCoordinatorMode(
+        pi,
+        state,
+        undefined,
+        ctx,
+        coordinatorDefinition,
+      )
     }
   })
 }

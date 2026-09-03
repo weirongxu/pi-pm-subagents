@@ -27,7 +27,30 @@ import {
 const PiModesConfigSchema = Type.Object({
   subagentModel: Type.Optional(Type.String()),
   subagentModelScoped: Type.Optional(Type.Array(Type.String())),
+  defaultMode: Type.Optional(Type.String()),
 })
+
+export function sanitizeConfig(record: PiModesConfig): PiModesConfig {
+  const model = record.subagentModel
+  const subagentModel = model && !parseModelRef(model) ? undefined : model
+
+  let subagentModelScoped = record.subagentModelScoped
+  if (subagentModelScoped) {
+    const filtered = subagentModelScoped.filter(
+      (ref) => ref === MODEL_DEFAULT || parseModelRef(ref) !== undefined,
+    )
+    subagentModelScoped = filtered.length > 0 ? filtered : undefined
+  }
+
+  const defaultMode =
+    record.defaultMode === 'coordinator' ? 'coordinator' : undefined
+
+  return {
+    subagentModel,
+    subagentModelScoped,
+    defaultMode,
+  }
+}
 
 export type PiModesConfig = Static<typeof PiModesConfigSchema>
 
@@ -40,21 +63,7 @@ function configPath(): string {
 export async function loadPiModesConfig(): Promise<void> {
   try {
     const raw: unknown = JSON.parse(await readFile(configPath(), 'utf8'))
-    const record = Parse(PiModesConfigSchema, raw)
-    const model = record.subagentModel
-    if (model && !parseModelRef(model)) {
-      record.subagentModel = undefined
-    }
-
-    if (record.subagentModelScoped) {
-      record.subagentModelScoped = record.subagentModelScoped.filter(
-        (ref) => ref === MODEL_DEFAULT || parseModelRef(ref) !== undefined,
-      )
-      if (!record.subagentModelScoped.length)
-        record.subagentModelScoped = undefined
-    }
-
-    piModesConfig = record
+    piModesConfig = sanitizeConfig(Parse(PiModesConfigSchema, raw))
   } catch {
     piModesConfig = {}
   }
@@ -73,6 +82,13 @@ export async function setSubagentModel(
   model: string | undefined,
 ): Promise<void> {
   piModesConfig.subagentModel = model
+  await savePiModesConfig()
+}
+
+export async function setDefaultMode(
+  mode: 'coordinator' | undefined,
+): Promise<void> {
+  piModesConfig.defaultMode = mode
   await savePiModesConfig()
 }
 
@@ -145,5 +161,21 @@ export function setupModesConfig(pi: ExtensionAPI, state: ModesState): void {
       ctx.ui.notify(`Subagent scope saved (${result.length} items).`, 'info')
       if (state.mode === 'coordinator') renderCoordinatorModeWidget(ctx, state)
     },
+  })
+
+  const runPmDefaultCommand = async (_args: string, ctx: ExtensionContext) => {
+    const enabled = piModesConfig.defaultMode !== 'coordinator'
+    await setDefaultMode(enabled ? 'coordinator' : undefined)
+    ctx.ui.notify(`pm mode on startup: ${enabled ? 'on' : 'off'}`, 'info')
+  }
+
+  pi.registerCommand('coordinator-default', {
+    description: 'Toggle pm (coordinator) mode enabled by default on startup',
+    handler: runPmDefaultCommand,
+  })
+
+  pi.registerCommand('pm-default', {
+    description: 'Toggle pm (coordinator) mode enabled by default on startup',
+    handler: runPmDefaultCommand,
   })
 }

@@ -1419,79 +1419,27 @@ describe('FleetList renderBar uses sorted roster order', () => {
 
   it('scrolls window when selection moves past visible items', () => {
     const now = Date.now()
-    const entries: FleetEntry[] = [
-      {
-        id: 1,
-        title: 'task 1',
-        previousEntries: [],
-        status: 'done',
-        startedAt: now - 10000,
-        completedAt: now - 5000,
-        followUpCount: 0,
-        role: 'worker',
-      },
-      {
-        id: 2,
-        title: 'task 2',
-        previousEntries: [],
-        status: 'done',
-        startedAt: now - 20000,
-        completedAt: now - 15000,
-        followUpCount: 0,
-        role: 'worker',
-      },
-      {
-        id: 3,
-        title: 'task 3',
-        previousEntries: [],
-        status: 'done',
-        startedAt: now - 30000,
-        completedAt: now - 25000,
-        followUpCount: 0,
-        role: 'worker',
-      },
-      {
-        id: 4,
-        title: 'task 4',
-        previousEntries: [],
-        status: 'done',
-        startedAt: now - 40000,
-        completedAt: now - 35000,
-        followUpCount: 0,
-        role: 'worker',
-      },
-      {
-        id: 5,
-        title: 'task 5',
-        previousEntries: [],
-        status: 'done',
-        startedAt: now - 50000,
-        completedAt: now - 45000,
-        followUpCount: 0,
-        role: 'worker',
-      },
-      {
-        id: 6,
-        title: 'task 6',
-        previousEntries: [],
-        status: 'done',
-        startedAt: now - 60000,
-        completedAt: now - 55000,
-        followUpCount: 0,
-        role: 'worker',
-      },
-    ]
+    const entries: FleetEntry[] = Array.from({ length: 10 }, (_, i) => ({
+      id: i + 1,
+      title: `task ${i + 1}`,
+      previousEntries: [],
+      status: 'done',
+      startedAt: now - (i + 1) * 10000,
+      completedAt: now - (i + 1) * 10000 + 5000,
+      followUpCount: 0,
+      role: 'worker',
+    }))
     const fleetList = createFleetList(entries)
     fleetList['activeSelect'] = true
 
     fleetList['selectedIndex'] = 1
     const lines1 = render(fleetList)
     expect(lines1.some((line) => line.match(/↑\s+\d+\s+more/))).toBe(false)
-    expect(lines1.some((line) => line.match(/↓\s+\d+\s+more/))).toBe(true)
+    expect(lines1.some((line) => line.match(/↓\s+2\s+more/))).toBe(true)
 
-    fleetList['selectedIndex'] = 6
+    fleetList['selectedIndex'] = 10
     const lines2 = render(fleetList)
-    expect(lines2.some((line) => line.match(/↑\s+\d+\s+more/))).toBe(true)
+    expect(lines2.some((line) => line.match(/↑\s+2\s+more/))).toBe(true)
     expect(lines2.some((line) => line.match(/↓\s+\d+\s+more/))).toBe(false)
   })
 
@@ -1519,19 +1467,21 @@ describe('FleetList renderBar uses sorted roster order', () => {
       done(4),
       done(5),
       done(6),
+      done(7),
+      done(8),
     ]
     const fleetList = createFleetList(entries)
     fleetList['activeSelect'] = true
-    fleetList['selectedIndex'] = 8
+    fleetList['selectedIndex'] = 10
 
     const lines = render(fleetList)
 
     const highlighted = lines.filter((line) => line.includes('[BG:selectedBg]'))
     expect(highlighted).toHaveLength(1)
     expect(highlighted[0]).toContain('previous 2')
-    expect(lines.some((line) => line.match(/↑\s+3\s+more/))).toBe(true)
+    expect(lines.some((line) => line.match(/↑\s+2\s+more/))).toBe(true)
     expect(lines.some((line) => line.match(/↓\s+\d+\s+more/))).toBe(false)
-    expect(lines.some((line) => line.includes('task 6'))).toBe(false)
+    expect(lines.some((line) => line.includes('task 8'))).toBe(false)
     expect(lines.some((line) => line.includes('task 1'))).toBe(true)
   })
 
@@ -1560,19 +1510,21 @@ describe('FleetList renderBar uses sorted roster order', () => {
       done(5),
       done(6),
       done(7),
+      done(8),
+      done(9),
     ]
     const fleetList = createFleetList(entries)
     fleetList['activeSelect'] = true
-    fleetList['selectedIndex'] = 8
+    fleetList['selectedIndex'] = 10
 
     const lines = render(fleetList)
 
     const highlighted = lines.filter((line) => line.includes('[BG:selectedBg]'))
     expect(highlighted).toHaveLength(1)
     expect(highlighted[0]).toContain('previous 2')
-    expect(lines.some((line) => line.match(/↑\s+3\s+more/))).toBe(true)
+    expect(lines.some((line) => line.match(/↑\s+2\s+more/))).toBe(true)
     expect(lines.some((line) => line.match(/↓\s+1\s+more/))).toBe(true)
-    expect(lines.some((line) => line.includes('task 7'))).toBe(false)
+    expect(lines.some((line) => line.includes('task 9'))).toBe(false)
     expect(lines.some((line) => line.includes('task 1'))).toBe(false)
     expect(lines.some((line) => line.includes('task 2'))).toBe(true)
     expect(lines.some((line) => line.includes('previous 1'))).toBe(true)
