@@ -9,7 +9,6 @@ import {
   isKeyRelease,
   Key,
   matchesKey,
-  truncateToWidth,
   visibleWidth,
   wrapTextWithAnsi,
 } from '@earendil-works/pi-tui'
@@ -17,6 +16,7 @@ import {
 import { BorderView } from '../ui/border-view.js'
 import { ScrollView } from '../ui/scroll-view.js'
 import { rightAlign, strInline } from '../utils/format.js'
+import { truncateText } from '../utils/truncate.js'
 import type {
   LiveSubagent,
   SubagentManager,
@@ -127,7 +127,7 @@ export class SubagentViewer implements Component {
     const role = `[${this.subagent.role}]`
     const titleMaxWidth = width - visibleWidth(`${status + id} ${role}`) - 1
     return rightAlign(
-      `${th.fg('muted', `#${this.subagent.id}`)} ${th.fg('muted', role)} ${truncateToWidth(strInline(this.subagent.title), titleMaxWidth)}`,
+      `${th.fg('muted', `#${this.subagent.id}`)} ${th.fg('muted', role)} ${truncateText(strInline(this.subagent.title), titleMaxWidth)}`,
       th.fg(color, status),
       width,
     )
@@ -150,7 +150,7 @@ export class SubagentViewer implements Component {
       ['g/G', 'Home/End jump'],
       ['q/esc', 'close'],
     )
-    return truncateToWidth(
+    return truncateText(
       keys
         .map(
           ([key, desc]) =>
@@ -196,7 +196,7 @@ export class SubagentViewer implements Component {
           lines.push(...wrapTextWithAnsi(text.join('\n').trim(), width))
         for (const { name, params } of tools) {
           lines.push(
-            truncateToWidth(
+            truncateText(
               `${th.fg('muted', `🔧 ${name}`)} ${th.fg('dim', params)}`,
               width,
             ),
@@ -224,7 +224,7 @@ export class SubagentViewer implements Component {
       }
       separator = true
     }
-    return lines.map((line) => truncateToWidth(line, width))
+    return lines.map((line) => truncateText(line, width))
   }
 }
 

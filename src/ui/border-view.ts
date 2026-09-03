@@ -1,6 +1,7 @@
 import type { Theme } from '@earendil-works/pi-coding-agent'
 import type { Component } from '@earendil-works/pi-tui'
-import { truncateToWidth } from '@earendil-works/pi-tui'
+
+import { truncateText } from '../utils/truncate.js'
 
 export interface BorderViewOptions {
   readonly child: Component
@@ -33,7 +34,7 @@ export class BorderView implements Component {
 
     const borderedContent = content.map(
       (line) =>
-        `${leftBorder}${truncateToWidth(line, contentWidth, undefined, true)}${rightBorder}`,
+        `${leftBorder}${truncateText(line, contentWidth, undefined, true)}${rightBorder}`,
     )
 
     return [topBorder, ...borderedContent, bottomBorder]

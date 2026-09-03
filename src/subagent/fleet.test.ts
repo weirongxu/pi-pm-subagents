@@ -271,20 +271,20 @@ describe('formatElapsed', () => {
 
   it('shows minutes for >= 60s', () => {
     expect(formatElapsed(base({ startedAt: 0, completedAt: 5 * 60_000 }))).toBe(
-      '5m 0s',
+      '5m0s',
     )
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 10 * 60_000 })),
-    ).toBe('10m 0s')
+    ).toBe('10m0s')
   })
 
   it('shows hours for >= 60min', () => {
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 2 * 60 * 60_000 })),
-    ).toBe('2h 0m 0s')
+    ).toBe('2h0m0s')
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 24 * 60 * 60_000 })),
-    ).toBe('24h 0m 0s')
+    ).toBe('24h0m0s')
   })
 
   it('handles boundary values', () => {
@@ -292,35 +292,35 @@ describe('formatElapsed', () => {
       '59s',
     )
     expect(formatElapsed(base({ startedAt: 0, completedAt: 60_000 }))).toBe(
-      '1m 0s',
+      '1m0s',
     )
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 59 * 60_000 })),
-    ).toBe('59m 0s')
+    ).toBe('59m0s')
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 60 * 60_000 })),
-    ).toBe('1h 0m 0s')
+    ).toBe('1h0m0s')
   })
 
   it('rounds down minutes', () => {
     expect(formatElapsed(base({ startedAt: 0, completedAt: 89_999 }))).toBe(
-      '1m 29s',
+      '1m29s',
     )
     expect(formatElapsed(base({ startedAt: 0, completedAt: 119_999 }))).toBe(
-      '1m 59s',
+      '1m59s',
     )
     expect(formatElapsed(base({ startedAt: 0, completedAt: 120_000 }))).toBe(
-      '2m 0s',
+      '2m0s',
     )
   })
 
   it('shows remainder seconds when >= 1 minute', () => {
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 5 * 60_000 + 30_000 })),
-    ).toBe('5m 30s')
+    ).toBe('5m30s')
     expect(
       formatElapsed(base({ startedAt: 0, completedAt: 1 * 60_000 + 59_999 })),
-    ).toBe('1m 59s')
+    ).toBe('1m59s')
   })
 
   it('shows remainder minutes and seconds when >= 1 hour', () => {
@@ -331,7 +331,7 @@ describe('formatElapsed', () => {
           completedAt: 2 * 60 * 60_000 + 5 * 60_000 + 30_000,
         }),
       ),
-    ).toBe('2h 5m 30s')
+    ).toBe('2h5m30s')
     expect(
       formatElapsed(
         base({
@@ -339,7 +339,7 @@ describe('formatElapsed', () => {
           completedAt: 1 * 60 * 60_000 + 30 * 60_000 + 45_000,
         }),
       ),
-    ).toBe('1h 30m 45s')
+    ).toBe('1h30m45s')
   })
 })
 
@@ -670,17 +670,20 @@ describe('FleetList renderBar when inactive', () => {
     ).renderBar(width)
 
     expect(render).toContainEqual(expect.stringContaining('↳'))
-    expect(render).toContainEqual(
-      expect.stringContaining('[FG:syntaxVariable]previous 1[/-FG]'),
+    expect(render).toContainEqual(expect.stringContaining('previous 1'))
+    expect(render).toContainEqual(expect.stringContaining('previous 2'))
+    expect(render).not.toContainEqual(
+      expect.stringContaining('[FG:syntaxVariable]previous 1'),
     )
-    expect(render).toContainEqual(
-      expect.stringContaining('[FG:syntaxVariable]previous 2[/-FG]'),
+    expect(render).not.toContainEqual(
+      expect.stringContaining('[FG:syntaxVariable]previous 2'),
     )
     expect(render).toContainEqual(expect.stringContaining('⟳ 1'))
     expect(render).toContainEqual(expect.stringContaining('⟳ 0'))
     expect(render).toContainEqual(expect.stringContaining('done'))
-    expect(render).toContainEqual(
-      expect.stringContaining('[FG:syntaxVariable]current task[/-FG]'),
+    expect(render).toContainEqual(expect.stringContaining('current task'))
+    expect(render).not.toContainEqual(
+      expect.stringContaining('[FG:syntaxVariable]current task'),
     )
     expect(render).toContainEqual(
       expect.stringContaining('[FG:muted]      0s[/-FG]'),
@@ -917,13 +920,15 @@ describe('FleetList renderBar selection highlight', () => {
     const selectedLine = lines.find((line) => line.includes('task two'))
     expect(selectedLine).toBeDefined()
     expect(selectedLine).toContain('[BG:selectedBg]')
-    expect(selectedLine).toContain('[FG:syntaxVariable]task two[/-FG]')
-    expect(selectedLine).not.toContain('[FG:dim]task two[/-FG]')
+    expect(selectedLine).toContain('task two')
+    expect(selectedLine).not.toContain('[FG:syntaxVariable]task two')
+    expect(selectedLine).not.toContain('[FG:dim]task two')
 
     const unselectedLine = lines.find((line) => line.includes('task one'))
     expect(unselectedLine).toBeDefined()
     expect(unselectedLine).not.toContain('[BG:selectedBg]')
-    expect(unselectedLine).toContain('[FG:syntaxVariable]task one[/-FG]')
+    expect(unselectedLine).toContain('task one')
+    expect(unselectedLine).not.toContain('[FG:syntaxVariable]task one')
   })
 
   it('renders failed and killed titles with error', () => {

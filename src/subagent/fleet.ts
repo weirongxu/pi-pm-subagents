@@ -9,12 +9,12 @@ import {
   isKeyRelease,
   Key,
   matchesKey,
-  truncateToWidth,
   visibleWidth,
 } from '@earendil-works/pi-tui'
 import { orderBy } from 'lodash-es'
 
 import { formatElapsed, rightAlign, strInline } from '../utils/format.js'
+import { truncateText } from '../utils/truncate.js'
 import { FOLLOW_SYMBOL } from './consts.ts'
 
 const FLEET_KEY = 'pi-modes:fleet'
@@ -262,9 +262,9 @@ export class FleetList {
       : 'esc to interrupt · ←/↓ for items'
     const mainLine = ` ${theme.fg('dim', 'subagents')}`
     const lines: string[] = [
-      truncateToWidth(` ${theme.fg('dim', hint)}`, width),
+      truncateText(` ${theme.fg('dim', hint)}`, width),
       '',
-      truncateToWidth(mainLine, width),
+      truncateText(mainLine, width),
     ]
 
     const selRow = sel >= 1 && sel <= rows.length ? rows[sel - 1] : undefined
@@ -296,7 +296,7 @@ export class FleetList {
         rowNumber === sel,
         theme,
       )
-      lines.push(truncateToWidth(line, width))
+      lines.push(truncateText(line, width))
     }
 
     if (hiddenBelow > 0) {
@@ -337,14 +337,16 @@ export class FleetList {
     const inlineTitle = strInline(entry.title)
     const processedTitle = this.renderTitle(entry.status, inlineTitle, theme)
     const left = prefix + processedTitle
-    const statusCol = entry.status.padStart(7, ' ')
-    const followCol = `${FOLLOW_SYMBOL} ${entry.followUpCount}`.padStart(3, ' ')
-    const elapsedCol = formatElapsed(entry).padStart(8, ' ')
-    const elapsedStyled = theme.fg('muted', elapsedCol)
+    const statusCol = theme.fg('accent', entry.status.padStart(7, ' '))
+    const followCol = theme.fg(
+      'border',
+      `${FOLLOW_SYMBOL} ${entry.followUpCount}`.padStart(3, ' '),
+    )
+    const elapsedCol = theme.fg('muted', formatElapsed(entry).padStart(8, ' '))
     const contextCol = this.renderContextCol(entry, theme)
-    const right = `${theme.fg('accent', statusCol)} ${contextCol} ${theme.fg('border', followCol)} ${elapsedStyled}`
+    const right = `${statusCol}${contextCol}${followCol}${elapsedCol}`
     const leftMaxWidth = Math.max(0, width - visibleWidth(right) - 1)
-    const line = rightAlign(truncateToWidth(left, leftMaxWidth), right, width)
+    const line = rightAlign(truncateText(left, leftMaxWidth), right, width)
     return isSelected ? theme.bg('selectedBg', line) : line
   }
 

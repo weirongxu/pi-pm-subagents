@@ -2,8 +2,9 @@ import {
   type ExtensionContext,
   getMarkdownTheme,
 } from '@earendil-works/pi-coding-agent'
-import { Markdown, matchesKey, truncateToWidth } from '@earendil-works/pi-tui'
+import { Markdown, matchesKey } from '@earendil-works/pi-tui'
 
+import { truncateText } from '../utils/truncate.js'
 import { BorderView } from './border-view.js'
 import { ScrollView } from './scroll-view.js'
 
@@ -73,7 +74,7 @@ export function renderReviewPager(
             ['Enter', 'confirm'],
             ['q/esc', 'cancel'],
           )
-          return truncateToWidth(
+          return truncateText(
             keys
               .map(
                 ([key, desc]) =>

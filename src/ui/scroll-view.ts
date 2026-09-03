@@ -1,6 +1,8 @@
 import type { Theme } from '@earendil-works/pi-coding-agent'
 import type { Component, TUI } from '@earendil-works/pi-tui'
-import { Key, matchesKey, truncateToWidth } from '@earendil-works/pi-tui'
+import { Key, matchesKey } from '@earendil-works/pi-tui'
+
+import { truncateText } from '../utils/truncate.js'
 
 export interface ScrollViewOptions {
   /** The content this view wraps: any pi-tui Component (Markdown, Container, …). */
@@ -68,7 +70,7 @@ export class ScrollView implements Component {
     const track = this.#theme.fg('dim', '│')
     const out: string[] = []
     for (let i = 0; i < rows; i++) {
-      const line = truncateToWidth(
+      const line = truncateText(
         lines[this.#offset + i] ?? '',
         contentWidth,
         undefined,

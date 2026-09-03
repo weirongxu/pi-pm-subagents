@@ -1,4 +1,6 @@
-import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui'
+import { visibleWidth } from '@earendil-works/pi-tui'
+
+import { truncateText } from './truncate.js'
 
 export function strInline(s: string): string {
   return s.split('\n').join('⮒ ')
@@ -7,9 +9,9 @@ export function strInline(s: string): string {
 export function rightAlign(left: string, right: string, width: number): string {
   const rightW = visibleWidth(right)
   const maxLeft = Math.max(0, width - rightW - 1)
-  const leftClamped = truncateToWidth(left, maxLeft)
+  const leftClamped = truncateText(left, maxLeft)
   const gap = Math.max(1, width - visibleWidth(leftClamped) - rightW)
-  return truncateToWidth(leftClamped + ' '.repeat(gap) + right, width)
+  return truncateText(leftClamped + ' '.repeat(gap) + right, width)
 }
 
 export function formatElapsed(item: {
@@ -26,10 +28,10 @@ export function formatElapsedMs(ms: number): string {
   if (seconds < 60) return `${seconds}s`
   const minutes = Math.floor(seconds / 60)
   const remainingSeconds = seconds % 60
-  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`
+  if (minutes < 60) return `${minutes}m${remainingSeconds}s`
   const hours = Math.floor(minutes / 60)
   const remainingMinutes = minutes % 60
-  return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`
+  return `${hours}h${remainingMinutes}m${remainingSeconds}s`
 }
 
 export function truncateToBytes(
