@@ -47,6 +47,8 @@ export const SUBAGENT_TOOLS = {
   list: 'subagent_list',
 } as const
 
+const LIST_COOL_DOWN_MS = 1 * 60 * 1000
+
 export function registerSubagentTools(
   pi: ExtensionAPI,
   state: ModesState,
@@ -54,13 +56,26 @@ export function registerSubagentTools(
   fleet: FleetList,
   batcher: MessageBatcher,
 ): void {
+  const lastListAt = Date.now()
+
   const tools = [
     defineTool({
       name: SUBAGENT_TOOLS.list,
       label: 'List Subagents',
-      description: `List all background subagents, don't use ${SUBAGENT_TOOLS.list} to wait subagents finished just idle`,
+      description: `List all background subagents, don't poll this tool to wait subagents complete, just wait silently`,
       parameters: Type.Object({}),
       async execute() {
+        if (Date.now() - lastListAt < LIST_COOL_DOWN_MS)
+          return {
+            content: [
+              {
+                type: 'text',
+                text: "Please don't poll for this tool, just wait silently",
+              },
+            ],
+            details: {},
+          }
+
         const allSubagents = manager.list()
         if (allSubagents.length === 0) {
           return {
@@ -81,7 +96,7 @@ export function registerSubagentTools(
         if (hasRunning)
           lines.push(
             '',
-            `DO NOT POLL ${SUBAGENT_TOOLS.list} TO WAIT FOR COMPLETION, JUST IDLE, YOU WILL BE NOTIFIED WHEN SUBAGENTS FINISH.`,
+            `DO NOT POLL THIS TOOL TO WAIT FOR SUBAGENTS COMPLETION, JUST WAIT SILENTLY, YOU WILL BE NOTIFIED WHEN SUBAGENTS FINISH.`,
           )
         return {
           content: [
@@ -138,7 +153,7 @@ export function registerSubagentTools(
             {
               cwd: ctx.cwd,
               model,
-              thinkingLevel: ctx.thinkingLevel,
+              thinkingLevel: role.fm.thinkingLevel ?? 'low',
               tools,
               systemPrompt: role.systemPrompt,
               role: params.role,

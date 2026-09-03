@@ -29,6 +29,28 @@ function formatTokens(count: number): string {
   return `${Math.round(count / 1000000)}M`
 }
 
+function visibleWindow(
+  itemCount: number,
+  selectedItemIndex: number,
+): { start: number; end: number; hiddenAbove: number; hiddenBelow: number } {
+  const visible = Math.min(MAX_ROWS, itemCount)
+  const start = Math.max(0, selectedItemIndex - visible + 1)
+  const end = Math.min(start + visible, itemCount)
+  return { start, end, hiddenAbove: start, hiddenBelow: itemCount - end }
+}
+
+function selectedItemAnchor(
+  itemIndexes: number[],
+  rowCount: number,
+  selectedRow: number,
+): number {
+  if (selectedRow < 0 || selectedRow >= rowCount) return -1
+  for (const [index, itemRow] of itemIndexes.entries()) {
+    if (itemRow > selectedRow) return index - 1
+  }
+  return itemIndexes.length - 1
+}
+
 export type FleetEntryStatus = 'running' | 'done' | 'failed' | 'killed'
 
 export interface FleetEntryBase {
@@ -51,7 +73,11 @@ export interface FleetListOptions {
   onOpen: (ctx: ExtensionContext, id: number) => void | Promise<void>
 }
 
-type RosterEntry = { kind: 'main' } | { kind: 'item'; item: FleetEntry }
+type FleetRow = {
+  kind: 'item' | 'previous'
+  entry: FleetEntryBase
+  item: FleetEntry
+}
 
 export class FleetList {
   private ctx: ExtensionContext | undefined
@@ -139,23 +165,24 @@ export class FleetList {
     this.selectedIndex = 0
   }
 
-  private roster(): RosterEntry[] {
+  private roster(): FleetRow[] {
     const items = orderBy(
       this.options.list(),
       [(it) => (it.status === 'running' ? 0 : 1), (it) => it.id],
       ['asc', 'desc'],
     )
-    return [
-      { kind: 'main' },
-      ...items.map((item): RosterEntry => ({
-        kind: 'item',
-        item,
-      })),
-    ]
+    const rows: FleetRow[] = []
+    for (const item of items) {
+      rows.push({ kind: 'item', entry: item, item })
+      for (const previous of item.previousEntries) {
+        rows.push({ kind: 'previous', entry: previous, item })
+      }
+    }
+    return rows
   }
 
   private clampSelection(): void {
-    const max = this.roster().length - 1
+    const max = this.roster().length
     const min = this.activeSelect ? 1 : 0
     this.selectedIndex = Math.max(min, Math.min(this.selectedIndex, max))
   }
@@ -188,7 +215,7 @@ export class FleetList {
     }
 
     if (matchesKey(data, 'down')) {
-      const max = this.roster().length - 1
+      const max = this.roster().length
       this.selectedIndex = Math.min(max, this.selectedIndex + 1)
       this.update()
       return { consume: true }
@@ -224,8 +251,8 @@ export class FleetList {
   private async openSelected(): Promise<void> {
     const ctx = this.ctx
     if (!ctx) return
-    const entry = this.roster()[this.selectedIndex]
-    if (!entry || entry.kind === 'main') {
+    const entry = this.roster()[this.selectedIndex - 1]
+    if (!entry) {
       this.deactivate()
       return
     }
@@ -238,15 +265,10 @@ export class FleetList {
     const ctx = this.ctx
     if (!ctx) return []
     const theme = ctx.ui.theme
-    const rosterItems = this.roster().slice(1) as {
-      kind: 'item'
-      item: FleetEntry
-    }[]
-    if (rosterItems.length === 0) return []
+    const rows = this.roster()
+    if (rows.length === 0) return []
 
-    const sel = this.activeSelect
-      ? Math.min(this.selectedIndex, rosterItems.length)
-      : -1
+    const sel = this.activeSelect ? this.selectedIndex : -1
     const hint = this.activeSelect
       ? '↑↓ select · enter view · esc back'
       : 'esc to interrupt · ←/↓ for items'
@@ -257,39 +279,44 @@ export class FleetList {
       truncateToWidth(mainLine, width),
     ]
 
-    const visible = Math.min(MAX_ROWS, rosterItems.length)
-    const selItem = Math.max(0, sel - 1)
-    const start = selItem < visible ? 0 : selItem - visible + 1
-    const hiddenBelow = rosterItems.length - (start + visible)
-    if (start > 0) {
-      lines.push(rightAlign('', theme.fg('dim', `↑ ${start} more`), width))
+    const itemIndexes: number[] = []
+    for (const [index, row] of rows.entries()) {
+      if (row.kind === 'item') itemIndexes.push(index)
     }
-    for (let i = start; i < start + visible; i++) {
-      const entry = rosterItems[i]
-      if (!entry) continue
-      const item = entry.item
-      const isItemSelected = i + 1 === sel
-      const mainPrefix = ` ${this.bullet(i + 1, sel, theme)} ${theme.fg('muted', `#${item.id} [${item.role}]`)} `
-      const itemLine = this.renderItemRow(
-        item,
-        mainPrefix,
+
+    const selectedRow = sel - 1
+    const { start, end, hiddenAbove, hiddenBelow } = visibleWindow(
+      itemIndexes.length,
+      selectedItemAnchor(itemIndexes, rows.length, selectedRow),
+    )
+
+    if (hiddenAbove > 0) {
+      lines.push(
+        rightAlign('', theme.fg('dim', `↑ ${hiddenAbove} more`), width),
+      )
+    }
+
+    const startRowIndex = itemIndexes[start] ?? rows.length
+    const endRowIndex = itemIndexes[end] ?? rows.length
+
+    for (const [offset, row] of rows
+      .slice(startRowIndex, endRowIndex)
+      .entries()) {
+      const rowNumber = startRowIndex + offset + 1
+      const prefix =
+        row.kind === 'previous'
+          ? `    ${theme.fg('dim', '↳')} `
+          : ` ${this.bullet(rowNumber, sel, theme)} ${theme.fg('muted', `#${row.item.id} [${row.item.role}]`)} `
+      const line = this.renderItemRow(
+        row.entry,
+        prefix,
         width,
-        isItemSelected,
+        rowNumber === sel,
         theme,
       )
-      lines.push(truncateToWidth(itemLine, width))
-      for (const prevEntry of item.previousEntries) {
-        const prevPrefix = `    ${theme.fg('dim', '↳')} `
-        const prevLine = this.renderItemRow(
-          prevEntry,
-          prevPrefix,
-          width,
-          isItemSelected,
-          theme,
-        )
-        lines.push(truncateToWidth(prevLine, width))
-      }
+      lines.push(truncateToWidth(line, width))
     }
+
     if (hiddenBelow > 0) {
       lines.push(
         rightAlign('', theme.fg('dim', `↓ ${hiddenBelow} more`), width),

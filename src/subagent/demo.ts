@@ -184,6 +184,109 @@ function initialDemoSubagents(): LiveSubagent[] {
       session: mockSessionFor('5', 6),
       role: 'docs',
     },
+    {
+      id: 6,
+      title: 'Migrate legacy config parser to new schema',
+      previousEntries: [],
+      prompt: 'Migrate legacy config parser to new schema',
+      status: 'running',
+      startedAt: now - 95000000,
+      completedAt: undefined,
+      followUpCount: 0,
+      enabledTools: new Set(['read', 'edit', 'bash']),
+      session: mockSessionFor('6', 6),
+      role: 'worker',
+      contextUsage: nearFullContextUsage(),
+    },
+    {
+      id: 7,
+      title:
+        'Investigate flaky integration test in CI pipeline for pull request validation workflow',
+      previousEntries: [
+        {
+          title: 'Re-run failed CI workflow for logs',
+          status: 'done',
+          followUpCount: 2,
+          startedAt: now - 900000,
+          completedAt: now - 700000,
+        },
+        {
+          title: 'Collect flaky test reports',
+          status: 'done',
+          followUpCount: 1,
+          startedAt: now - 1000000,
+          completedAt: now - 900000,
+        },
+      ],
+      prompt:
+        'Investigate flaky integration test in CI pipeline for pull request validation workflow',
+      status: 'running',
+      startedAt: now - 240000,
+      completedAt: undefined,
+      followUpCount: 3,
+      enabledTools: new Set(['read', 'bash']),
+      session: mockSessionFor('7', 6),
+      role: 'investigator',
+      contextUsage: normalContextUsage(),
+    },
+    {
+      id: 8,
+      title: 'Audit repository for hardcoded secrets',
+      previousEntries: [
+        {
+          title: 'Check environment template files',
+          status: 'done',
+          followUpCount: 3,
+          startedAt: now - 108000000,
+          completedAt: now - 105000000,
+        },
+        {
+          title: 'Scan git history for leaked keys',
+          status: 'done',
+          followUpCount: 2,
+          startedAt: now - 110000000,
+          completedAt: now - 108000000,
+        },
+        {
+          title: 'Initial secrets audit',
+          status: 'done',
+          followUpCount: 1,
+          startedAt: now - 110500000,
+          completedAt: now - 110000000,
+        },
+      ],
+      prompt: 'Audit repository for hardcoded secrets',
+      status: 'done',
+      startedAt: now - 105000000,
+      completedAt: now - 96000000,
+      followUpCount: 4,
+      enabledTools: new Set(['read', 'bash']),
+      session: mockSessionFor('8', 6),
+      role: 'reviewer',
+      contextUsage: highContextUsage(),
+    },
+    {
+      id: 9,
+      title: 'Verify release checklist for v2.4.0\nCheck changelog entries',
+      previousEntries: [
+        {
+          title: 'Diff package version against tags',
+          status: 'done',
+          followUpCount: 0,
+          startedAt: now - 60000,
+          completedAt: now - 45000,
+        },
+      ],
+      prompt: 'Verify release checklist for v2.4.0\nCheck changelog entries',
+      status: 'failed',
+      startedAt: now - 45000,
+      completedAt: now - 30000,
+      followUpCount: 1,
+      enabledTools: new Set(['read', 'bash']),
+      session: mockSessionFor('9', 6),
+      role: 'tester',
+      contextUsage: unknownTokensContextUsage(),
+    },
   ]
 }
 
@@ -197,6 +300,10 @@ function highContextUsage(): ContextUsage {
 
 function unknownTokensContextUsage(): ContextUsage {
   return { tokens: null, contextWindow: 200000, percent: null }
+}
+
+function nearFullContextUsage(): ContextUsage {
+  return { tokens: 187000, contextWindow: 200000, percent: 93.5 }
 }
 
 const MOCK_USAGE: Usage = {
@@ -543,6 +650,124 @@ See [API.md](./API.md) for detailed documentation.
     toolResultMessage('call_005', 'write', 'OK'),
     assistantMessage(
       "Documentation written successfully. I've also updated the README with a quick start guide and added the API reference section.",
+    ),
+  ],
+  '6': [
+    userMessage('Migrate legacy config parser to new schema'),
+    assistantMessage(
+      "I'll port the legacy parser to the new schema while keeping backward compatibility.",
+    ),
+    assistantMessage('Reading the legacy parser implementation first.', [
+      {
+        type: 'toolCall',
+        id: 'call_006',
+        name: 'read',
+        arguments: { path: 'src/config/legacy-parser.ts' },
+      },
+    ]),
+    toolResultMessage(
+      'call_006',
+      'read',
+      `export function parseLegacyConfig(raw: string): Config {
+  const entries = raw.split(';').filter(Boolean)
+  const config: Record<string, string> = {}
+  for (const entry of entries) {
+    const [key, value] = entry.split('=', 2)
+    if (!key || value === undefined) continue
+    config[key.trim()] = value.trim()
+  }
+  return config as Config
+}`,
+    ),
+    assistantMessage(
+      'The legacy parser accepts semicolon-separated key/value pairs and silently drops malformed entries. I will keep that behavior in the new schema loader and add a compatibility shim for old config files.',
+    ),
+  ],
+  '7': [
+    userMessage(
+      'Investigate flaky integration test in CI pipeline for pull request validation workflow',
+    ),
+    assistantMessage(
+      "I'll start from the failure logs of the most recent red CI runs.",
+    ),
+    assistantMessage('Fetching the failed run logs.', [
+      {
+        type: 'toolCall',
+        id: 'call_007',
+        name: 'bash',
+        arguments: {
+          command:
+            'gh run list --status failure --limit 5 && gh run view --log-failed | tail -n 60',
+        },
+      },
+    ]),
+    toolResultMessage(
+      'call_007',
+      'bash',
+      `integrations/webhook.test.ts > delivers PR validation event (2/10 runs failed)
+Error: Test timed out after 30000ms
+  at onWebhookReceived (integrations/webhook.test.ts:84:11)
+  at Timeout.callback [as _onTimeout] (node:internal/timers:494:15)
+
+Summary: 27 failed runs in the last 14 days, all in integrations/webhook.test.ts,
+all timing out while waiting for the mock registry to answer.`,
+    ),
+    assistantMessage(
+      'All recent failures are timeouts in integrations/webhook.test.ts while waiting for the mock webhook registry, which only warms up on a cold runner. Next I will add a readiness probe before the test asserts.',
+    ),
+  ],
+  '8': [
+    userMessage('Audit repository for hardcoded secrets'),
+    assistantMessage(
+      "I'll scan tracked files for common credential patterns and report findings.",
+    ),
+    assistantMessage('Running the pattern scan.', [
+      {
+        type: 'toolCall',
+        id: 'call_008',
+        name: 'bash',
+        arguments: {
+          command:
+            "git ls-files | xargs grep -lniE '(api[_-]?key|secret|password)\\s*='",
+        },
+      },
+    ]),
+    toolResultMessage(
+      'call_008',
+      'bash',
+      `test/fixtures/config.ts
+docs/examples/quickstart.md
+src/__tests__/auth.test.ts
+
+grep: 3 files matched`,
+    ),
+    assistantMessage(
+      'All three matches are test fixtures and documentation examples using placeholder values. No real credentials found — the audit is clean.',
+    ),
+  ],
+  '9': [
+    userMessage('Verify release checklist for v2.4.0'),
+    assistantMessage(
+      "I'll verify the release checklist items against the repository state.",
+    ),
+    assistantMessage('Checking the changelog for the 2.4.0 section.', [
+      {
+        type: 'toolCall',
+        id: 'call_009',
+        name: 'bash',
+        arguments: {
+          command: "grep -n '^## 2.4.0' CHANGELOG.md",
+        },
+      },
+    ]),
+    toolResultMessage(
+      'call_009',
+      'bash',
+      'Error: Command failed with exit code 1\nNo CHANGELOG.md entry found for version 2.4.0',
+      true,
+    ),
+    assistantMessage(
+      'The release checklist check failed: CHANGELOG.md has no 2.4.0 section and package.json still reports 2.3.1. Both need to be updated before tagging the release.',
     ),
   ],
 }

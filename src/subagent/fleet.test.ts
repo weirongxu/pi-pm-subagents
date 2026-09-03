@@ -4,7 +4,7 @@ import { Editor } from '@earendil-works/pi-tui'
 import { describe, expect, it } from 'vitest'
 
 import { formatElapsed } from '../utils/format.js'
-import { type FleetEntry, FleetList } from './fleet.js'
+import { type FleetEntry, FleetList, type FleetListOptions } from './fleet.js'
 
 function createFakeTheme() {
   return {
@@ -746,7 +746,7 @@ describe('FleetList renderBar selection highlight', () => {
     }
   })
 
-  it('highlights the first item row and its previousEntries when selectedIndex is 1', () => {
+  it('highlights only the first item row when selectedIndex is 1', () => {
     const now = Date.now()
     const entries: FleetEntry[] = [
       {
@@ -791,11 +791,11 @@ describe('FleetList renderBar selection highlight', () => {
 
     const prev1Line = lines.find((line) => line.includes('previous 1'))
     expect(prev1Line).toBeDefined()
-    expect(prev1Line).toContain('[BG:selectedBg]')
+    expect(prev1Line).not.toContain('[BG:selectedBg]')
 
     const prev2Line = lines.find((line) => line.includes('previous 2'))
     expect(prev2Line).toBeDefined()
-    expect(prev2Line).toContain('[BG:selectedBg]')
+    expect(prev2Line).not.toContain('[BG:selectedBg]')
   })
 
   it('highlights only the middle item row when selectedIndex is 2', () => {
@@ -965,6 +965,617 @@ describe('FleetList renderBar selection highlight', () => {
     expect(unselectedLine).toBeDefined()
     expect(unselectedLine).not.toContain('[BG:selectedBg]')
     expect(unselectedLine).toContain('[FG:muted]      3s[/-FG]')
+  })
+})
+
+describe('FleetList row-based selection navigation', () => {
+  function createFakeContext(): Record<string, unknown> {
+    return {
+      ui: {
+        getEditorText: () => '',
+        setWidget: () => {},
+        theme: createFakeTheme(),
+        onTerminalInput: () => () => {},
+        notify: () => {},
+      },
+    }
+  }
+
+  function createFleetList(entries: FleetEntry[]): FleetList {
+    const fleetList = new FleetList({
+      list: () => entries,
+      onOpen: () => {},
+    })
+    fleetList.setContext(createFakeContext() as unknown as ExtensionContext)
+    return fleetList
+  }
+
+  it('can navigate into previous rows with down arrow', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'current task',
+        previousEntries: [
+          {
+            title: 'previous 1',
+            status: 'done',
+            followUpCount: 0,
+            startedAt: now - 8000,
+            completedAt: now - 5000,
+          },
+          {
+            title: 'previous 2',
+            status: 'done',
+            followUpCount: 0,
+            startedAt: now - 10000,
+            completedAt: now - 5000,
+          },
+        ],
+        status: 'done',
+        startedAt: now - 5000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 1
+
+    const lines1 = (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(200)
+    const itemLine = lines1.find((line) => line.includes('current task'))
+    expect(itemLine).toBeDefined()
+    expect(itemLine).toContain('[BG:selectedBg]')
+
+    fleetList['selectedIndex'] = 2
+    const lines2 = (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(200)
+    const prev1Line = lines2.find((line) => line.includes('previous 1'))
+    expect(prev1Line).toBeDefined()
+    expect(prev1Line).toContain('[BG:selectedBg]')
+
+    fleetList['selectedIndex'] = 3
+    const lines3 = (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(200)
+    const prev2Line = lines3.find((line) => line.includes('previous 2'))
+    expect(prev2Line).toBeDefined()
+    expect(prev2Line).toContain('[BG:selectedBg]')
+  })
+
+  it('deactivates when up from first item row', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'test task',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 1
+    expect(fleetList['activeSelect']).toBe(true)
+    expect(fleetList['selectedIndex']).toBe(1)
+
+    fleetList['selectedIndex'] = 0
+    fleetList['activeSelect'] = false
+
+    expect(fleetList['activeSelect']).toBe(false)
+    expect(fleetList['selectedIndex']).toBe(0)
+  })
+
+  it('opens parent item id when ENTER pressed on previous row', async () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'current task',
+        previousEntries: [
+          {
+            title: 'previous 1',
+            status: 'done',
+            followUpCount: 0,
+            startedAt: now - 8000,
+            completedAt: now - 5000,
+          },
+        ],
+        status: 'done',
+        startedAt: now - 5000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+
+    let openedId: number | undefined
+    const fleetList = createFleetList(entries)
+    ;(fleetList as unknown as { options: FleetListOptions }).options.onOpen = (
+      _ctx: unknown,
+      id: number,
+    ) => {
+      openedId = id
+    }
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 2
+
+    await (
+      fleetList as unknown as {
+        openSelected: () => Promise<void>
+      }
+    ).openSelected()
+
+    expect(openedId).toBe(1)
+  })
+
+  it('highlights only one row at a time', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        previousEntries: [
+          {
+            title: 'previous 1',
+            status: 'done',
+            followUpCount: 0,
+            startedAt: now - 8000,
+            completedAt: now - 5000,
+          },
+          {
+            title: 'previous 2',
+            status: 'done',
+            followUpCount: 0,
+            startedAt: now - 10000,
+            completedAt: now - 5000,
+          },
+        ],
+        status: 'done',
+        startedAt: now - 5000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+
+    const indices = [1, 2, 3, 4]
+    for (const idx of indices) {
+      fleetList['selectedIndex'] = idx
+      const lines = (
+        fleetList as unknown as { renderBar: (w: number) => string[] }
+      ).renderBar(200)
+
+      const highlightedLines = lines.filter((line) =>
+        line.includes('[BG:selectedBg]'),
+      )
+      expect(highlightedLines).toHaveLength(1)
+    }
+  })
+})
+
+describe('FleetList renderBar uses sorted roster order', () => {
+  function createFakeContext(): Record<string, unknown> {
+    return {
+      ui: {
+        getEditorText: () => '',
+        setWidget: () => {},
+        theme: createFakeTheme(),
+        onTerminalInput: () => () => {},
+        notify: () => {},
+      },
+    }
+  }
+
+  function createFleetList(entries: FleetEntry[]): FleetList {
+    const fleetList = new FleetList({
+      list: () => entries,
+      onOpen: () => {},
+    })
+    fleetList.setContext(createFakeContext() as unknown as ExtensionContext)
+    return fleetList
+  }
+
+  function render(fleetList: FleetList, width = 200): string[] {
+    return (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(width)
+  }
+
+  function done(
+    id: number,
+    previousEntries: FleetEntry['previousEntries'] = [],
+  ): FleetEntry {
+    const now = Date.now()
+    return {
+      id,
+      title: `task ${id}`,
+      previousEntries,
+      status: 'done',
+      startedAt: now - id * 10000,
+      completedAt: now - id * 10000 + 5000,
+      followUpCount: 0,
+      role: 'worker',
+    }
+  }
+
+  it('display order matches sorted roster order for done items', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 10000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 20000,
+        completedAt: now - 15000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 3,
+        title: 'task 3',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 30000,
+        completedAt: now - 25000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = false
+
+    const lines = render(fleetList)
+    const task1Index = lines.findIndex((line) => line.includes('task 1'))
+    const task2Index = lines.findIndex((line) => line.includes('task 2'))
+    const task3Index = lines.findIndex((line) => line.includes('task 3'))
+
+    expect(task3Index).toBeGreaterThan(-1)
+    expect(task2Index).toBeGreaterThan(-1)
+    expect(task1Index).toBeGreaterThan(-1)
+
+    expect(task3Index).toBeLessThan(task2Index)
+    expect(task2Index).toBeLessThan(task1Index)
+  })
+
+  it('cursor moves to adjacent lines when pressing down', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 10000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 20000,
+        completedAt: now - 15000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 3,
+        title: 'task 3',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 30000,
+        completedAt: now - 25000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 1
+
+    const lines1 = render(fleetList)
+    const highlightedLines1 = lines1.filter((line) =>
+      line.includes('[BG:selectedBg]'),
+    )
+    expect(highlightedLines1).toHaveLength(1)
+    expect(highlightedLines1[0]).toContain('task 3')
+
+    fleetList['selectedIndex'] = 2
+    const lines2 = render(fleetList)
+    const highlightedLines2 = lines2.filter((line) =>
+      line.includes('[BG:selectedBg]'),
+    )
+    expect(highlightedLines2).toHaveLength(1)
+    expect(highlightedLines2[0]).toContain('task 2')
+
+    const task3Idx1 = lines1.findIndex((line) => line.includes('task 3'))
+    const task2Idx1 = lines1.findIndex((line) => line.includes('task 2'))
+    const task2Idx2 = lines2.findIndex((line) => line.includes('task 2'))
+
+    expect(task2Idx1).toBe(task3Idx1 + 1)
+    expect(task2Idx2).toBe(task2Idx1)
+  })
+
+  it('cursor moves to adjacent lines including previous rows', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        previousEntries: [
+          {
+            title: 'previous 1',
+            status: 'done',
+            followUpCount: 0,
+            startedAt: now - 8000,
+            completedAt: now - 5000,
+          },
+          {
+            title: 'previous 2',
+            status: 'done',
+            followUpCount: 0,
+            startedAt: now - 10000,
+            completedAt: now - 5000,
+          },
+        ],
+        status: 'done',
+        startedAt: now - 5000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 20000,
+        completedAt: now - 15000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 1
+
+    const lines1 = render(fleetList)
+    const highlightedLines1 = lines1.filter((line) =>
+      line.includes('[BG:selectedBg]'),
+    )
+    expect(highlightedLines1).toHaveLength(1)
+    expect(highlightedLines1[0]).toContain('task 2')
+
+    const task1Idx = lines1.findIndex((line) => line.includes('task 1'))
+    const task2Idx = lines1.findIndex((line) => line.includes('task 2'))
+    const prev1Idx = lines1.findIndex((line) => line.includes('previous 1'))
+    const prev2Idx = lines1.findIndex((line) => line.includes('previous 2'))
+
+    expect(task1Idx).toBeGreaterThan(-1)
+    expect(task2Idx).toBeGreaterThan(-1)
+    expect(prev1Idx).toBeGreaterThan(-1)
+    expect(prev2Idx).toBeGreaterThan(-1)
+
+    expect(task2Idx).toBeLessThan(task1Idx)
+    expect(prev1Idx).toBe(task1Idx + 1)
+    expect(prev2Idx).toBe(prev1Idx + 1)
+
+    fleetList['selectedIndex'] = 2
+    const lines2 = render(fleetList)
+    const highlightedLines2 = lines2.filter((line) =>
+      line.includes('[BG:selectedBg]'),
+    )
+    expect(highlightedLines2).toHaveLength(1)
+    expect(highlightedLines2[0]).toContain('task 1')
+
+    fleetList['selectedIndex'] = 3
+    const lines3 = render(fleetList)
+    const highlightedLines3 = lines3.filter((line) =>
+      line.includes('[BG:selectedBg]'),
+    )
+    expect(highlightedLines3).toHaveLength(1)
+    expect(highlightedLines3[0]).toContain('previous 1')
+
+    fleetList['selectedIndex'] = 4
+    const lines4 = render(fleetList)
+    const highlightedLines4 = lines4.filter((line) =>
+      line.includes('[BG:selectedBg]'),
+    )
+    expect(highlightedLines4).toHaveLength(1)
+    expect(highlightedLines4[0]).toContain('previous 2')
+  })
+
+  it('scrolls window when selection moves past visible items', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 10000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 20000,
+        completedAt: now - 15000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 3,
+        title: 'task 3',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 30000,
+        completedAt: now - 25000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 4,
+        title: 'task 4',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 40000,
+        completedAt: now - 35000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 5,
+        title: 'task 5',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 50000,
+        completedAt: now - 45000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+      {
+        id: 6,
+        title: 'task 6',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 60000,
+        completedAt: now - 55000,
+        followUpCount: 0,
+        role: 'worker',
+      },
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+
+    fleetList['selectedIndex'] = 1
+    const lines1 = render(fleetList)
+    expect(lines1.some((line) => line.match(/↑\s+\d+\s+more/))).toBe(false)
+    expect(lines1.some((line) => line.match(/↓\s+\d+\s+more/))).toBe(true)
+
+    fleetList['selectedIndex'] = 6
+    const lines2 = render(fleetList)
+    expect(lines2.some((line) => line.match(/↑\s+\d+\s+more/))).toBe(true)
+    expect(lines2.some((line) => line.match(/↓\s+\d+\s+more/))).toBe(false)
+  })
+
+  it('anchors scroll window at parent item when a previous row is selected', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      done(1, [
+        {
+          title: 'previous 1',
+          status: 'done',
+          followUpCount: 0,
+          startedAt: now - 8000,
+          completedAt: now - 5000,
+        },
+        {
+          title: 'previous 2',
+          status: 'done',
+          followUpCount: 0,
+          startedAt: now - 10000,
+          completedAt: now - 5000,
+        },
+      ]),
+      done(2),
+      done(3),
+      done(4),
+      done(5),
+      done(6),
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 8
+
+    const lines = render(fleetList)
+
+    const highlighted = lines.filter((line) => line.includes('[BG:selectedBg]'))
+    expect(highlighted).toHaveLength(1)
+    expect(highlighted[0]).toContain('previous 2')
+    expect(lines.some((line) => line.match(/↑\s+1\s+more/))).toBe(true)
+    expect(lines.some((line) => line.includes('task 6'))).toBe(false)
+  })
+
+  it('anchors scroll window at parent item when a mid-list previous row is selected', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      done(2, [
+        {
+          title: 'previous 1',
+          status: 'done',
+          followUpCount: 0,
+          startedAt: now - 8000,
+          completedAt: now - 5000,
+        },
+        {
+          title: 'previous 2',
+          status: 'done',
+          followUpCount: 0,
+          startedAt: now - 10000,
+          completedAt: now - 5000,
+        },
+      ]),
+      done(1),
+      done(3),
+      done(4),
+      done(5),
+      done(6),
+      done(7),
+    ]
+    const fleetList = createFleetList(entries)
+    fleetList['activeSelect'] = true
+    fleetList['selectedIndex'] = 8
+
+    const lines = render(fleetList)
+
+    const highlighted = lines.filter((line) => line.includes('[BG:selectedBg]'))
+    expect(highlighted).toHaveLength(1)
+    expect(highlighted[0]).toContain('previous 2')
+    const parentIndex = lines.findIndex((line) => line.includes('task 2'))
+    const prevIndex = lines.findIndex((line) => line.includes('previous 2'))
+    expect(parentIndex).toBeGreaterThan(-1)
+    expect(prevIndex).toBe(parentIndex + 2)
+    expect(lines.some((line) => line.match(/↑\s+1\s+more/))).toBe(true)
+    expect(lines.some((line) => line.match(/↓\s+1\s+more/))).toBe(true)
+    expect(lines.some((line) => line.includes('task 7'))).toBe(false)
+    expect(lines.some((line) => line.includes('task 1'))).toBe(false)
   })
 })
 

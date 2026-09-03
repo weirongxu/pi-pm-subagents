@@ -7,9 +7,20 @@ import { readOptional } from './fs.js'
 
 const StringList = Type.Array(Type.String())
 
+const ThinkingLevelSchema = Type.Union([
+  Type.Literal('off'),
+  Type.Literal('minimal'),
+  Type.Literal('low'),
+  Type.Literal('medium'),
+  Type.Literal('high'),
+  Type.Literal('xhigh'),
+  Type.Literal('max'),
+])
+
 const PromptFrontmatterSchema = Type.Object({
   description: Type.Optional(Type.String()),
   model: Type.Optional(Type.String()),
+  thinkingLevel: Type.Optional(ThinkingLevelSchema),
   tools: Type.Optional(StringList),
   extraTools: Type.Optional(StringList),
   removeTools: Type.Optional(StringList),
@@ -49,6 +60,7 @@ export function mergePromptDefinitions(
     fm: {
       description: append.fm.description ?? baseTools.fm.description,
       model: append.fm.model ?? baseTools.fm.model,
+      thinkingLevel: append.fm.thinkingLevel ?? baseTools.fm.thinkingLevel,
       tools: mergeUniqueTools(baseTools.fm.tools, append.fm.tools),
       extraTools: mergeUniqueTools(
         baseTools.fm.extraTools,

@@ -81,10 +81,11 @@ This is a test mode prompt.`,
     expect(result).toEqual({
       fm: {
         description: 'A test mode.',
+        model: undefined,
+        thinkingLevel: undefined,
         tools: ['read', 'write'],
         extraTools: undefined,
         removeTools: undefined,
-        model: undefined,
         reviewOnEnd: undefined,
       },
       systemPrompt: 'This is a test mode prompt.',
@@ -99,10 +100,11 @@ This is a test mode prompt.`,
     expect(result).toEqual({
       fm: {
         description: undefined,
+        model: undefined,
+        thinkingLevel: undefined,
         tools: undefined,
         extraTools: undefined,
         removeTools: undefined,
-        model: undefined,
         reviewOnEnd: undefined,
       },
       systemPrompt: 'Plain prompt without frontmatter.',
@@ -201,6 +203,55 @@ Test prompt.`,
     expect(result?.fm.reviewOnEnd).toBeUndefined()
   })
 
+  it('supports thinkingLevel field', async () => {
+    const filePath = join(tempDir, 'thinking-level.md')
+    await writeFile(
+      filePath,
+      `---
+thinkingLevel: high
+---
+Test prompt.`,
+    )
+
+    const result = await loadMarkdown(filePath)
+    expect(result?.fm.thinkingLevel).toBe('high')
+  })
+
+  it('supports thinkingLevel off', async () => {
+    const filePath = join(tempDir, 'thinking-level-off.md')
+    await writeFile(
+      filePath,
+      `---
+thinkingLevel: off
+---
+Test prompt.`,
+    )
+
+    const result = await loadMarkdown(filePath)
+    expect(result?.fm.thinkingLevel).toBe('off')
+  })
+
+  it('returns undefined thinkingLevel when not specified', async () => {
+    const filePath = join(tempDir, 'no-thinking-level.md')
+    await writeFile(filePath, 'Test prompt.')
+
+    const result = await loadMarkdown(filePath)
+    expect(result?.fm.thinkingLevel).toBeUndefined()
+  })
+
+  it('throws when thinkingLevel is invalid', async () => {
+    const filePath = join(tempDir, 'invalid-thinking-level.md')
+    await writeFile(
+      filePath,
+      `---
+thinkingLevel: ultra
+---
+Test prompt.`,
+    )
+
+    await expect(loadMarkdown(filePath)).rejects.toThrow()
+  })
+
   it('handles empty tools array', async () => {
     const filePath = join(tempDir, 'empty-tools.md')
     await writeFile(
@@ -263,6 +314,7 @@ describe('mergePromptDefinitions', () => {
       tools: ['read', 'write'] as string[],
       extraTools: ['bash'] as string[],
       removeTools: ['write'] as string[],
+      thinkingLevel: undefined,
       reviewOnEnd: undefined,
     },
     systemPrompt: 'Base prompt.',
@@ -322,6 +374,7 @@ describe('mergePromptDefinitions', () => {
       fm: {
         description: undefined,
         model: undefined,
+        thinkingLevel: undefined,
         tools: undefined,
         extraTools: undefined,
         removeTools: undefined,
@@ -329,6 +382,30 @@ describe('mergePromptDefinitions', () => {
       },
       systemPrompt: 'Base.',
     })
+  })
+
+  it('append thinkingLevel overrides base thinkingLevel', () => {
+    const result = mergePromptDefinitions(base, {
+      ...base,
+      fm: { ...base.fm, thinkingLevel: 'high' },
+    })
+    expect(result.fm.thinkingLevel).toBe('high')
+  })
+
+  it('keeps base thinkingLevel when append has none', () => {
+    const result = mergePromptDefinitions(
+      { ...base, fm: { ...base.fm, thinkingLevel: 'low' } },
+      { ...base, fm: { ...base.fm, thinkingLevel: undefined } },
+    )
+    expect(result.fm.thinkingLevel).toBe('low')
+  })
+
+  it('returns undefined thinkingLevel when neither has it', () => {
+    const result = mergePromptDefinitions(
+      { ...base, fm: { ...base.fm, thinkingLevel: undefined } },
+      { ...base, fm: { ...base.fm, thinkingLevel: undefined } },
+    )
+    expect(result.fm.thinkingLevel).toBeUndefined()
   })
 
   it('uses append reviewOnEnd when defined', () => {
