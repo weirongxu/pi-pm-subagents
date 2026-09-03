@@ -19,7 +19,7 @@ import { FOLLOW_SYMBOL } from './consts.ts'
 
 const FLEET_KEY = 'pi-modes:fleet'
 const TICK_MS = 200
-const MAX_ROWS = 5
+const MAX_ROWS = 8
 
 function formatTokens(count: number): string {
   if (count < 1000) return count.toString()
@@ -30,25 +30,13 @@ function formatTokens(count: number): string {
 }
 
 function visibleWindow(
-  itemCount: number,
-  selectedItemIndex: number,
-): { start: number; end: number; hiddenAbove: number; hiddenBelow: number } {
-  const visible = Math.min(MAX_ROWS, itemCount)
-  const start = Math.max(0, selectedItemIndex - visible + 1)
-  const end = Math.min(start + visible, itemCount)
-  return { start, end, hiddenAbove: start, hiddenBelow: itemCount - end }
-}
-
-function selectedItemAnchor(
-  itemIndexes: number[],
   rowCount: number,
-  selectedRow: number,
-): number {
-  if (selectedRow < 0 || selectedRow >= rowCount) return -1
-  for (const [index, itemRow] of itemIndexes.entries()) {
-    if (itemRow > selectedRow) return index - 1
-  }
-  return itemIndexes.length - 1
+  selectedRowIndex: number,
+): { start: number; end: number; hiddenAbove: number; hiddenBelow: number } {
+  const visible = Math.min(MAX_ROWS, rowCount)
+  const start = Math.max(0, selectedRowIndex - visible + 1)
+  const end = Math.min(start + visible, rowCount)
+  return { start, end, hiddenAbove: start, hiddenBelow: rowCount - end }
 }
 
 export type FleetEntryStatus = 'running' | 'done' | 'failed' | 'killed'
@@ -279,15 +267,13 @@ export class FleetList {
       truncateToWidth(mainLine, width),
     ]
 
-    const itemIndexes: number[] = []
-    for (const [index, row] of rows.entries()) {
-      if (row.kind === 'item') itemIndexes.push(index)
-    }
-
+    const selRow = sel >= 1 && sel <= rows.length ? rows[sel - 1] : undefined
+    const selectedParentId =
+      selRow?.kind === 'previous' ? selRow.item.id : undefined
     const selectedRow = sel - 1
     const { start, end, hiddenAbove, hiddenBelow } = visibleWindow(
-      itemIndexes.length,
-      selectedItemAnchor(itemIndexes, rows.length, selectedRow),
+      rows.length,
+      selectedRow,
     )
 
     if (hiddenAbove > 0) {
@@ -296,17 +282,13 @@ export class FleetList {
       )
     }
 
-    const startRowIndex = itemIndexes[start] ?? rows.length
-    const endRowIndex = itemIndexes[end] ?? rows.length
-
-    for (const [offset, row] of rows
-      .slice(startRowIndex, endRowIndex)
-      .entries()) {
-      const rowNumber = startRowIndex + offset + 1
+    for (const [offset, row] of rows.slice(start, end).entries()) {
+      const rowNumber = start + offset + 1
+      const hlBullet = rowNumber === sel || row.item.id === selectedParentId
       const prefix =
         row.kind === 'previous'
-          ? `    ${theme.fg('dim', '↳')} `
-          : ` ${this.bullet(rowNumber, sel, theme)} ${theme.fg('muted', `#${row.item.id} [${row.item.role}]`)} `
+          ? `    ${theme.fg('muted', '↳')} `
+          : ` ${this.bullet(hlBullet, theme)} ${theme.fg('muted', `#${row.item.id} [${row.item.role}]`)} `
       const line = this.renderItemRow(
         row.entry,
         prefix,
@@ -325,8 +307,8 @@ export class FleetList {
     return lines
   }
 
-  private bullet(index: number, sel: number, theme: Theme): string {
-    return index === sel ? theme.fg('accent', '●') : theme.fg('dim', '◯')
+  private bullet(highlight: boolean, theme: Theme): string {
+    return highlight ? theme.fg('accent', '●') : theme.fg('dim', '◯')
   }
 
   private renderItemRow(

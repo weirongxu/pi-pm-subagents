@@ -1495,7 +1495,7 @@ describe('FleetList renderBar uses sorted roster order', () => {
     expect(lines2.some((line) => line.match(/↓\s+\d+\s+more/))).toBe(false)
   })
 
-  it('anchors scroll window at parent item when a previous row is selected', () => {
+  it('scrolls window so the selected row is the last visible row', () => {
     const now = Date.now()
     const entries: FleetEntry[] = [
       done(1, [
@@ -1529,11 +1529,13 @@ describe('FleetList renderBar uses sorted roster order', () => {
     const highlighted = lines.filter((line) => line.includes('[BG:selectedBg]'))
     expect(highlighted).toHaveLength(1)
     expect(highlighted[0]).toContain('previous 2')
-    expect(lines.some((line) => line.match(/↑\s+1\s+more/))).toBe(true)
+    expect(lines.some((line) => line.match(/↑\s+3\s+more/))).toBe(true)
+    expect(lines.some((line) => line.match(/↓\s+\d+\s+more/))).toBe(false)
     expect(lines.some((line) => line.includes('task 6'))).toBe(false)
+    expect(lines.some((line) => line.includes('task 1'))).toBe(true)
   })
 
-  it('anchors scroll window at parent item when a mid-list previous row is selected', () => {
+  it('counts hidden rows including previous rows when scrolling a mid-list selection', () => {
     const now = Date.now()
     const entries: FleetEntry[] = [
       done(2, [
@@ -1568,14 +1570,12 @@ describe('FleetList renderBar uses sorted roster order', () => {
     const highlighted = lines.filter((line) => line.includes('[BG:selectedBg]'))
     expect(highlighted).toHaveLength(1)
     expect(highlighted[0]).toContain('previous 2')
-    const parentIndex = lines.findIndex((line) => line.includes('task 2'))
-    const prevIndex = lines.findIndex((line) => line.includes('previous 2'))
-    expect(parentIndex).toBeGreaterThan(-1)
-    expect(prevIndex).toBe(parentIndex + 2)
-    expect(lines.some((line) => line.match(/↑\s+1\s+more/))).toBe(true)
+    expect(lines.some((line) => line.match(/↑\s+3\s+more/))).toBe(true)
     expect(lines.some((line) => line.match(/↓\s+1\s+more/))).toBe(true)
     expect(lines.some((line) => line.includes('task 7'))).toBe(false)
     expect(lines.some((line) => line.includes('task 1'))).toBe(false)
+    expect(lines.some((line) => line.includes('task 2'))).toBe(true)
+    expect(lines.some((line) => line.includes('previous 1'))).toBe(true)
   })
 })
 
