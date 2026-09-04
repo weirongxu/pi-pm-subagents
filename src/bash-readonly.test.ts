@@ -6,7 +6,7 @@ import {
   checkBashSafety,
   isBashReadonlyCommand,
 } from './bash-readonly.js'
-import { calculateModeTools } from './mode-switcher.js'
+import { calculateModeTools } from './pm-mode.js'
 import { createState } from './utils/state.js'
 
 function fakePi(initialActive: string[]): ExtensionAPI & {

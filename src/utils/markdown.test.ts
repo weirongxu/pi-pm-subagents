@@ -54,7 +54,7 @@ describe('loadMarkdown', () => {
   let tempDir: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-markdown-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'pi-pm-subagents-test-markdown-'))
   })
 
   afterEach(async () => {

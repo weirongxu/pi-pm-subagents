@@ -8,9 +8,9 @@ import {
   calculateModeTools,
   type ToolConfig,
   WRITE_TOOLS,
-} from './mode-switcher.js'
-import { baseToolsOf, restoreTools } from './mode-switcher.js'
-import type { ModesState } from './types.js'
+} from './pm-mode.js'
+import { baseToolsOf, restoreTools } from './pm-mode.js'
+import type { PmSubagentState } from './types.js'
 import { createState } from './utils/state.js'
 
 function fakePi(initialActive: string[]): ExtensionAPI & {
@@ -31,7 +31,7 @@ function fakePi(initialActive: string[]): ExtensionAPI & {
 describe('calculateModeTools / restoreTools diff mechanism', () => {
   it('preserves tools registered during the mode and restores bash on exit', () => {
     const pi = fakePi(['read', 'write', 'bash'])
-    const state: ModesState = createState()
+    const state: PmSubagentState = createState()
     pi.setActiveTools(calculateModeTools(pi, state))
     expect(pi.activeTools).toEqual(['read', BASH_READONLY_TOOL_NAME])
 
@@ -47,7 +47,7 @@ describe('calculateModeTools / restoreTools diff mechanism', () => {
 
   it('replays persisted modeTools idempotently and restores on exit', () => {
     const pi = fakePi(['read', BASH_READONLY_TOOL_NAME, 'grep'])
-    const state: ModesState = {
+    const state: PmSubagentState = {
       ...createState(),
       modeDiffTools: { added: [BASH_READONLY_TOOL_NAME], removed: ['bash'] },
     }
@@ -66,7 +66,7 @@ describe('calculateModeTools / restoreTools diff mechanism', () => {
 
   it('baseToolsOf includes tools registered during the mode', () => {
     const pi = fakePi(['read', BASH_READONLY_TOOL_NAME, 'newtool'])
-    const state: ModesState = {
+    const state: PmSubagentState = {
       ...createState(),
       modeDiffTools: { added: [BASH_READONLY_TOOL_NAME], removed: ['bash'] },
     }
@@ -212,7 +212,7 @@ describe('applyModeModel', () => {
     name: 'Claude Sonnet 4.5',
   } as Model<Api>
 
-  const mockState: ModesState = {
+  const mockState: PmSubagentState = {
     mode: undefined,
     modeDiffTools: undefined,
     previousModel: undefined,

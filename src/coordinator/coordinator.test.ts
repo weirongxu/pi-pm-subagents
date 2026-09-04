@@ -10,7 +10,11 @@ const repoRoot = join(__dirname, '../..')
 
 describe('coordinator mode prompt', () => {
   it('has correct removeTools in coordinator.md', async () => {
-    const coordinatorPath = join(repoRoot, 'modes-prompts', 'coordinator.md')
+    const coordinatorPath = join(
+      repoRoot,
+      'pm-subagents-prompts',
+      'coordinator.md',
+    )
     const result = await loadMarkdown(coordinatorPath)
     expect(result).toBeDefined()
     expect(result?.fm.removeTools).toEqual([

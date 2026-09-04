@@ -22,7 +22,7 @@ const SELF_DIR = fileURLToPath(new URL('../', import.meta.url))
 
 const subagentDirFor = (cwd: string, agentDir: string): string => {
   const safeCwd = cwd.replace(/^[/\\]/, '').replace(/[/\\:]/g, '-')
-  return join(agentDir, 'sessions', 'pi-modes', `--${safeCwd}--`)
+  return join(agentDir, 'sessions', 'pi-pm-subagents', `--${safeCwd}--`)
 }
 
 const MAX_SUBAGENT_OUTPUT_BYTES = 50 * 1024
@@ -145,7 +145,7 @@ export class SubagentManager {
       tools: options.tools ? [...options.tools] : undefined,
       resourceLoader: loader,
       sessionManager: SessionManager.create(options.cwd, subagentSessionDir, {
-        id: `pi-modes-subagent-${id}-${Date.now()}`,
+        id: `pi-pm-subagents-subagent-${id}-${Date.now()}`,
       }),
     })
 

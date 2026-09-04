@@ -12,7 +12,7 @@ import { Parse } from 'typebox/value'
 
 import { renderCoordinatorModeWidget } from '../coordinator/coordinator.js'
 import { customSelect } from '../custom-select.js'
-import type { ModesState } from '../types.js'
+import type { PmSubagentState } from '../types.js'
 import {
   modelOptionOf,
   parseModelRef,
@@ -24,13 +24,13 @@ import {
   MODEL_DEFAULT_LABEL,
 } from './subagent-model-constants.js'
 
-const PiModesConfigSchema = Type.Object({
+const PmSubagentsConfigSchema = Type.Object({
   subagentModel: Type.Optional(Type.String()),
   subagentModelScoped: Type.Optional(Type.Array(Type.String())),
   defaultMode: Type.Optional(Type.String()),
 })
 
-export function sanitizeConfig(record: PiModesConfig): PiModesConfig {
+export function sanitizeConfig(record: PmSubagentsConfig): PmSubagentsConfig {
   const model = record.subagentModel
   const subagentModel = model && !parseModelRef(model) ? undefined : model
 
@@ -52,51 +52,51 @@ export function sanitizeConfig(record: PiModesConfig): PiModesConfig {
   }
 }
 
-export type PiModesConfig = Static<typeof PiModesConfigSchema>
+export type PmSubagentsConfig = Static<typeof PmSubagentsConfigSchema>
 
-let piModesConfig: PiModesConfig = {}
+let pmSubagentsConfig: PmSubagentsConfig = {}
 
 function configPath(): string {
-  return join(getAgentDir(), 'pi-modes.json')
+  return join(getAgentDir(), 'pi-pm-subagents.json')
 }
 
-export async function loadPiModesConfig(): Promise<void> {
+export async function loadPmSubagentsConfig(): Promise<void> {
   try {
     const raw: unknown = JSON.parse(await readFile(configPath(), 'utf8'))
-    piModesConfig = sanitizeConfig(Parse(PiModesConfigSchema, raw))
+    pmSubagentsConfig = sanitizeConfig(Parse(PmSubagentsConfigSchema, raw))
   } catch {
-    piModesConfig = {}
+    pmSubagentsConfig = {}
   }
 }
 
-export function getPiModesConfig(): PiModesConfig {
-  return piModesConfig
+export function getPmSubagentsConfig(): PmSubagentsConfig {
+  return pmSubagentsConfig
 }
 
 export async function setSubagentModelScoped(scope: string[]): Promise<void> {
-  piModesConfig.subagentModelScoped = scope
-  await savePiModesConfig()
+  pmSubagentsConfig.subagentModelScoped = scope
+  await savePmSubagentsConfig()
 }
 
 export async function setSubagentModel(
   model: string | undefined,
 ): Promise<void> {
-  piModesConfig.subagentModel = model
-  await savePiModesConfig()
+  pmSubagentsConfig.subagentModel = model
+  await savePmSubagentsConfig()
 }
 
 export async function setDefaultMode(
   mode: 'coordinator' | undefined,
 ): Promise<void> {
-  piModesConfig.defaultMode = mode
-  await savePiModesConfig()
+  pmSubagentsConfig.defaultMode = mode
+  await savePmSubagentsConfig()
 }
 
-async function savePiModesConfig(): Promise<void> {
+async function savePmSubagentsConfig(): Promise<void> {
   await mkdir(dirname(configPath()), { recursive: true })
   await writeFile(
     configPath(),
-    `${JSON.stringify(piModesConfig, null, 2)}\n`,
+    `${JSON.stringify(pmSubagentsConfig, null, 2)}\n`,
     'utf8',
   )
 }
@@ -113,8 +113,11 @@ async function pickModel(ctx: ExtensionContext): Promise<string | undefined> {
   })
 }
 
-export function setupModesConfig(pi: ExtensionAPI, state: ModesState): void {
-  pi.registerCommand('modes-subagent-model', {
+export function setupPmSubagentsConfig(
+  pi: ExtensionAPI,
+  state: PmSubagentState,
+): void {
+  pi.registerCommand('pm-subagent-model', {
     description: 'Configure the subagent model',
     handler: async (_args, ctx) => {
       const model = await pickModel(ctx)
@@ -132,18 +135,18 @@ export function setupModesConfig(pi: ExtensionAPI, state: ModesState): void {
       await setSubagentModel(isDefaultModel ? undefined : model)
       state.sessionSubagentModel = isDefaultModel ? undefined : model
 
-      const current = piModesConfig.subagentModel ?? MODEL_DEFAULT
+      const current = pmSubagentsConfig.subagentModel ?? MODEL_DEFAULT
       ctx.ui.notify(`Subagent model: ${current}`, 'info')
       if (state.mode === 'coordinator') renderCoordinatorModeWidget(ctx, state)
     },
   })
 
-  pi.registerCommand('modes-subagent-scoped', {
+  pi.registerCommand('pm-subagent-scoped', {
     description: 'Manage subagent model scope (cycle pool)',
     handler: async (_args, ctx) => {
-      const currentDefault = piModesConfig.subagentModel
+      const currentDefault = pmSubagentsConfig.subagentModel
       const currentScope =
-        piModesConfig.subagentModelScoped ??
+        pmSubagentsConfig.subagentModelScoped ??
         (currentDefault ? [currentDefault] : [])
       const result = await scopedModelsEditor(ctx, {
         items: [
@@ -164,7 +167,7 @@ export function setupModesConfig(pi: ExtensionAPI, state: ModesState): void {
   })
 
   const runPmDefaultCommand = async (_args: string, ctx: ExtensionContext) => {
-    const enabled = piModesConfig.defaultMode !== 'coordinator'
+    const enabled = pmSubagentsConfig.defaultMode !== 'coordinator'
     await setDefaultMode(enabled ? 'coordinator' : undefined)
     ctx.ui.notify(`pm mode on startup: ${enabled ? 'on' : 'off'}`, 'info')
   }

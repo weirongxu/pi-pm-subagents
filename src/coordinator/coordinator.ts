@@ -3,9 +3,9 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
 
-import { applyModeFor, assertModeIdle, exitModeFor } from '../mode-switcher.js'
-import { getPiModesConfig } from '../models-config/models-config.js'
+import { getPmSubagentsConfig } from '../models-config/models-config.js'
 import { formatSubagentModelLabel } from '../models-config/subagent-model-utils.js'
+import { applyModeFor, assertModeIdle, exitModeFor } from '../pm-mode.js'
 import { loadRoles } from '../prompts/roles.js'
 import { ActivityReporter } from '../subagent/activity.js'
 import { MessageBatcher } from '../subagent/batcher.js'
@@ -18,14 +18,14 @@ import {
 } from '../subagent/manager.js'
 import { registerSubagentTools, SUBAGENT_TOOLS } from '../subagent/tools.js'
 import { openSubagentViewer } from '../subagent/viewer.js'
-import type { ModesState } from '../types.js'
+import type { PmSubagentState } from '../types.js'
 import {
   mergePromptDefinitions,
   type PromptDefinition,
 } from '../utils/markdown.js'
 import { notifyAgentMessage } from '../utils/messages.ts'
 
-const COORDINATOR_MODE_WIDGET_KEY = 'pi-modes:coordinator-mode'
+const COORDINATOR_MODE_WIDGET_KEY = 'pi-pm-subagents:coordinator-mode'
 
 /** job event for pi-notify */
 const JOB_START_EVENT = 'pi-notify:job:start'
@@ -52,7 +52,7 @@ function requiredRuntime(): CoordinatorRuntime {
 
 export async function enterCoordinatorMode(
   pi: ExtensionAPI,
-  state: ModesState,
+  state: PmSubagentState,
   prompt: string | undefined,
   ctx: ExtensionContext,
   def: PromptDefinition,
@@ -60,14 +60,14 @@ export async function enterCoordinatorMode(
   assertModeIdle(state, 'coordinator')
   state.mode = 'coordinator'
   await applyCoordinatorMode(pi, state, ctx, def)
-  if (prompt) pi.sendUserMessage(prompt, { deliverAs: 'followUp' })
+  if (prompt) notifyAgentMessage(pi, prompt)
 }
 
 export function renderCoordinatorModeWidget(
   ctx: ExtensionContext,
-  state?: ModesState,
+  state?: PmSubagentState,
 ): void {
-  const config = getPiModesConfig()
+  const config = getPmSubagentsConfig()
   const scope = config.subagentModelScoped ?? []
   const currentRef = state?.sessionSubagentModel ?? config.subagentModel
   const label = formatSubagentModelLabel(scope, currentRef)
@@ -81,7 +81,7 @@ export function renderCoordinatorModeWidget(
 
 export async function applyCoordinatorMode(
   pi: ExtensionAPI,
-  state: ModesState,
+  state: PmSubagentState,
   ctx: ExtensionContext,
   def: PromptDefinition,
 ): Promise<void> {
@@ -105,7 +105,7 @@ export async function applyCoordinatorMode(
 
 export async function exitCoordinatorMode(
   pi: ExtensionAPI,
-  state: ModesState,
+  state: PmSubagentState,
   ctx: ExtensionContext,
 ): Promise<void> {
   const { manager, fleet, batcher, activityReporter } = requiredRuntime()
@@ -120,7 +120,7 @@ export async function exitCoordinatorMode(
 
 export async function setupCoordinator(
   pi: ExtensionAPI,
-  state: ModesState,
+  state: PmSubagentState,
   {
     demoEnabled,
     coordinatorDefinition,
@@ -137,12 +137,12 @@ export async function setupCoordinator(
     onStatusChange: () => runtime?.fleet.update(),
     onEachStart: (subagent) => {
       pi.events.emit(JOB_START_EVENT, {
-        id: `pi-modes:session:${subagent.id}`,
+        id: `pi-pm-subagents:session:${subagent.id}`,
       })
     },
     onEachEnd: (subagent) => {
       pi.events.emit(JOB_END_EVENT, {
-        id: `pi-modes:session:${subagent.id}`,
+        id: `pi-pm-subagents:session:${subagent.id}`,
       })
     },
   })

@@ -126,6 +126,6 @@ export function notifyAgentMessage(pi: ExtensionAPI, content: string) {
       content,
       display: true,
     },
-    { deliverAs: 'steer' },
+    { deliverAs: 'steer', triggerTurn: true },
   )
 }

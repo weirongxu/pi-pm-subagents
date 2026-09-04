@@ -17,7 +17,7 @@ import { formatElapsed, rightAlign, strInline } from '../utils/format.js'
 import { truncateText } from '../utils/truncate.js'
 import { FOLLOW_SYMBOL } from './consts.ts'
 
-const FLEET_KEY = 'pi-modes:fleet'
+const FLEET_KEY = 'pi-pm-subagents:fleet'
 const TICK_MS = 200
 const MAX_ROWS = 8
 

@@ -1,6 +1,6 @@
-# pi-modes
+# pi-pm-subagents
 
-pi-modes extension for [pi](https://pi.dev):
+pi-pm-subagents extension for [pi](https://pi.dev):
 
 a **coordinator** mode that drives subagents.
 
@@ -18,21 +18,21 @@ Let the agent delegate some subagents to work and supervise them.
 
 ### `subagentModel`
 
-Single-element model for subagents. Stored in `pi-modes.json`.
+Single-element model for subagents. Stored in `pi-pm-subagents.json`.
 
-- **`/modes-subagent-model`** — Select a model for subagents
+- **`/pm-subagent-model`** — Select a model for subagents
 - When set to `DEFAULT`, pi uses its built-in agent default model
 
 ### `subagentModelScoped`
 
-Cycle pool of models. Stored in `pi-modes.json`. Can include `DEFAULT` marker.
+Cycle pool of models. Stored in `pi-pm-subagents.json`. Can include `DEFAULT` marker.
 
-- **`/modes-subagent-scoped`** — Manage the scope (multi-select UI with Space to toggle, Enter to save)
-**`DEFAULT` marker:** When `DEFAULT` is selected, pi uses its built-in agent default model instead of a specific model reference.
+- **`/pm-subagent-scoped`** — Manage the scope (multi-select UI with Space to toggle, Enter to save)
+  **`DEFAULT` marker:** When `DEFAULT` is selected, pi uses its built-in agent default model instead of a specific model reference.
 
 ### `defaultMode`
 
-When enabled, sessions that have no recorded mode yet (no last modes entry) automatically start in pm (coordinator) mode. Stored in `pi-modes.json`. Only `coordinator` is supported; any other value is ignored.
+When enabled, sessions that have no recorded mode yet (no last pm-subagents state entry) automatically start in pm (coordinator) mode. Stored in `pi-pm-subagents.json`. Only `coordinator` is supported; any other value is ignored.
 
 - **`/pm-default`** / **`/coordinator-default`** — Toggle pm (coordinator) mode enabled by default on startup
 
@@ -49,14 +49,14 @@ Sessions that already have a mode record keep it; an explicit exit within a sess
 
 ## Customizing prompts
 
-The coordinator prompt is a Markdown file under `<agentDir>/modes-prompts/` (`coordinator.md`).
+The coordinator prompt is a Markdown file under `<agentDir>/pm-subagents-prompts/` (`coordinator.md`).
 
-To add extra rules without replacing the whole prompt, drop an append file under `<agentDir>/modes-prompts/` (`coordinator-append.md`).
+To add extra rules without replacing the whole prompt, drop an append file under `<agentDir>/pm-subagents-prompts/` (`coordinator-append.md`).
 
 ## Install
 
 ```bash
-pi install git:github.com/raidou/pi-modes     # adjust to your repo
+pi install git:github.com/raidou/pi-pm-subagents     # adjust to your repo
 ```
 
 ## Demo commands

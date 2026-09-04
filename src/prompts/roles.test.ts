@@ -53,7 +53,9 @@ describe('roles', () => {
       })
 
       it('returns built-ins when no directories exist', async () => {
-        const tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-empty-'))
+        const tempDir = await mkdtemp(
+          join(tmpdir(), 'pi-pm-subagents-test-empty-'),
+        )
         try {
           await loadRoles(tempDir)
           expect(listRoles()).toEqual(['worker', 'planner'])
@@ -70,7 +72,7 @@ describe('roles', () => {
       let agentsDir: string
 
       beforeEach(async () => {
-        tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-project-'))
+        tempDir = await mkdtemp(join(tmpdir(), 'pi-pm-subagents-test-project-'))
         agentsDir = join(tempDir, '.pi', 'agents')
         await mkdir(agentsDir, { recursive: true })
       })
@@ -237,9 +239,11 @@ You have both tools.`,
       let globalAgentsDir: string
 
       beforeEach(async () => {
-        tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-global-cwd-'))
+        tempDir = await mkdtemp(
+          join(tmpdir(), 'pi-pm-subagents-test-global-cwd-'),
+        )
         globalTempDir = await mkdtemp(
-          join(tmpdir(), 'pi-modes-test-global-dir-'),
+          join(tmpdir(), 'pi-pm-subagents-test-global-dir-'),
         )
         globalAgentsDir = join(globalTempDir, 'agents')
         await mkdir(globalAgentsDir, { recursive: true })
@@ -299,9 +303,11 @@ Second global content.`,
       let globalAgentsDir: string
 
       beforeEach(async () => {
-        tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-precedence-cwd-'))
+        tempDir = await mkdtemp(
+          join(tmpdir(), 'pi-pm-subagents-test-precedence-cwd-'),
+        )
         globalTempDir = await mkdtemp(
-          join(tmpdir(), 'pi-modes-test-precedence-global-'),
+          join(tmpdir(), 'pi-pm-subagents-test-precedence-global-'),
         )
         projectAgentsDir = join(tempDir, '.pi', 'agents')
         globalAgentsDir = join(globalTempDir, 'agents')
@@ -399,7 +405,9 @@ Only global content.`,
     })
 
     it('returns the correct definition for a project role', async () => {
-      const tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-resolve-'))
+      const tempDir = await mkdtemp(
+        join(tmpdir(), 'pi-pm-subagents-test-resolve-'),
+      )
       try {
         const agentsDir = join(tempDir, '.pi', 'agents')
         await mkdir(agentsDir, { recursive: true })
@@ -448,7 +456,9 @@ Custom prompt.`,
     })
 
     it('lists project roles after built-ins', async () => {
-      const tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-list-'))
+      const tempDir = await mkdtemp(
+        join(tmpdir(), 'pi-pm-subagents-test-list-'),
+      )
       try {
         const agentsDir = join(tempDir, '.pi', 'agents')
         await mkdir(agentsDir, { recursive: true })
@@ -469,7 +479,7 @@ Custom prompt.`,
 
     it('includes global roles', async () => {
       const globalTempDir = await mkdtemp(
-        join(tmpdir(), 'pi-modes-test-list-global-'),
+        join(tmpdir(), 'pi-pm-subagents-test-list-global-'),
       )
       const globalAgentsDir = join(globalTempDir, 'agents')
       await mkdir(globalAgentsDir, { recursive: true })
@@ -494,10 +504,10 @@ Custom prompt.`,
 
     it('includes project and global roles', async () => {
       const tempDir = await mkdtemp(
-        join(tmpdir(), 'pi-modes-test-list-override-cwd-'),
+        join(tmpdir(), 'pi-pm-subagents-test-list-override-cwd-'),
       )
       const globalTempDir = await mkdtemp(
-        join(tmpdir(), 'pi-modes-test-list-override-global-'),
+        join(tmpdir(), 'pi-pm-subagents-test-list-override-global-'),
       )
       const globalAgentsDir = join(globalTempDir, 'agents')
       await mkdir(globalAgentsDir, { recursive: true })
@@ -550,7 +560,9 @@ Custom prompt.`,
     })
 
     it('includes role descriptions and tools when available', async () => {
-      const tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-desc-tools-'))
+      const tempDir = await mkdtemp(
+        join(tmpdir(), 'pi-pm-subagents-test-desc-tools-'),
+      )
       try {
         const agentsDir = join(tempDir, '.pi', 'agents')
         await mkdir(agentsDir, { recursive: true })
@@ -576,7 +588,9 @@ Custom prompt.`,
     })
 
     it('includes tools-only when no description', async () => {
-      const tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-tools-only-'))
+      const tempDir = await mkdtemp(
+        join(tmpdir(), 'pi-pm-subagents-test-tools-only-'),
+      )
       try {
         const agentsDir = join(tempDir, '.pi', 'agents')
         await mkdir(agentsDir, { recursive: true })
@@ -599,7 +613,9 @@ Tool role prompt.`,
     })
 
     it('combines built-in and custom roles', async () => {
-      const tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-combined-'))
+      const tempDir = await mkdtemp(
+        join(tmpdir(), 'pi-pm-subagents-test-combined-'),
+      )
       try {
         const agentsDir = join(tempDir, '.pi', 'agents')
         await mkdir(agentsDir, { recursive: true })

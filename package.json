@@ -1,9 +1,15 @@
 {
-  "name": "pi-modes",
+  "name": "@raidou/pi-pm-subagents",
   "version": "0.1.0",
   "description": "Coordinator mode for pi: a read-only coordinator agent that drives isolated subagents, including a planner role.",
   "keywords": [
-    "pi-package"
+    "pi",
+    "pi-package",
+    "pi-extension",
+    "pi-coding-agent",
+    "subagents",
+    "pm",
+    "coordinator"
   ],
   "license": "MIT",
   "type": "module",

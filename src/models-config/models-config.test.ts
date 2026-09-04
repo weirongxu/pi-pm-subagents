@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import type { PiModesConfig } from './models-config.js'
+import type { PmSubagentsConfig } from './models-config.js'
 import { sanitizeConfig } from './models-config.js'
 import { MODEL_DEFAULT } from './subagent-model-constants.js'
 
-describe('PiModesConfig schema', () => {
+describe('PmSubagentsConfig schema', () => {
   it('has subagentModelScope field', () => {
-    const config: PiModesConfig = {
+    const config: PmSubagentsConfig = {
       subagentModelScoped: [MODEL_DEFAULT, 'provider/model'],
     }
     expect(config.subagentModelScoped).toBeDefined()
@@ -14,7 +14,7 @@ describe('PiModesConfig schema', () => {
   })
 
   it('has subagentModel field', () => {
-    const config: PiModesConfig = {
+    const config: PmSubagentsConfig = {
       subagentModel: 'anthropic/claude-sonnet-4-5',
     }
     expect(config.subagentModel).toBe('anthropic/claude-sonnet-4-5')
@@ -63,7 +63,7 @@ describe('sanitizeConfig', () => {
   })
 
   it('does not mutate the input record', () => {
-    const record: PiModesConfig = {
+    const record: PmSubagentsConfig = {
       subagentModel: 'no-slash',
       defaultMode: 'bogus',
     }

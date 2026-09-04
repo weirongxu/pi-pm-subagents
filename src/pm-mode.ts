@@ -5,7 +5,7 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 
 import { BASH_READONLY_TOOL_NAME } from './bash-readonly.js'
-import type { ModesState, ModeType } from './types.js'
+import type { PmMode, PmSubagentState } from './types.js'
 import type { PromptDefinition } from './utils/markdown.js'
 import { modelRefOf, resolveModelRef } from './utils/model-ref.js'
 import { persist } from './utils/state.js'
@@ -16,7 +16,7 @@ export type { ToolConfig } from './utils/tools.js'
 /** Restore the model captured before entering a read-only mode. */
 export async function restoreModel(
   pi: ExtensionAPI,
-  state: ModesState,
+  state: PmSubagentState,
   ctx: ExtensionContext,
 ): Promise<void> {
   const previousModel = state.previousModel
@@ -33,7 +33,10 @@ export async function restoreModel(
   if (model) await pi.setModel(model)
 }
 
-export function baseToolsOf(pi: ExtensionAPI, state: ModesState): string[] {
+export function baseToolsOf(
+  pi: ExtensionAPI,
+  state: PmSubagentState,
+): string[] {
   const diff = state.modeDiffTools
   if (!diff) return pi.getActiveTools()
   const current = pi.getActiveTools()
@@ -42,12 +45,12 @@ export function baseToolsOf(pi: ExtensionAPI, state: ModesState): string[] {
   return merged.filter((name) => !added.has(name))
 }
 
-export function restoreTools(pi: ExtensionAPI, state: ModesState): void {
+export function restoreTools(pi: ExtensionAPI, state: PmSubagentState): void {
   pi.setActiveTools(baseToolsOf(pi, state))
   state.modeDiffTools = undefined
 }
 
-export function assertModeIdle(state: ModesState, entering: ModeType): void {
+export function assertModeIdle(state: PmSubagentState, entering: PmMode): void {
   if (state.mode !== undefined) {
     throw new Error(
       `Cannot enter ${entering} mode while in ${state.mode} mode — exit the current mode first.`,
@@ -63,7 +66,7 @@ const BASH_REPLACEMENT: ReadonlyMap<string, string> = new Map([
 
 export function calculateModeTools(
   pi: ExtensionAPI,
-  state: ModesState,
+  state: PmSubagentState,
   config: ToolConfig = {},
 ): string[] {
   const base = pi.getActiveTools()
@@ -82,9 +85,9 @@ export function calculateModeTools(
 
 export async function exitModeFor(
   pi: ExtensionAPI,
-  state: ModesState,
+  state: PmSubagentState,
   ctx: ExtensionContext,
-  name: ModeType,
+  name: PmMode,
 ): Promise<void> {
   restoreTools(pi, state)
   await restoreModel(pi, state, ctx)
@@ -94,7 +97,7 @@ export async function exitModeFor(
 
 export async function applyModeModel(
   pi: ExtensionAPI,
-  state: ModesState,
+  state: PmSubagentState,
   ctx: ExtensionContext,
   modelRef: string | undefined,
 ): Promise<void> {
@@ -127,13 +130,13 @@ export interface ModeSetupOptions {
 
 export async function applyModeFor(
   pi: ExtensionAPI,
-  state: ModesState,
-  modeType: ModeType,
+  state: PmSubagentState,
+  pmMode: PmMode,
   ctx: ExtensionContext,
   options: ModeSetupOptions,
 ): Promise<void> {
   pi.setActiveTools(calculateModeTools(pi, state, options.promptDefinition.fm))
   await applyModeModel(pi, state, ctx, options.promptDefinition.fm.model)
-  ctx.ui.setStatus(modeType, ctx.ui.theme.fg(options.color, modeType))
+  ctx.ui.setStatus(pmMode, ctx.ui.theme.fg(options.color, pmMode))
   persist(pi, state)
 }

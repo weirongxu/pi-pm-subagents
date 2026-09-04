@@ -12,10 +12,10 @@ import {
 export async function readModePrompt(name: string): Promise<PromptDefinition> {
   const here = dirname(fileURLToPath(import.meta.url))
   const agentDir = getAgentDir()
-  const modesPromptsDir = join(agentDir, 'modes-prompts')
+  const modesPromptsDir = join(agentDir, 'pm-subagents-prompts')
 
   const overridePath = join(modesPromptsDir, `${name}.md`)
-  const bundledPath = join(here, '../..', 'modes-prompts', `${name}.md`)
+  const bundledPath = join(here, '../..', 'pm-subagents-prompts', `${name}.md`)
   const appendPath = join(modesPromptsDir, `${name}-append.md`)
 
   const base =

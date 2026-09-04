@@ -6,10 +6,10 @@ import {
 import { orderBy } from 'lodash-es'
 import { Type } from 'typebox'
 
-import { baseToolsOf } from '../mode-switcher.js'
 import { resolveSubagentModelForSpawn } from '../models-config/subagent-model-utils.js'
+import { baseToolsOf } from '../pm-mode.js'
 import { resolveRole, rolesDescription } from '../prompts/roles.js'
-import type { ModesState } from '../types.js'
+import type { PmSubagentState } from '../types.js'
 import { askHowToProceed } from '../ui/review-pager.js'
 import { registerOptionalTools } from '../utils/tools.js'
 import { composeTools } from '../utils/tools.js'
@@ -52,7 +52,7 @@ const LIST_COOL_DOWN_MS = 1 * 60 * 1000
 
 export function registerSubagentTools(
   pi: ExtensionAPI,
-  state: ModesState,
+  state: PmSubagentState,
   manager: SubagentManager,
   fleet: FleetList,
   batcher: MessageBatcher,

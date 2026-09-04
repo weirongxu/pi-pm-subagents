@@ -15,8 +15,8 @@ describe('mode', () => {
 
   beforeEach(async () => {
     originalAgentDir = process.env[MOCK_AGENT_DIR_VAR]
-    tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-mode-'))
-    modesDir = join(tempDir, 'modes-prompts')
+    tempDir = await mkdtemp(join(tmpdir(), 'pi-pm-subagents-test-mode-'))
+    modesDir = join(tempDir, 'pm-subagents-prompts')
     await mkdir(modesDir, { recursive: true })
     process.env[MOCK_AGENT_DIR_VAR] = tempDir
   })

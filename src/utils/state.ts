@@ -3,15 +3,15 @@ import type {
   SessionEntry,
 } from '@earendil-works/pi-coding-agent'
 
-import type { ModesState, ModeType } from '../types.js'
+import type { PmMode, PmSubagentState } from '../types.js'
 
-export const PLUGIN_KEY = 'modes'
+export const PLUGIN_KEY = 'pm-subagents'
 
-export function createState(): ModesState {
+export function createState(): PmSubagentState {
   return { mode: undefined }
 }
 
-export function persist(pi: ExtensionAPI, state: ModesState): void {
+export function persist(pi: ExtensionAPI, state: PmSubagentState): void {
   pi.appendEntry(PLUGIN_KEY, {
     mode: state.mode,
     modeDiffTools: state.modeDiffTools,
@@ -20,15 +20,15 @@ export function persist(pi: ExtensionAPI, state: ModesState): void {
   })
 }
 
-export function getLastModesState(
+export function getLastPmSubagentState(
   entries: readonly SessionEntry[],
-): Partial<ModesState> | undefined {
+): Partial<PmSubagentState> | undefined {
   for (let i = entries.length - 1; i >= 0; i--) {
     const entry = entries[i]
     if (!entry || entry.type !== 'custom' || entry.customType !== PLUGIN_KEY)
       continue
     const data = entry.data as
-      (Partial<ModesState> & { mode?: string }) | undefined
+      (Partial<PmSubagentState> & { mode?: string }) | undefined
     if (!data) return undefined
     return {
       mode: sanitizeMode(data.mode),
@@ -40,6 +40,6 @@ export function getLastModesState(
   return undefined
 }
 
-function sanitizeMode(mode: string | undefined): ModeType | undefined {
+function sanitizeMode(mode: string | undefined): PmMode | undefined {
   return mode === 'coordinator' ? 'coordinator' : undefined
 }

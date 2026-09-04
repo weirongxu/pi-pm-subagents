@@ -7,20 +7,22 @@ import {
   setupCoordinator,
 } from './coordinator/coordinator.js'
 import {
-  getPiModesConfig,
-  loadPiModesConfig,
-  setupModesConfig,
+  getPmSubagentsConfig,
+  loadPmSubagentsConfig,
+  setupPmSubagentsConfig,
 } from './models-config/models-config.js'
 import { setupSubagentModelCycle } from './models-config/subagent-model-cycle.js'
 import { readModePrompt } from './prompts/mode.js'
-import type { ModesState } from './types.js'
-import { createState, getLastModesState } from './utils/state.js'
+import type { PmSubagentState } from './types.js'
+import { createState, getLastPmSubagentState } from './utils/state.js'
 
-let pendingModesState: Partial<ModesState> | undefined
+let pendingPmSubagentState: Partial<PmSubagentState> | undefined
 
-export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
+export default async function pmSubagentsExtension(
+  pi: ExtensionAPI,
+): Promise<void> {
   const state = createState()
-  await loadPiModesConfig()
+  await loadPmSubagentsConfig()
 
   const coordinatorDefinition = await readModePrompt('coordinator')
 
@@ -31,23 +33,27 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
     demoEnabled,
     coordinatorDefinition,
   })
-  setupModesConfig(pi, state)
+  setupPmSubagentsConfig(pi, state)
   setupSubagentModelCycle(pi, state)
 
   pi.on('session_before_switch', (_event, ctx) => {
-    pendingModesState = getLastModesState(ctx.sessionManager.getEntries())
+    pendingPmSubagentState = getLastPmSubagentState(
+      ctx.sessionManager.getEntries(),
+    )
   })
 
   pi.on('session_before_fork', (_event, ctx) => {
-    pendingModesState = getLastModesState(ctx.sessionManager.getEntries())
+    pendingPmSubagentState = getLastPmSubagentState(
+      ctx.sessionManager.getEntries(),
+    )
   })
 
   pi.on('session_start', async (_event, ctx) => {
-    let data = getLastModesState(ctx.sessionManager.getEntries())
+    let data = getLastPmSubagentState(ctx.sessionManager.getEntries())
 
-    if (!data && pendingModesState) {
-      data = pendingModesState
-      pendingModesState = undefined
+    if (!data && pendingPmSubagentState) {
+      data = pendingPmSubagentState
+      pendingPmSubagentState = undefined
     }
 
     if (data) {
@@ -63,7 +69,7 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
       return
     }
 
-    if (getPiModesConfig().defaultMode === 'coordinator') {
+    if (getPmSubagentsConfig().defaultMode === 'coordinator') {
       await enterCoordinatorMode(
         pi,
         state,

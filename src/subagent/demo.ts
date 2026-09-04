@@ -553,7 +553,7 @@ All files               |   61.98 |    33.33 |      75 |   61.38`,
       `npm ERR! code ERESOLVE
 npm ERR! ERESOLVE unable to resolve dependency tree
 npm ERR!
-npm ERR! While resolving: pi-modes@1.0.0
+npm ERR! While resolving: pi-pm-subagents@1.0.0
 npm ERR! Found: react@19.0.0
 npm ERR! node_modules/react
 npm ERR!   react@"^19.0.0" from the root project
