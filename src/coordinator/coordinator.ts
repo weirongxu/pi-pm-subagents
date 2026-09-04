@@ -188,7 +188,7 @@ export async function setupCoordinator(
       return
     }
     await enterCoordinatorMode(pi, state, undefined, ctx, coordinatorDefinition)
-    if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
+    if (request) notifyAgentMessage(pi, request)
   }
 
   pi.registerCommand('coordinator', {
@@ -220,12 +220,12 @@ export async function setupCoordinator(
         request = (await ctx.ui.editor('Enter the request to plan:', '')) ?? ''
       }
       if (!request.trim()) return
-      pi.sendUserMessage(
+      notifyAgentMessage(
+        pi,
         [
           `<planRequest>${request}</planRequest>`,
           "Use role 'planner' to create a plan.",
         ].join('\n'),
-        { deliverAs: 'followUp' },
       )
     },
   })
