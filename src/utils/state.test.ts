@@ -69,7 +69,7 @@ describe('getLastModesState', () => {
         data: {
           mode: 'coordinator',
           planMarkdown: 'plan2',
-          previousActiveTools: ['tool1', 'tool2'],
+          modeTools: { added: ['tool1'], removed: ['tool2'] },
         },
       },
     ]
@@ -77,7 +77,7 @@ describe('getLastModesState', () => {
     expect(result).toEqual({
       mode: 'coordinator',
       planMarkdown: 'plan2',
-      previousActiveTools: ['tool1', 'tool2'],
+      modeTools: { added: ['tool1'], removed: ['tool2'] },
     })
   })
 })

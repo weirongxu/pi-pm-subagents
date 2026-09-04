@@ -15,7 +15,7 @@ export function persist(pi: ExtensionAPI, state: ModesState): void {
   pi.appendEntry(STATE_KEY, {
     mode: state.mode,
     planMarkdown: state.planMarkdown,
-    previousActiveTools: state.previousActiveTools,
+    modeDiffTools: state.modeDiffTools,
     previousModel: state.previousModel,
     sessionSubagentModel: state.sessionSubagentModel,
   })
@@ -31,9 +31,4 @@ export function getLastModesState(
     return entry.data as Partial<ModesState> | undefined
   }
   return undefined
-}
-
-export function restoreTools(pi: ExtensionAPI, state: ModesState): void {
-  if (state.previousActiveTools) pi.setActiveTools(state.previousActiveTools)
-  state.previousActiveTools = undefined
 }

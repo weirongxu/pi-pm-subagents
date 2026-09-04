@@ -1,19 +1,94 @@
 import type { Api, Model } from '@earendil-works/pi-ai'
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BASH_READONLY_TOOL_NAME } from './bash-readonly.js'
 import {
   applyModeModel,
-  applyModeTools,
+  calculateModeTools,
   type ToolConfig,
   WRITE_TOOLS,
 } from './mode-switcher.js'
+import { baseToolsOf, restoreTools } from './mode-switcher.js'
 import type { ModesState } from './types.js'
+import { createState } from './utils/state.js'
 
-describe('applyModeTools', () => {
+function fakePi(initialActive: string[]): ExtensionAPI & {
+  activeTools: string[]
+} {
+  const pi = {
+    activeTools: initialActive,
+    getActiveTools() {
+      return [...pi.activeTools]
+    },
+    setActiveTools(names: string[]) {
+      pi.activeTools = [...names]
+    },
+  }
+  return pi as ExtensionAPI & { activeTools: string[] }
+}
+
+describe('calculateModeTools / restoreTools diff mechanism', () => {
+  it('preserves tools registered during the mode and restores bash on exit', () => {
+    const pi = fakePi(['read', 'write', 'bash'])
+    const state: ModesState = createState()
+    pi.setActiveTools(calculateModeTools(pi, state))
+    expect(pi.activeTools).toEqual(['read', BASH_READONLY_TOOL_NAME])
+
+    pi.activeTools.push('newtool')
+
+    restoreTools(pi, state)
+    expect(pi.activeTools).toContain('newtool')
+    expect(pi.activeTools).toContain('write')
+    expect(pi.activeTools).toContain('bash')
+    expect(pi.activeTools).not.toContain(BASH_READONLY_TOOL_NAME)
+    expect(state.modeDiffTools).toBeUndefined()
+  })
+
+  it('replays persisted modeTools idempotently and restores on exit', () => {
+    const pi = fakePi(['read', BASH_READONLY_TOOL_NAME, 'grep'])
+    const state: ModesState = {
+      ...createState(),
+      modeDiffTools: { added: [BASH_READONLY_TOOL_NAME], removed: ['bash'] },
+    }
+
+    pi.setActiveTools(calculateModeTools(pi, state))
+    expect(pi.activeTools).toEqual(['read', BASH_READONLY_TOOL_NAME, 'grep'])
+    expect(state.modeDiffTools).toEqual({
+      added: [BASH_READONLY_TOOL_NAME],
+      removed: ['bash'],
+    })
+
+    restoreTools(pi, state)
+    expect(pi.activeTools).toEqual(['read', 'grep', 'bash'])
+    expect(state.modeDiffTools).toBeUndefined()
+  })
+
+  it('baseToolsOf includes tools registered during the mode', () => {
+    const pi = fakePi(['read', BASH_READONLY_TOOL_NAME, 'newtool'])
+    const state: ModesState = {
+      ...createState(),
+      modeDiffTools: { added: [BASH_READONLY_TOOL_NAME], removed: ['bash'] },
+    }
+
+    const base = baseToolsOf(pi, state)
+    expect(base).toContain('bash')
+    expect(base).toContain('newtool')
+    expect(base).toContain('read')
+    expect(base).not.toContain(BASH_READONLY_TOOL_NAME)
+  })
+
+  it('baseToolsOf falls back to current active tools without a diff', () => {
+    const pi = fakePi(['read', 'bash'])
+    const state = createState()
+    expect(baseToolsOf(pi, state)).toEqual(['read', 'bash'])
+  })
+})
+
+describe('calculateModeTools', () => {
   it('defaults to read-only behavior when no config is provided', () => {
     const base = ['read', 'write', 'edit', 'bash', 'grep', 'find']
-    const result = applyModeTools(base, {})
+    const result = calculateModeTools(fakePi(base), createState(), {})
     expect(result).toContain('read')
     expect(result).toContain(BASH_READONLY_TOOL_NAME)
     expect(result).toContain('grep')
@@ -28,7 +103,7 @@ describe('applyModeTools', () => {
     const config: ToolConfig = {
       extraTools: ['subagent_delegate', 'subagent_kill'],
     }
-    const result = applyModeTools(base, config)
+    const result = calculateModeTools(fakePi(base), createState(), config)
     expect(result).toContain('read')
     expect(result).toContain(BASH_READONLY_TOOL_NAME)
     expect(result).toContain('subagent_delegate')
@@ -40,7 +115,7 @@ describe('applyModeTools', () => {
     const config: ToolConfig = {
       removeTools: ['grep', 'find'],
     }
-    const result = applyModeTools(base, config)
+    const result = calculateModeTools(fakePi(base), createState(), config)
     expect(result).toContain('read')
     expect(result).toContain(BASH_READONLY_TOOL_NAME)
     expect(result).not.toContain('grep')
@@ -52,7 +127,7 @@ describe('applyModeTools', () => {
     const config: ToolConfig = {
       tools: ['read', BASH_READONLY_TOOL_NAME],
     }
-    const result = applyModeTools(base, config)
+    const result = calculateModeTools(fakePi(base), createState(), config)
     expect(result).toEqual(['read', BASH_READONLY_TOOL_NAME])
   })
 
@@ -62,7 +137,7 @@ describe('applyModeTools', () => {
       extraTools: ['subagent_delegate'],
       removeTools: ['grep'],
     }
-    const result = applyModeTools(base, config)
+    const result = calculateModeTools(fakePi(base), createState(), config)
     expect(result).toContain('read')
     expect(result).toContain(BASH_READONLY_TOOL_NAME)
     expect(result).toContain('find')
@@ -77,7 +152,7 @@ describe('applyModeTools', () => {
       extraTools: ['subagent_delegate'],
       removeTools: ['find', 'ls'],
     }
-    const result = applyModeTools(base, config)
+    const result = calculateModeTools(fakePi(base), createState(), config)
     expect(result).toContain('read')
     expect(result).toContain('grep')
     expect(result).toContain('subagent_delegate')
@@ -93,7 +168,7 @@ describe('applyModeTools', () => {
       extraTools: [],
       removeTools: [],
     }
-    const result = applyModeTools(base, config)
+    const result = calculateModeTools(fakePi(base), createState(), config)
     expect(result).toEqual([])
   })
 
@@ -104,7 +179,7 @@ describe('applyModeTools', () => {
       extraTools: undefined,
       removeTools: undefined,
     }
-    const result = applyModeTools(base, config)
+    const result = calculateModeTools(fakePi(base), createState(), config)
     expect(result).toContain('read')
     expect(result).toContain(BASH_READONLY_TOOL_NAME)
     expect(result).toContain('grep')
@@ -112,7 +187,7 @@ describe('applyModeTools', () => {
 
   it('removes all write tools from base', () => {
     const base = ['read', 'write', 'edit', 'bash']
-    const result = applyModeTools(base, {})
+    const result = calculateModeTools(fakePi(base), createState(), {})
     for (const tool of WRITE_TOOLS) {
       expect(result).not.toContain(tool)
     }
@@ -123,7 +198,7 @@ describe('applyModeTools', () => {
       tools: ['read', 'grep'],
       extraTools: ['subagent_delegate'],
     }
-    const result = applyModeTools([], config)
+    const result = calculateModeTools(fakePi([]), createState(), config)
     expect(result).toContain('read')
     expect(result).toContain('grep')
     expect(result).toContain('subagent_delegate')
@@ -139,6 +214,7 @@ describe('applyModeModel', () => {
 
   const mockState: ModesState = {
     mode: undefined,
+    modeDiffTools: undefined,
     previousModel: undefined,
   }
 

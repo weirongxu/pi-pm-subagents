@@ -6,6 +6,7 @@ import {
 import { orderBy } from 'lodash-es'
 import { Type } from 'typebox'
 
+import { baseToolsOf } from '../mode-switcher.js'
 import { resolveSubagentModelForSpawn } from '../models-config/subagent-model-utils.js'
 import { resolveRole, rolesDescription } from '../prompts/roles.js'
 import type { ModesState } from '../types.js'
@@ -133,7 +134,7 @@ export function registerSubagentTools(
         const role = resolveRole(params.role)
         const reviewOnEnd = role.fm.reviewOnEnd ?? false
 
-        const tools = composeTools(state.previousActiveTools ?? [], {
+        const tools = composeTools(baseToolsOf(pi, state), {
           tools: role.fm.tools,
           extraTools: role.fm.extraTools,
           removeTools: role.fm.removeTools,

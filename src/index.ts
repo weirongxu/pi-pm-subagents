@@ -15,7 +15,7 @@ import { setupSubagentModelCycle } from './models-config/subagent-model-cycle.js
 import { applyPlanMode, setupPlan } from './plan/plan.js'
 import { readModePrompt } from './prompts/mode.js'
 import type { ModesState } from './types.js'
-import { createState, getLastModesState, persist } from './utils/state.js'
+import { createState, getLastModesState } from './utils/state.js'
 
 let pendingModesState: Partial<ModesState> | undefined
 
@@ -63,7 +63,7 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
     if (data) {
       state.mode = data.mode
       state.planMarkdown = data.planMarkdown
-      state.previousActiveTools = data.previousActiveTools
+      state.modeDiffTools = data.modeDiffTools
       state.previousModel = data.previousModel
       state.sessionSubagentModel = data.sessionSubagentModel
 
@@ -73,7 +73,6 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
         await applyCoordinatorMode(pi, state, ctx, coordinatorDefinition)
       }
 
-      persist(pi, state)
       return
     }
 

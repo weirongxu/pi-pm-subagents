@@ -1,10 +1,14 @@
 export type ModeType = 'plan' | 'coordinator'
 
+export interface ModeToolsDiff {
+  added: string[]
+  removed: string[]
+}
+
 export interface ModesState {
   mode: ModeType | undefined
   planMarkdown?: string
-  /** Active tools captured before entering a read-only mode, restored on exit. */
-  previousActiveTools?: string[]
+  modeDiffTools?: ModeToolsDiff
   /** Current model captured before entering a read-only mode, restored on exit. */
   previousModel?: string
   /** Session-scoped subagent model. Source of truth for spawn. */

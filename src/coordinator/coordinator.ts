@@ -3,11 +3,7 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
 
-import {
-  applyModeSetup,
-  assertModeIdle,
-  exitReadOnly,
-} from '../mode-switcher.js'
+import { applyModeFor, assertModeIdle, exitModeFor } from '../mode-switcher.js'
 import { getPiModesConfig } from '../models-config/models-config.js'
 import { formatSubagentModelLabel } from '../models-config/subagent-model-utils.js'
 import { exitPlanMode } from '../plan/plan.js'
@@ -28,7 +24,6 @@ import {
   mergePromptDefinitions,
   type PromptDefinition,
 } from '../utils/markdown.js'
-import { persist } from '../utils/state.js'
 
 const COORDINATOR_MODE_WIDGET_KEY = 'pi-modes:coordinator-mode'
 
@@ -65,7 +60,6 @@ export async function enterCoordinatorMode(
   assertModeIdle(state, 'coordinator')
   state.mode = 'coordinator'
   await applyCoordinatorMode(pi, state, ctx, def)
-  persist(pi, state)
   if (prompt) pi.sendUserMessage(prompt, { deliverAs: 'followUp' })
 }
 
@@ -94,7 +88,7 @@ export async function applyCoordinatorMode(
   const { fleet, activityReporter } = requiredRuntime()
   fleet.setContext(ctx)
 
-  await applyModeSetup(pi, state, 'coordinator', ctx, {
+  await applyModeFor(pi, state, 'coordinator', ctx, {
     promptDefinition: mergePromptDefinitions(def, {
       fm: {
         extraTools: Object.values(SUBAGENT_TOOLS),
@@ -121,7 +115,7 @@ export async function exitCoordinatorMode(
   fleet.dispose()
   manager.disposeAll()
   ctx.ui.setWidget(COORDINATOR_MODE_WIDGET_KEY, undefined)
-  await exitReadOnly(pi, state, ctx, 'coordinator')
+  await exitModeFor(pi, state, ctx, 'coordinator')
 }
 
 export async function setupCoordinator(

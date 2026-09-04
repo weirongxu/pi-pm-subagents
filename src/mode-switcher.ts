@@ -8,7 +8,7 @@ import { BASH_READONLY_TOOL_NAME } from './bash-readonly.js'
 import type { ModesState, ModeType } from './types.js'
 import type { PromptDefinition } from './utils/markdown.js'
 import { modelRefOf, resolveModelRef } from './utils/model-ref.js'
-import { persist, restoreTools } from './utils/state.js'
+import { persist } from './utils/state.js'
 import { composeTools, type ToolConfig } from './utils/tools.js'
 
 export type { ToolConfig } from './utils/tools.js'
@@ -33,6 +33,20 @@ export async function restoreModel(
   if (model) await pi.setModel(model)
 }
 
+export function baseToolsOf(pi: ExtensionAPI, state: ModesState): string[] {
+  const diff = state.modeDiffTools
+  if (!diff) return pi.getActiveTools()
+  const current = pi.getActiveTools()
+  const added = new Set(diff.added)
+  const merged = [...new Set([...current, ...diff.removed])]
+  return merged.filter((name) => !added.has(name))
+}
+
+export function restoreTools(pi: ExtensionAPI, state: ModesState): void {
+  pi.setActiveTools(baseToolsOf(pi, state))
+  state.modeDiffTools = undefined
+}
+
 export function assertModeIdle(state: ModesState, entering: ModeType): void {
   if (state.mode !== undefined) {
     throw new Error(
@@ -47,27 +61,26 @@ const BASH_REPLACEMENT: ReadonlyMap<string, string> = new Map([
   ['bash', BASH_READONLY_TOOL_NAME],
 ])
 
-export function applyModeTools(
-  baseTools: readonly string[],
-  config: ToolConfig,
-): string[] {
-  const composed = composeTools(baseTools, config)
-  return composed
-    .filter((name) => !WRITE_TOOLS.has(name))
-    .map((name) => BASH_REPLACEMENT.get(name) ?? name)
-}
-
-export function enterReadOnly(
+export function calculateModeTools(
   pi: ExtensionAPI,
   state: ModesState,
   config: ToolConfig = {},
-): void {
-  if (!state.previousActiveTools)
-    state.previousActiveTools = pi.getActiveTools()
-  pi.setActiveTools(applyModeTools(state.previousActiveTools, config))
+): string[] {
+  const base = pi.getActiveTools()
+  const applied = composeTools(base, config)
+    .filter((name) => !WRITE_TOOLS.has(name))
+    .map((name) => BASH_REPLACEMENT.get(name) ?? name)
+
+  if (!state.modeDiffTools) {
+    state.modeDiffTools = {
+      added: applied.filter((name) => !base.includes(name)),
+      removed: base.filter((name) => !applied.includes(name)),
+    }
+  }
+  return applied
 }
 
-export async function exitReadOnly(
+export async function exitModeFor(
   pi: ExtensionAPI,
   state: ModesState,
   ctx: ExtensionContext,
@@ -112,14 +125,15 @@ export interface ModeSetupOptions {
   color: ThemeColor
 }
 
-export async function applyModeSetup(
+export async function applyModeFor(
   pi: ExtensionAPI,
   state: ModesState,
   modeType: ModeType,
   ctx: ExtensionContext,
   options: ModeSetupOptions,
 ): Promise<void> {
-  enterReadOnly(pi, state, options.promptDefinition.fm)
+  pi.setActiveTools(calculateModeTools(pi, state, options.promptDefinition.fm))
   await applyModeModel(pi, state, ctx, options.promptDefinition.fm.model)
   ctx.ui.setStatus(modeType, ctx.ui.theme.fg(options.color, modeType))
+  persist(pi, state)
 }

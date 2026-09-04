@@ -4,16 +4,11 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 
 import { enterCoordinatorMode } from '../coordinator/coordinator.js'
-import {
-  applyModeSetup,
-  assertModeIdle,
-  exitReadOnly,
-} from '../mode-switcher.js'
+import { applyModeFor, assertModeIdle, exitModeFor } from '../mode-switcher.js'
 import type { ModesState } from '../types.js'
 import { askHowToProceed, type ReviewChoice } from '../ui/review-pager.js'
 import type { PromptDefinition } from '../utils/markdown.js'
 import { lastAssistantText } from '../utils/messages.js'
-import { persist } from '../utils/state.js'
 import { setupPlanDemo } from './demo.js'
 
 const PLAN_MODE_WIDGET_KEY = 'pi-modes:plan-mode'
@@ -29,7 +24,6 @@ export async function enterPlanMode(
   state.planMarkdown = undefined
   await applyPlanMode(pi, state, ctx, def)
   ctx.ui.notify('Plan mode on — read-only. Produce a plan for review.', 'info')
-  persist(pi, state)
 }
 
 export async function applyPlanMode(
@@ -38,7 +32,7 @@ export async function applyPlanMode(
   ctx: ExtensionContext,
   def: PromptDefinition,
 ): Promise<void> {
-  await applyModeSetup(pi, state, 'plan', ctx, {
+  await applyModeFor(pi, state, 'plan', ctx, {
     promptDefinition: def,
     color: 'warning',
   })
@@ -54,7 +48,7 @@ export async function exitPlanMode(
 ): Promise<void> {
   state.mode = undefined
   ctx.ui.setWidget(PLAN_MODE_WIDGET_KEY, undefined)
-  await exitReadOnly(pi, state, ctx, 'plan')
+  await exitModeFor(pi, state, ctx, 'plan')
 }
 
 export async function setupPlan(

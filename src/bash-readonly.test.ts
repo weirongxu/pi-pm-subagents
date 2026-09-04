@@ -1,3 +1,4 @@
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -5,7 +6,23 @@ import {
   checkBashSafety,
   isBashReadonlyCommand,
 } from './bash-readonly.js'
-import { applyModeTools } from './mode-switcher.js'
+import { calculateModeTools } from './mode-switcher.js'
+import { createState } from './utils/state.js'
+
+function fakePi(initialActive: string[]): ExtensionAPI & {
+  activeTools: string[]
+} {
+  const pi = {
+    activeTools: initialActive,
+    getActiveTools() {
+      return [...pi.activeTools]
+    },
+    setActiveTools(names: string[]) {
+      pi.activeTools = [...names]
+    },
+  }
+  return pi as ExtensionAPI & { activeTools: string[] }
+}
 
 describe('isBashReadonlyCommand', () => {
   it('allows read-only commands', () => {
@@ -85,41 +102,54 @@ describe('isBashReadonlyCommand', () => {
   })
 })
 
-describe('applyModeTools', () => {
+describe('calculateModeTools', () => {
   it('drops write tools, replaces bash, and merges extras', () => {
     expect(
-      applyModeTools(['read', 'edit', 'write', 'bash'], {
-        extraTools: ['subagent_delegate'],
-      }),
+      calculateModeTools(
+        fakePi(['read', 'edit', 'write', 'bash']),
+        createState(),
+        {
+          extraTools: ['subagent_delegate'],
+        },
+      ),
     ).toEqual(['read', BASH_READONLY_TOOL_NAME, 'subagent_delegate'])
   })
 
   it('deduplicates', () => {
     expect(
-      applyModeTools(['read', 'read', 'edit'], { extraTools: ['read'] }),
+      calculateModeTools(fakePi(['read', 'read', 'edit']), createState(), {
+        extraTools: ['read'],
+      }),
     ).toEqual(['read'])
   })
 
   it('does not inject bash_readonly when bash is not present', () => {
-    expect(applyModeTools(['read', 'grep'], {})).toEqual(['read', 'grep'])
+    expect(
+      calculateModeTools(fakePi(['read', 'grep']), createState(), {}),
+    ).toEqual(['read', 'grep'])
   })
 
   it('passes through bash_readonly unchanged when already present', () => {
-    expect(applyModeTools(['read', BASH_READONLY_TOOL_NAME], {})).toEqual([
-      'read',
-      BASH_READONLY_TOOL_NAME,
-    ])
+    expect(
+      calculateModeTools(
+        fakePi(['read', BASH_READONLY_TOOL_NAME]),
+        createState(),
+        {},
+      ),
+    ).toEqual(['read', BASH_READONLY_TOOL_NAME])
   })
 
   it('removes specified tools', () => {
     expect(
-      applyModeTools(['read', 'bash', 'grep'], { removeTools: ['grep'] }),
+      calculateModeTools(fakePi(['read', 'bash', 'grep']), createState(), {
+        removeTools: ['grep'],
+      }),
     ).toEqual(['read', BASH_READONLY_TOOL_NAME])
   })
 
   it('restricts to tools list when provided', () => {
     expect(
-      applyModeTools(['read', 'bash', 'grep'], {
+      calculateModeTools(fakePi(['read', 'bash', 'grep']), createState(), {
         extraTools: ['subagent_delegate'],
         tools: ['read', 'subagent_delegate'],
       }),
@@ -127,7 +157,11 @@ describe('applyModeTools', () => {
   })
 
   it('returns empty when tools list is empty', () => {
-    expect(applyModeTools(['read', 'bash', 'grep'], { tools: [] })).toEqual([])
+    expect(
+      calculateModeTools(fakePi(['read', 'bash', 'grep']), createState(), {
+        tools: [],
+      }),
+    ).toEqual([])
   })
 })
 
