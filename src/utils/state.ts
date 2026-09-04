@@ -5,14 +5,14 @@ import type {
 
 import type { ModesState, ModeType } from '../types.js'
 
-export const STATE_KEY = 'modes'
+export const PLUGIN_KEY = 'modes'
 
 export function createState(): ModesState {
   return { mode: undefined }
 }
 
 export function persist(pi: ExtensionAPI, state: ModesState): void {
-  pi.appendEntry(STATE_KEY, {
+  pi.appendEntry(PLUGIN_KEY, {
     mode: state.mode,
     modeDiffTools: state.modeDiffTools,
     previousModel: state.previousModel,
@@ -25,7 +25,7 @@ export function getLastModesState(
 ): Partial<ModesState> | undefined {
   for (let i = entries.length - 1; i >= 0; i--) {
     const entry = entries[i]
-    if (!entry || entry.type !== 'custom' || entry.customType !== STATE_KEY)
+    if (!entry || entry.type !== 'custom' || entry.customType !== PLUGIN_KEY)
       continue
     const data = entry.data as
       (Partial<ModesState> & { mode?: string }) | undefined

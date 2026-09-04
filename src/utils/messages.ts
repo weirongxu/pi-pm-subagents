@@ -6,8 +6,10 @@ import type {
   ToolCall,
   ToolResultMessage,
 } from '@earendil-works/pi-ai'
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 import { truncateToBytes } from './format.js'
+import { PLUGIN_KEY } from './state.ts'
 
 function isAssistantMessage(
   message: AgentMessage | undefined,
@@ -115,4 +117,15 @@ export function lastMessageText(
   }
 
   return undefined
+}
+
+export function notifyAgentMessage(pi: ExtensionAPI, content: string) {
+  pi.sendMessage(
+    {
+      customType: PLUGIN_KEY,
+      content,
+      display: true,
+    },
+    { deliverAs: 'steer' },
+  )
 }

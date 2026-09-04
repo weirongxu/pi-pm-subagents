@@ -23,6 +23,7 @@ import {
   mergePromptDefinitions,
   type PromptDefinition,
 } from '../utils/markdown.js'
+import { notifyAgentMessage } from '../utils/messages.ts'
 
 const COORDINATOR_MODE_WIDGET_KEY = 'pi-modes:coordinator-mode'
 
@@ -130,7 +131,7 @@ export async function setupCoordinator(
 ): Promise<void> {
   const batcher = new MessageBatcher((messages: readonly string[]) => {
     if (state.mode !== 'coordinator') return
-    pi.sendUserMessage(messages.join('\n\n'), { deliverAs: 'steer' })
+    notifyAgentMessage(pi, messages.join('\n\n'))
   })
   const manager = new SubagentManager({
     onStatusChange: () => runtime?.fleet.update(),
