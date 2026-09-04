@@ -52,7 +52,7 @@ export interface LiveSubagent {
   startedAt: number
   completedAt?: number
   followUpCount: number
-  enabledTools: Set<string>
+  activeTools: string[]
   role: string
   contextUsage?: ContextUsage
   onComplete?: (subagent: LiveSubagent, lastMessage: string) => Promise<void>
@@ -149,9 +149,7 @@ export class SubagentManager {
       }),
     })
 
-    const enabledTools: Set<string> = options.tools
-      ? new Set(options.tools)
-      : new Set()
+    const activeTools: string[] = options.tools ? [...options.tools] : []
     const subagent: LiveSubagent = {
       id,
       title,
@@ -161,7 +159,7 @@ export class SubagentManager {
       session: created.session,
       startedAt: Date.now(),
       followUpCount: 0,
-      enabledTools,
+      activeTools,
       role: options.role ?? 'worker',
       onComplete: options.onComplete,
     }

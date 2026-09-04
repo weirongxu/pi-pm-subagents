@@ -14,19 +14,26 @@ export type ToolConfig = Pick<
 export function registerOptionalTools(
   pi: ExtensionAPI,
   tools: ReadonlyArray<ToolDefinition<TSchema, unknown, unknown>>,
+  sessionStarted: boolean,
 ): void {
   const names = new Set(tools.map((t) => t.name))
   for (const tool of tools) {
     pi.registerTool(tool)
   }
 
-  pi.on('session_start', async () => {
+  const filterIt = () => {
     const activeTools = pi.getActiveTools()
     const filtered = activeTools.filter((name) => !names.has(name))
     if (filtered.length !== activeTools.length) {
       pi.setActiveTools(filtered)
     }
-  })
+  }
+
+  if (sessionStarted) filterIt()
+  else
+    pi.on('session_start', async () => {
+      filterIt()
+    })
 }
 
 export function composeTools(

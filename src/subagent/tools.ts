@@ -11,8 +11,7 @@ import { baseToolsOf } from '../pm-mode.js'
 import { resolveRole, rolesDescription } from '../prompts/roles.js'
 import type { PmSubagentState } from '../types.js'
 import { askHowToProceed } from '../ui/review-pager.js'
-import { registerOptionalTools } from '../utils/tools.js'
-import { composeTools } from '../utils/tools.js'
+import { composeTools, registerOptionalTools } from '../utils/tools.js'
 import type { MessageBatcher } from './batcher.js'
 import type { FleetList } from './fleet.js'
 import type { SubagentManager } from './manager.js'
@@ -59,252 +58,255 @@ export function registerSubagentTools(
 ): void {
   const lastListAt = Date.now()
 
-  const tools = [
-    defineTool({
-      name: SUBAGENT_TOOLS.list,
-      label: 'List Subagents',
-      description: `List all background subagents, don't poll this tool to wait subagents complete, just wait silently`,
-      parameters: Type.Object({}),
-      async execute() {
-        if (Date.now() - lastListAt < LIST_COOL_DOWN_MS)
+  pi.on('session_start', () => {
+    const tools = [
+      defineTool({
+        name: SUBAGENT_TOOLS.list,
+        label: 'List Subagents',
+        description: `List all background subagents, don't poll this tool to wait subagents complete, just wait silently`,
+        parameters: Type.Object({}),
+        async execute() {
+          if (Date.now() - lastListAt < LIST_COOL_DOWN_MS)
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: "Please don't poll for this tool, just wait silently",
+                },
+              ],
+              details: {},
+            }
+
+          const allSubagents = manager.list()
+          if (allSubagents.length === 0) {
+            return {
+              content: [{ type: 'text', text: 'No subagents.' }],
+              details: {},
+            }
+          }
+
+          const sorted = orderBy(allSubagents, (it) => it.id, 'desc')
+          const lines = [`Subagents (${allSubagents.length}):`]
+          for (const subagent of sorted) {
+            lines.push(formatSubagentSummary(subagent))
+          }
+
+          const hasRunning = sorted.some(
+            (subagent) => subagent.status === 'running',
+          )
+          if (hasRunning)
+            lines.push(
+              '',
+              `DO NOT POLL THIS TOOL TO WAIT FOR SUBAGENTS COMPLETION, JUST WAIT SILENTLY, YOU WILL BE NOTIFIED WHEN SUBAGENTS FINISH.`,
+            )
           return {
             content: [
               {
                 type: 'text',
-                text: "Please don't poll for this tool, just wait silently",
+                text: lines.join('\n'),
               },
             ],
             details: {},
           }
-
-        const allSubagents = manager.list()
-        if (allSubagents.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No subagents.' }],
-            details: {},
-          }
-        }
-
-        const sorted = orderBy(allSubagents, (it) => it.id, 'desc')
-        const lines = [`Subagents (${allSubagents.length}):`]
-        for (const subagent of sorted) {
-          lines.push(formatSubagentSummary(subagent))
-        }
-
-        const hasRunning = sorted.some(
-          (subagent) => subagent.status === 'running',
-        )
-        if (hasRunning)
-          lines.push(
-            '',
-            `DO NOT POLL THIS TOOL TO WAIT FOR SUBAGENTS COMPLETION, JUST WAIT SILENTLY, YOU WILL BE NOTIFIED WHEN SUBAGENTS FINISH.`,
-          )
-        return {
-          content: [
-            {
-              type: 'text',
-              text: lines.join('\n'),
-            },
-          ],
-          details: {},
-        }
-      },
-    }),
-
-    defineTool({
-      name: SUBAGENT_TOOLS.delegate,
-      label: 'Delegate Subagent',
-      description: `Delegate task to background with full tool access. The tool returns immediately with a subagent id; I'll send you last message when subagent finishes. Max concurrency ${MAX_CONCURRENCY_SUBAGENT} running subagents\nAvailable roles:\n${rolesDescription()}`,
-      parameters: Type.Object({
-        title: Type.String(),
-        prompt: Type.String({
-          description: 'Prompt of the subagent should do',
-        }),
-        role: Type.String({
-          description: `Role of subagent`,
-        }),
+        },
       }),
-      async execute(
-        _toolCallId,
-        params,
-        signal,
-        _onUpdate,
-        ctx,
-      ): Promise<AgentToolResult<unknown>> {
-        const role = resolveRole(params.role)
-        const reviewOnEnd = role.fm.reviewOnEnd ?? false
 
-        const tools = composeTools(baseToolsOf(pi, state), {
-          tools: role.fm.tools,
-          extraTools: role.fm.extraTools,
-          removeTools: role.fm.removeTools,
-        })
-
-        const model = resolveSubagentModelForSpawn(
+      defineTool({
+        name: SUBAGENT_TOOLS.delegate,
+        label: 'Delegate Subagent',
+        description: `Delegate task to background with full tool access. The tool returns immediately with a subagent id; I'll send you last message when subagent finishes. Max concurrency ${MAX_CONCURRENCY_SUBAGENT} running subagents\nAvailable roles:\n${rolesDescription(baseToolsOf(pi, state))}`,
+        parameters: Type.Object({
+          title: Type.String(),
+          prompt: Type.String({
+            description: 'Prompt of the subagent should do',
+          }),
+          role: Type.String({
+            description: `Role of subagent`,
+          }),
+        }),
+        async execute(
+          _toolCallId,
+          params,
+          signal,
+          _onUpdate,
           ctx,
-          role.fm.model,
-          state.sessionSubagentModel,
-        )
+        ): Promise<AgentToolResult<unknown>> {
+          const role = resolveRole(params.role)
+          const reviewOnEnd = role.fm.reviewOnEnd ?? false
 
-        let subagent: LiveSubagent
-        try {
-          subagent = await manager.createNewSubagent(
-            params.title,
-            params.prompt,
-            {
-              cwd: ctx.cwd,
-              model,
-              thinkingLevel: role.fm.thinkingLevel ?? 'low',
-              tools,
-              systemPrompt: role.systemPrompt,
-              role: params.role,
-              onComplete: async (subagent, lastMessage) => {
-                if (state.mode !== 'coordinator') return
-                if (subagent.status === 'killed') return
-                if (!lastMessage) return
-                if (subagent.status === 'failed') {
-                  batcher.add(subagent, 'done', lastMessage)
-                  return
-                }
-                if (!reviewOnEnd || !ctx.hasUI) {
-                  batcher.add(subagent, 'done', lastMessage)
-                  return
-                }
+          const tools = composeTools(baseToolsOf(pi, state), {
+            tools: role.fm.tools,
+            extraTools: role.fm.extraTools,
+            removeTools: role.fm.removeTools,
+          })
 
-                await askHowToProceed(ctx, {
-                  title: '📋 Planner Review',
-                  plan: lastMessage,
-                  choices: [
-                    {
-                      id: 'send-to-coordinator',
-                      label: 'Send plan to coordinator',
-                      action: () => {
-                        batcher.add(subagent, 'done', lastMessage)
+          const model = resolveSubagentModelForSpawn(
+            ctx,
+            role.fm.model,
+            state.sessionSubagentModel,
+          )
+
+          let subagent: LiveSubagent
+          try {
+            subagent = await manager.createNewSubagent(
+              params.title,
+              params.prompt,
+              {
+                cwd: ctx.cwd,
+                model,
+                thinkingLevel: role.fm.thinkingLevel ?? 'low',
+                tools,
+                systemPrompt: role.systemPrompt,
+                role: params.role,
+                onComplete: async (subagent, lastMessage) => {
+                  if (state.mode !== 'coordinator') return
+                  if (subagent.status === 'killed') return
+                  if (!lastMessage) return
+                  if (subagent.status === 'failed') {
+                    batcher.add(subagent, 'done', lastMessage)
+                    return
+                  }
+                  if (!reviewOnEnd || !ctx.hasUI) {
+                    batcher.add(subagent, 'done', lastMessage)
+                    return
+                  }
+
+                  await askHowToProceed(ctx, {
+                    title: '📋 Planner Review',
+                    plan: lastMessage,
+                    choices: [
+                      {
+                        id: 'send-to-coordinator',
+                        label: 'Send plan to coordinator',
+                        action: () => {
+                          batcher.add(subagent, 'done', lastMessage)
+                        },
                       },
-                    },
-                    {
-                      id: 'update-the-plan',
-                      label: 'Update the plan',
-                      action: async () => {
-                        const updatePrompt = await ctx.ui.editor(
-                          'Update the plan:',
-                          '',
-                        )
-                        if (updatePrompt?.trim()) {
-                          await manager.followup(
-                            subagent.id,
-                            `${subagent.title} (revised)`,
-                            `Update the plan based on:\n\n${updatePrompt.trim()}`,
+                      {
+                        id: 'update-the-plan',
+                        label: 'Update the plan',
+                        action: async () => {
+                          const updatePrompt = await ctx.ui.editor(
+                            'Update the plan:',
+                            '',
                           )
-                        }
+                          if (updatePrompt?.trim()) {
+                            await manager.followup(
+                              subagent.id,
+                              `${subagent.title} (revised)`,
+                              `Update the plan based on:\n\n${updatePrompt.trim()}`,
+                            )
+                          }
+                        },
                       },
-                    },
-                    {
-                      id: 'discard',
-                      label: 'Discard',
-                      action: () => {},
-                    },
-                  ],
-                })
+                      {
+                        id: 'discard',
+                        label: 'Discard',
+                        action: () => {},
+                      },
+                    ],
+                  })
+                },
               },
-            },
-          )
-          fleet.update()
-        } catch (error) {
-          return toolResultFromError(error)
-        }
+            )
+            fleet.update()
+          } catch (error) {
+            return toolResultFromError(error)
+          }
 
-        stopSubagentOnAbort(signal, subagent.id, manager)
+          stopSubagentOnAbort(signal, subagent.id, manager)
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Subagent id #${subagent.id} running at background. I'll send you last message when it finishes.`,
-            },
-          ],
-          details: { subagentId: subagent.id, status: subagent.status },
-        }
-      },
-    }),
-
-    defineTool({
-      name: SUBAGENT_TOOLS.followup,
-      label: 'Follow Up Subagent',
-      description: `Continue working with an existing subagent. Max reuse ${MAX_REUSE_FOLLOWUPS} times.`,
-      parameters: Type.Object({
-        id: Type.Number(),
-        title: Type.String(),
-        prompt: Type.String({
-          description: 'Prompt of the subagent should do',
-        }),
-      }),
-      async execute(
-        _toolCallId,
-        params,
-        signal,
-      ): Promise<AgentToolResult<unknown>> {
-        let subagent: LiveSubagent
-        try {
-          subagent = await manager.followup(
-            params.id,
-            params.title,
-            params.prompt,
-          )
-        } catch (error) {
-          return toolResultFromError(error)
-        }
-
-        stopSubagentOnAbort(signal, subagent.id, manager)
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Subagent #${subagent.id} continued. I'll send you last message when it finishes.`,
-            },
-          ],
-          details: { subagentId: subagent.id, status: subagent.status },
-        }
-      },
-    }),
-
-    defineTool({
-      name: SUBAGENT_TOOLS.kill,
-      label: 'Kill Subagent',
-      description: 'Kill a running subagent by id.',
-      parameters: Type.Object({
-        id: Type.Number({ description: 'Subagent id to stop.' }),
-      }),
-      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
-        const subagent = manager.get(params.id)
-        if (!subagent) {
           return {
             content: [
-              { type: 'text', text: `Subagent #${params.id} not found.` },
+              {
+                type: 'text',
+                text: `Subagent id #${subagent.id} running at background. I'll send you last message when it finishes.`,
+              },
             ],
-            details: {},
+            details: { subagentId: subagent.id, status: subagent.status },
           }
-        }
-        try {
-          const stopped = await manager.abort(params.id)
-          const message = stopped
-            ? `Subagent #${params.id} killed.`
-            : `Subagent #${params.id} is not running (status: ${subagent.status}).`
-          return {
-            content: [{ type: 'text', text: message }],
-            details: { subagentId: params.id, status: subagent.status },
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          return {
-            content: [{ type: 'text', text: message }],
-            details: { subagentId: params.id, status: subagent.status },
-          }
-        }
-      },
-    }),
-  ]
+        },
+      }),
 
-  registerOptionalTools(pi, tools)
+      defineTool({
+        name: SUBAGENT_TOOLS.followup,
+        label: 'Follow Up Subagent',
+        description: `Continue working with an existing subagent. Max reuse ${MAX_REUSE_FOLLOWUPS} times.`,
+        parameters: Type.Object({
+          id: Type.Number(),
+          title: Type.String(),
+          prompt: Type.String({
+            description: 'Prompt of the subagent should do',
+          }),
+        }),
+        async execute(
+          _toolCallId,
+          params,
+          signal,
+        ): Promise<AgentToolResult<unknown>> {
+          let subagent: LiveSubagent
+          try {
+            subagent = await manager.followup(
+              params.id,
+              params.title,
+              params.prompt,
+            )
+          } catch (error) {
+            return toolResultFromError(error)
+          }
+
+          stopSubagentOnAbort(signal, subagent.id, manager)
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Subagent #${subagent.id} continued. I'll send you last message when it finishes.`,
+              },
+            ],
+            details: { subagentId: subagent.id, status: subagent.status },
+          }
+        },
+      }),
+
+      defineTool({
+        name: SUBAGENT_TOOLS.kill,
+        label: 'Kill Subagent',
+        description: 'Kill a running subagent by id.',
+        parameters: Type.Object({
+          id: Type.Number({ description: 'Subagent id to stop.' }),
+        }),
+        async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+          const subagent = manager.get(params.id)
+          if (!subagent) {
+            return {
+              content: [
+                { type: 'text', text: `Subagent #${params.id} not found.` },
+              ],
+              details: {},
+            }
+          }
+          try {
+            const stopped = await manager.abort(params.id)
+            const message = stopped
+              ? `Subagent #${params.id} killed.`
+              : `Subagent #${params.id} is not running (status: ${subagent.status}).`
+            return {
+              content: [{ type: 'text', text: message }],
+              details: { subagentId: params.id, status: subagent.status },
+            }
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : String(error)
+            return {
+              content: [{ type: 'text', text: message }],
+              details: { subagentId: params.id, status: subagent.status },
+            }
+          }
+        },
+      }),
+    ]
+
+    registerOptionalTools(pi, tools, true)
+  })
 }

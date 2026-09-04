@@ -5,6 +5,7 @@ import { CONFIG_DIR_NAME, getAgentDir } from '@earendil-works/pi-coding-agent'
 
 import { BASH_READONLY_TOOL_NAME } from '../bash-readonly.js'
 import { loadMarkdown, type PromptDefinition } from '../utils/markdown.js'
+import { composeTools } from '../utils/tools.js'
 
 const DEFAULT_ROLE = 'worker'
 
@@ -92,26 +93,32 @@ export function listRoles(): string[] {
   return [...roles.keys()]
 }
 
-function formatRoleEntry([name, role]: [string, PromptDefinition]): string {
+function formatRoleEntry(
+  [name, role]: [string, PromptDefinition],
+  baseTools: readonly string[],
+): string {
   const parts: string[] = []
   if (role.fm.description) {
     parts.push(role.fm.description)
   }
-  if (role.fm.tools && role.fm.tools.length > 0) {
-    parts.push(`tools: ${role.fm.tools.join(', ')}`)
-  }
-  if (parts.length > 0) {
-    return `  - ${name}: ${parts.join('; ')}`
-  }
+  const effective = composeTools(baseTools, {
+    tools: role.fm.tools,
+    extraTools: role.fm.extraTools,
+    removeTools: role.fm.removeTools,
+  })
+  if (effective.length > 0) parts.push(`tools: ${effective.join(', ')}`)
+  if (parts.length > 0) return `  - ${name}: ${parts.join('; ')}`
   return `  - ${name}`
 }
 
-export function rolesDescription(): string {
+export function rolesDescription(baseTools: readonly string[] = []): string {
   if (roles.size === 0) {
     return ''
   }
 
-  return [...roles.entries()].map(formatRoleEntry).join('\n')
+  return [...roles.entries()]
+    .map((e) => formatRoleEntry(e, baseTools))
+    .join('\n')
 }
 
 export function clearRoles(): void {

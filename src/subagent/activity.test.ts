@@ -12,7 +12,7 @@ const makeSubagent = (id: number, messages: unknown[]): LiveSubagent =>
     startedAt: Date.now() - 1000,
     session: { messages: messages as never },
     followUpCount: 0,
-    enabledTools: new Set(),
+    activeTools: [],
   }) as unknown as LiveSubagent
 
 const assistant = (text: string) =>

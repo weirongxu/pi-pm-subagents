@@ -16,7 +16,7 @@ const makeSubagent = (
     startedAt: Date.now() - 5000,
     session: { messages: [] as never },
     followUpCount: 0,
-    enabledTools: new Set(),
+    activeTools: [],
   }) as unknown as LiveSubagent
 
 describe('MessageBatcher', () => {

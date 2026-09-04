@@ -49,7 +49,7 @@ describe('roles', () => {
         )
         expect(planner.fm.reviewOnEnd).toBe(true)
         expect(planner.fm.removeTools).toEqual(['write', 'edit', 'bash'])
-        expect(planner.fm.description).toBe('Planning subagent')
+        expect(planner.fm.description).toBe('Planning')
       })
 
       it('returns built-ins when no directories exist', async () => {
@@ -610,6 +610,16 @@ Tool role prompt.`,
       } finally {
         await rm(tempDir, { recursive: true, force: true })
       }
+    })
+
+    it('shows effective tools for roles with extraTools/removeTools', async () => {
+      await loadRoles('/fake/cwd')
+      const description = rolesDescription(['read', 'write', 'edit', 'bash'])
+      const plannerLine = description
+        .split('\n')
+        .find((line) => line.startsWith('  - planner:'))
+      expect(plannerLine).toBeDefined()
+      expect(plannerLine).toContain('tools: read, bash_readonly')
     })
 
     it('combines built-in and custom roles', async () => {

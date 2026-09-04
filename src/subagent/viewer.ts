@@ -34,7 +34,7 @@ let openedViewerHandle: OverlayHandle | undefined
 
 const TOOL_RESULT_PREVIEW = 500
 const VIEWPORT_HEIGHT_PCT = 80
-const VIEWER_CHROME_LINES = 6
+const VIEWER_CHROME_LINES = 7
 const OVERLAY_WIDTH_PCT = '90%'
 
 export type ViewerResult = undefined | 'steer'
@@ -102,13 +102,16 @@ export class SubagentViewer implements Component {
   render(width: number): string[] {
     if (width < 4) return []
     const separator = this.theme.fg('dim', '─'.repeat(width))
-    return [
-      this.headerLine(width),
+    const lines = [this.headerLine(width)]
+    const tools = this.toolsLine(width)
+    if (tools) lines.push(tools)
+    lines.push(
       separator,
       ...this.#scroll.render(width),
       separator,
       this.footerLine(width),
-    ]
+    )
+    return lines
   }
 
   invalidate(): void {
@@ -129,6 +132,18 @@ export class SubagentViewer implements Component {
     return rightAlign(
       `${th.fg('muted', `#${this.subagent.id}`)} ${th.fg('muted', role)} ${truncateText(strInline(this.subagent.title), titleMaxWidth)}`,
       th.fg(color, status),
+      width,
+    )
+  }
+
+  private toolsLine(width: number): string {
+    const th = this.theme
+    const tools = this.subagent.activeTools
+    if (tools.length === 0) return ''
+    const sep = th.fg('dim', ' · ')
+    return rightAlign(
+      '',
+      `Tools: ${tools.map((name) => th.fg('muted', name)).join(sep)}`,
       width,
     )
   }

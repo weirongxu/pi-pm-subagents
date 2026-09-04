@@ -61,7 +61,7 @@ function registerSubagent(
     startedAt: Date.now() - 1000,
     completedAt: status !== 'running' ? Date.now() : undefined,
     followUpCount,
-    enabledTools: new Set<string>(),
+    activeTools: [],
     role: 'worker',
   }
 
