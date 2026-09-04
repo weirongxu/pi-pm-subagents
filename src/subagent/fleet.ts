@@ -340,7 +340,7 @@ export class FleetList {
     const statusCol = theme.fg('accent', entry.status.padStart(7, ' '))
     const followCol = theme.fg(
       'border',
-      `${FOLLOW_SYMBOL} ${entry.followUpCount}`.padStart(3, ' '),
+      ` ${FOLLOW_SYMBOL} ${entry.followUpCount}`.padStart(3, ' '),
     )
     const elapsedCol = theme.fg('muted', formatElapsed(entry).padStart(8, ' '))
     const contextCol = this.renderContextCol(entry, theme)
