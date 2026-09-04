@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { BASH_READONLY_TOOL_NAME } from '../bash-readonly.js'
-import type { PromptDefinition } from '../utils/markdown.js'
 import {
   clearRoles,
   listRoles,
@@ -13,12 +12,6 @@ import {
   resolveRole,
   rolesDescription,
 } from './roles.js'
-
-const TEST_PLAN_DEFINITION: PromptDefinition = {
-  fm: {},
-  systemPrompt:
-    'You are a planning subagent that explores code and proposes plans.',
-}
 
 const MOCK_AGENT_DIR_VAR = 'PI_CODING_AGENT_DIR'
 
@@ -38,7 +31,7 @@ describe('roles', () => {
   describe('loadRoles', () => {
     describe('built-in roles', () => {
       it('includes worker with empty systemPrompt', async () => {
-        await loadRoles('/fake/cwd', TEST_PLAN_DEFINITION)
+        await loadRoles('/fake/cwd')
         const worker = resolveRole('worker')
         expect(worker.systemPrompt).toBe('')
         expect(worker.fm.tools).toBeUndefined()
@@ -48,9 +41,12 @@ describe('roles', () => {
       })
 
       it('includes planner role with reviewOnEnd enabled', async () => {
-        await loadRoles('/fake/cwd', TEST_PLAN_DEFINITION)
+        await loadRoles('/fake/cwd')
         const planner = resolveRole('planner')
-        expect(planner.systemPrompt).toContain('planning subagent')
+        expect(planner.systemPrompt).toContain('read-only exploration mode')
+        expect(planner.systemPrompt).toContain(
+          'Produce a concrete implementation plan as Markdown',
+        )
         expect(planner.fm.reviewOnEnd).toBe(true)
         expect(planner.fm.removeTools).toEqual(['write', 'edit', 'bash'])
         expect(planner.fm.description).toBe('Planning subagent')
@@ -59,7 +55,7 @@ describe('roles', () => {
       it('returns built-ins when no directories exist', async () => {
         const tempDir = await mkdtemp(join(tmpdir(), 'pi-modes-test-empty-'))
         try {
-          await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+          await loadRoles(tempDir)
           expect(listRoles()).toEqual(['worker', 'planner'])
           resolveRole('worker')
           resolveRole('planner')
@@ -102,7 +98,7 @@ tools: [test]
 You are a tester.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         expect(listRoles()).toHaveLength(4)
         expect(() => resolveRole('worker')).not.toThrow()
         expect(() => resolveRole('planner')).not.toThrow()
@@ -122,7 +118,7 @@ model: sonnet
 You are a code improver.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const role = resolveRole('code-improver')
         expect(role.fm.description).toBe(
           'Scans files and suggests improvements.',
@@ -142,7 +138,7 @@ tools: []
 No tools needed.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         expect(resolveRole('no-tools').fm.tools).toEqual([])
       })
 
@@ -156,7 +152,7 @@ extraTools: [bash_readonly, grep]
 You have extra tools.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const role = resolveRole('extra-array')
         expect(role.fm.extraTools).toEqual([BASH_READONLY_TOOL_NAME, 'grep'])
       })
@@ -171,7 +167,7 @@ extraTools: []
 No extra tools needed.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         expect(resolveRole('no-extra').fm.extraTools).toEqual([])
       })
 
@@ -185,7 +181,7 @@ removeTools: [write, bash]
 You have removed tools.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const role = resolveRole('remove-array')
         expect(role.fm.removeTools).toEqual(['write', 'bash'])
       })
@@ -200,7 +196,7 @@ removeTools: []
 No tools to remove.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         expect(resolveRole('no-remove').fm.removeTools).toEqual([])
       })
 
@@ -215,7 +211,7 @@ extraTools: [grep, glob]
 You have both tools.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const role = resolveRole('both-tools')
         expect(role.fm.tools).toEqual(['read', 'write'])
         expect(role.fm.extraTools).toEqual(['grep', 'glob'])
@@ -228,7 +224,7 @@ You have both tools.`,
         )
         await writeFile(join(agentsDir, 'valid.md'), 'This should be loaded.')
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         expect(listRoles()).toHaveLength(3)
         expect(() => resolveRole('valid')).not.toThrow()
         expect(() => resolveRole('not-a-role')).toThrow()
@@ -265,7 +261,7 @@ description: A global role.
 Global role content.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const role = resolveRole('global-role')
         expect(role.fm.description).toBe('A global role.')
         expect(role.systemPrompt).toBe('Global role content.')
@@ -287,7 +283,7 @@ description: Second global.
 Second global content.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         expect(listRoles()).toHaveLength(4)
         expect(() => resolveRole('worker')).not.toThrow()
         expect(() => resolveRole('planner')).not.toThrow()
@@ -338,7 +334,7 @@ description: Project version.
 Project content.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const role = resolveRole('override-me')
         expect(role.fm.description).toBe('Project version.')
         expect(role.systemPrompt).toBe('Project content.')
@@ -353,7 +349,7 @@ description: Custom worker.
 Custom worker prompt.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const worker = resolveRole('worker')
         expect(worker.fm.description).toBe('Custom worker.')
         expect(worker.systemPrompt).toBe('Custom worker prompt.')
@@ -369,7 +365,7 @@ description: Only global.
 Only global content.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const role = resolveRole('global-only')
         expect(role.fm.description).toBe('Only global.')
         expect(role.systemPrompt).toBe('Only global content.')
@@ -385,7 +381,7 @@ Only global content.`,
           'Project content.',
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         expect(listRoles()).toHaveLength(4)
         expect(resolveRole('global-only').systemPrompt).toBe('Global content.')
         expect(resolveRole('project-only').systemPrompt).toBe(
@@ -397,7 +393,7 @@ Only global content.`,
 
   describe('resolveRole', () => {
     it('returns the correct definition for a built-in role', async () => {
-      await loadRoles('/fake/cwd', TEST_PLAN_DEFINITION)
+      await loadRoles('/fake/cwd')
       const worker = resolveRole('worker')
       expect(worker.systemPrompt).toBe('')
     })
@@ -415,7 +411,7 @@ description: Custom role.
 Custom prompt.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const role = resolveRole('custom')
         expect(role.fm.description).toBe('Custom role.')
         expect(role.systemPrompt).toBe('Custom prompt.')
@@ -425,14 +421,14 @@ Custom prompt.`,
     })
 
     it('throws for unknown role name', async () => {
-      await loadRoles('/fake/cwd', TEST_PLAN_DEFINITION)
+      await loadRoles('/fake/cwd')
       expect(() => resolveRole('unknown-role')).toThrow(
         'Role "unknown-role" not found.',
       )
     })
 
     it('throws error message includes available roles', async () => {
-      await loadRoles('/fake/cwd', TEST_PLAN_DEFINITION)
+      await loadRoles('/fake/cwd')
       expect(() => resolveRole('unknown')).toThrow(/Available roles/)
     })
 
@@ -446,7 +442,7 @@ Custom prompt.`,
 
   describe('listRoles', () => {
     it('lists built-in roles first in stable order', async () => {
-      await loadRoles('/fake/cwd', TEST_PLAN_DEFINITION)
+      await loadRoles('/fake/cwd')
       const names = listRoles()
       expect(names).toEqual(['worker', 'planner'])
     })
@@ -460,7 +456,7 @@ Custom prompt.`,
         await writeFile(join(agentsDir, 'alpha.md'), 'Alpha content.')
         await writeFile(join(agentsDir, 'beta.md'), 'Beta content.')
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const names = listRoles()
         expect(names[0]).toBe('worker')
         expect(new Set(names)).toEqual(
@@ -483,7 +479,7 @@ Custom prompt.`,
         await writeFile(join(globalAgentsDir, 'gamma.md'), 'Gamma content.')
         await writeFile(join(globalAgentsDir, 'delta.md'), 'Delta content.')
 
-        await loadRoles('/fake/cwd', TEST_PLAN_DEFINITION)
+        await loadRoles('/fake/cwd')
         const names = listRoles()
         expect(names[0]).toBe('worker')
         expect(names[1]).toBe('planner')
@@ -522,7 +518,7 @@ Custom prompt.`,
         await writeFile(join(agentsDir, 'omega.md'), 'Project omega content.')
         await writeFile(join(agentsDir, 'beta.md'), 'Project beta content.')
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const names = listRoles()
         expect(names[0]).toBe('worker')
         expect(new Set(names)).toEqual(
@@ -548,7 +544,7 @@ Custom prompt.`,
     })
 
     it('lists built-in roles without descriptions', async () => {
-      await loadRoles('/fake/cwd', TEST_PLAN_DEFINITION)
+      await loadRoles('/fake/cwd')
       const description = rolesDescription()
       expect(description).toContain('  - worker')
     })
@@ -569,7 +565,7 @@ tools:
 Custom prompt.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const description = rolesDescription()
         expect(description).toContain(
           '  - custom: A custom role for testing.; tools: read, grep',
@@ -594,7 +590,7 @@ tools:
 Tool role prompt.`,
         )
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const description = rolesDescription()
         expect(description).toContain('  - toolrole: tools: read, find')
       } finally {
@@ -616,7 +612,7 @@ Alpha prompt.`,
         )
         await writeFile(join(agentsDir, 'beta.md'), 'Beta without description.')
 
-        await loadRoles(tempDir, TEST_PLAN_DEFINITION)
+        await loadRoles(tempDir)
         const description = rolesDescription()
 
         expect(description).toContain('  - worker')

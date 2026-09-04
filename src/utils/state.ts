@@ -3,7 +3,7 @@ import type {
   SessionEntry,
 } from '@earendil-works/pi-coding-agent'
 
-import type { ModesState } from '../types.js'
+import type { ModesState, ModeType } from '../types.js'
 
 export const STATE_KEY = 'modes'
 
@@ -14,7 +14,6 @@ export function createState(): ModesState {
 export function persist(pi: ExtensionAPI, state: ModesState): void {
   pi.appendEntry(STATE_KEY, {
     mode: state.mode,
-    planMarkdown: state.planMarkdown,
     modeDiffTools: state.modeDiffTools,
     previousModel: state.previousModel,
     sessionSubagentModel: state.sessionSubagentModel,
@@ -28,7 +27,19 @@ export function getLastModesState(
     const entry = entries[i]
     if (!entry || entry.type !== 'custom' || entry.customType !== STATE_KEY)
       continue
-    return entry.data as Partial<ModesState> | undefined
+    const data = entry.data as
+      (Partial<ModesState> & { mode?: string }) | undefined
+    if (!data) return undefined
+    return {
+      mode: sanitizeMode(data.mode),
+      modeDiffTools: data.modeDiffTools,
+      previousModel: data.previousModel,
+      sessionSubagentModel: data.sessionSubagentModel,
+    }
   }
   return undefined
+}
+
+function sanitizeMode(mode: string | undefined): ModeType | undefined {
+  return mode === 'coordinator' ? 'coordinator' : undefined
 }

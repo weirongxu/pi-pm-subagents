@@ -12,7 +12,6 @@ import {
   setupModesConfig,
 } from './models-config/models-config.js'
 import { setupSubagentModelCycle } from './models-config/subagent-model-cycle.js'
-import { applyPlanMode, setupPlan } from './plan/plan.js'
 import { readModePrompt } from './prompts/mode.js'
 import type { ModesState } from './types.js'
 import { createState, getLastModesState } from './utils/state.js'
@@ -23,22 +22,13 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
   const state = createState()
   await loadPiModesConfig()
 
-  const [planDefinition, coordinatorDefinition] = await Promise.all([
-    readModePrompt('plan'),
-    readModePrompt('coordinator'),
-  ])
+  const coordinatorDefinition = await readModePrompt('coordinator')
 
   const demoEnabled = process.env.PI_DEMO === '1'
 
   setupBashReadonlyTool(pi)
-  await setupPlan(pi, state, {
-    demoEnabled,
-    planDefinition,
-    coordinatorDefinition,
-  })
   await setupCoordinator(pi, state, {
     demoEnabled,
-    planDefinition,
     coordinatorDefinition,
   })
   setupModesConfig(pi, state)
@@ -62,14 +52,11 @@ export default async function modesExtension(pi: ExtensionAPI): Promise<void> {
 
     if (data) {
       state.mode = data.mode
-      state.planMarkdown = data.planMarkdown
       state.modeDiffTools = data.modeDiffTools
       state.previousModel = data.previousModel
       state.sessionSubagentModel = data.sessionSubagentModel
 
-      if (state.mode === 'plan') {
-        await applyPlanMode(pi, state, ctx, planDefinition)
-      } else if (state.mode === 'coordinator') {
+      if (state.mode === 'coordinator') {
         await applyCoordinatorMode(pi, state, ctx, coordinatorDefinition)
       }
 

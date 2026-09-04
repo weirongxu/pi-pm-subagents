@@ -1,4 +1,4 @@
-export type ModeType = 'plan' | 'coordinator'
+export type ModeType = 'coordinator'
 
 export interface ModeToolsDiff {
   added: string[]
@@ -7,7 +7,6 @@ export interface ModeToolsDiff {
 
 export interface ModesState {
   mode: ModeType | undefined
-  planMarkdown?: string
   modeDiffTools?: ModeToolsDiff
   /** Current model captured before entering a read-only mode, restored on exit. */
   previousModel?: string

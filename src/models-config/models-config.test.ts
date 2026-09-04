@@ -29,7 +29,7 @@ describe('sanitizeConfig', () => {
   })
 
   it('clears invalid defaultMode', () => {
-    expect(sanitizeConfig({ defaultMode: 'plan' })).toEqual({})
+    expect(sanitizeConfig({ defaultMode: 'bogus' })).toEqual({})
   })
 
   it('keeps valid subagentModel and scope', () => {
@@ -57,7 +57,7 @@ describe('sanitizeConfig', () => {
     expect(
       sanitizeConfig({
         subagentModel: 'provider/model',
-        defaultMode: 'plan',
+        defaultMode: 'bogus',
       }),
     ).toEqual({ subagentModel: 'provider/model' })
   })
@@ -65,12 +65,12 @@ describe('sanitizeConfig', () => {
   it('does not mutate the input record', () => {
     const record: PiModesConfig = {
       subagentModel: 'no-slash',
-      defaultMode: 'plan',
+      defaultMode: 'bogus',
     }
     sanitizeConfig(record)
     expect(record).toEqual({
       subagentModel: 'no-slash',
-      defaultMode: 'plan',
+      defaultMode: 'bogus',
     })
   })
 })

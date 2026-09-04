@@ -6,7 +6,6 @@ import type {
 import { applyModeFor, assertModeIdle, exitModeFor } from '../mode-switcher.js'
 import { getPiModesConfig } from '../models-config/models-config.js'
 import { formatSubagentModelLabel } from '../models-config/subagent-model-utils.js'
-import { exitPlanMode } from '../plan/plan.js'
 import { loadRoles } from '../prompts/roles.js'
 import { ActivityReporter } from '../subagent/activity.js'
 import { MessageBatcher } from '../subagent/batcher.js'
@@ -123,11 +122,9 @@ export async function setupCoordinator(
   state: ModesState,
   {
     demoEnabled,
-    planDefinition,
     coordinatorDefinition,
   }: {
     demoEnabled: boolean
-    planDefinition: PromptDefinition
     coordinatorDefinition: PromptDefinition
   },
 ): Promise<void> {
@@ -163,7 +160,7 @@ export async function setupCoordinator(
     },
   })
 
-  await loadRoles(process.cwd(), planDefinition)
+  await loadRoles(process.cwd())
 
   runtime = {
     manager,
@@ -189,7 +186,6 @@ export async function setupCoordinator(
       ctx.ui.notify('Coordinator mode off.', 'info')
       return
     }
-    if (state.mode === 'plan') await exitPlanMode(pi, state, ctx)
     await enterCoordinatorMode(pi, state, undefined, ctx, coordinatorDefinition)
     if (request) pi.sendUserMessage(request, { deliverAs: 'followUp' })
   }
@@ -204,6 +200,33 @@ export async function setupCoordinator(
     description:
       'Coordinator mode. Usage: /pm [request] — toggles, or enters with a task',
     handler: runCoordinatorCommand,
+  })
+
+  pi.registerCommand('plan', {
+    description: 'Delegate a planner subagent. Usage: /plan <request>',
+    handler: async (args, ctx) => {
+      if (state.mode !== 'coordinator') {
+        await enterCoordinatorMode(
+          pi,
+          state,
+          undefined,
+          ctx,
+          coordinatorDefinition,
+        )
+      }
+      let request = args.trim()
+      if (!request && ctx.hasUI) {
+        request = (await ctx.ui.editor('Enter the request to plan:', '')) ?? ''
+      }
+      if (!request.trim()) return
+      pi.sendUserMessage(
+        [
+          `<planRequest>${request}</planRequest>`,
+          "Use role 'planner' to create a plan.",
+        ].join('\n'),
+        { deliverAs: 'followUp' },
+      )
+    },
   })
 
   if (demoEnabled) {

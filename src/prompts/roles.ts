@@ -36,9 +36,7 @@ export async function loadMarkdownRolesFromDir(
   return loadedRoles
 }
 
-async function loadBuiltins(
-  planDefinition: PromptDefinition,
-): Promise<Map<string, PromptDefinition>> {
+async function loadBuiltins(): Promise<Map<string, PromptDefinition>> {
   const builtins = new Map<string, PromptDefinition>([
     [DEFAULT_ROLE, { fm: {}, systemPrompt: '' }],
     [
@@ -50,17 +48,21 @@ async function loadBuiltins(
           description: 'Planning subagent',
           reviewOnEnd: true,
         },
-        systemPrompt: planDefinition.systemPrompt,
+        systemPrompt: [
+          'You are in plan mode — a read-only exploration mode. You cannot modify files.',
+          '',
+          '1. Investigate the request thoroughly using read-only tools.',
+          '2. Produce a concrete implementation plan as Markdown',
+          '',
+          'The user will review it and choose how to proceed.',
+        ].join('\n'),
       },
     ],
   ])
   return builtins
 }
 
-export async function loadRoles(
-  cwd: string,
-  planDefinition: PromptDefinition,
-): Promise<void> {
+export async function loadRoles(cwd: string): Promise<void> {
   roles.clear()
   const addRoles = (newRoles: Map<string, PromptDefinition>) => {
     for (const [name, role] of newRoles) {
@@ -68,7 +70,7 @@ export async function loadRoles(
     }
   }
 
-  addRoles(await loadBuiltins(planDefinition))
+  addRoles(await loadBuiltins())
   addRoles(await loadMarkdownRolesFromDir(join(getAgentDir(), 'agents')))
   addRoles(await loadMarkdownRolesFromDir(join(cwd, CONFIG_DIR_NAME, 'agents')))
 }

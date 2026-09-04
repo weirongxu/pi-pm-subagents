@@ -2,17 +2,15 @@
 
 pi-modes extension for [pi](https://pi.dev):
 
-**plan** mode and a **coordinator** mode.
-
-## Plan mode
-
-`/plan`
-
-Let the agent write a plan; then you can review the plan and execute it directly or execute it in coordinator mode.
+a **coordinator** mode that drives subagents.
 
 ## Coordinator mode
 
 Let the agent delegate some subagents to work and supervise them.
+
+## Planner subagent
+
+**/plan <request>** delegates a planner subagent (in coordinator mode) that explores the code and produces a plan. The planner is a built-in role; override it via a `planner.md` in `<cwd>/.pi/agents/` or the global agents dir.
 
 ## Model configuration
 
@@ -51,9 +49,9 @@ Sessions that already have a mode record keep it; an explicit exit within a sess
 
 ## Customizing prompts
 
-Each mode's prompt is a Markdown file under `<agentDir>/modes-prompts/` (`plan.md`, `coordinator.md`).
+The coordinator prompt is a Markdown file under `<agentDir>/modes-prompts/` (`coordinator.md`).
 
-To add extra rules without replacing the whole prompt, drop an append file under `<agentDir>/modes-prompts/` (`plan-append.md`, `coordinator-append.md`).
+To add extra rules without replacing the whole prompt, drop an append file under `<agentDir>/modes-prompts/` (`coordinator-append.md`).
 
 ## Install
 
@@ -63,7 +61,7 @@ pi install git:github.com/raidou/pi-modes     # adjust to your repo
 
 ## Demo commands
 
-`/plan-demo` and `/workers-demo` are UI fixtures for development. They are only registered when pi is launched with `DEMO=1`:
+`/subagent-demo` is a UI fixture for development. It is only registered when pi is launched with `PI_DEMO=1`:
 
 ```bash
 PI_DEMO=1 pi

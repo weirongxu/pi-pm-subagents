@@ -21,11 +21,4 @@ describe('coordinator mode prompt', () => {
       'web_fetch',
     ])
   })
-
-  it('omits removeTools in plan.md', async () => {
-    const planPath = join(repoRoot, 'modes-prompts', 'plan.md')
-    const result = await loadMarkdown(planPath)
-    expect(result).toBeDefined()
-    expect(result?.fm.removeTools).toBeUndefined()
-  })
 })

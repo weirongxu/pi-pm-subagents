@@ -56,8 +56,7 @@ describe('getLastModesState', () => {
         timestamp: new Date().toISOString(),
         customType: 'modes',
         data: {
-          mode: 'plan',
-          planMarkdown: 'plan1',
+          mode: 'coordinator',
         },
       },
       {
@@ -68,16 +67,32 @@ describe('getLastModesState', () => {
         customType: 'modes',
         data: {
           mode: 'coordinator',
-          planMarkdown: 'plan2',
-          modeTools: { added: ['tool1'], removed: ['tool2'] },
+          modeDiffTools: { added: ['tool1'], removed: ['tool2'] },
         },
       },
     ]
     const result = getLastModesState(entries)
     expect(result).toEqual({
       mode: 'coordinator',
-      planMarkdown: 'plan2',
-      modeTools: { added: ['tool1'], removed: ['tool2'] },
+      modeDiffTools: { added: ['tool1'], removed: ['tool2'] },
     })
+  })
+
+  it('sanitizes stale plan mode to undefined', () => {
+    const entries: SessionEntry[] = [
+      {
+        type: 'custom',
+        id: '1',
+        parentId: null,
+        timestamp: new Date().toISOString(),
+        customType: 'modes',
+        data: {
+          mode: 'plan',
+          planMarkdown: 'stale plan',
+        },
+      },
+    ]
+    const result = getLastModesState(entries)
+    expect(result).toEqual({ mode: undefined })
   })
 })
