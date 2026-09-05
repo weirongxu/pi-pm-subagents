@@ -56,7 +56,7 @@ export function registerSubagentTools(
   fleet: FleetList,
   batcher: MessageBatcher,
 ): void {
-  const lastListAt = Date.now()
+  let lastListAt = Date.now()
 
   pi.on('session_start', () => {
     const tools = [
@@ -76,6 +76,8 @@ export function registerSubagentTools(
               ],
               details: {},
             }
+
+          lastListAt = Date.now()
 
           const allSubagents = manager.list()
           if (allSubagents.length === 0) {
