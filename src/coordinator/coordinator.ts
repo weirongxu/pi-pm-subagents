@@ -224,7 +224,7 @@ export async function setupCoordinator(
         pi,
         [
           `<planRequest>${request}</planRequest>`,
-          "Use role 'planner' to create a plan.",
+          "Use role 'planner' to create a plan. then other subagents to implements",
         ].join('\n'),
       )
     },
