@@ -46,7 +46,8 @@ async function loadBuiltins(): Promise<Map<string, PromptDefinition>> {
         fm: {
           removeTools: ['write', 'edit', 'bash'],
           extraTools: [BASH_READONLY_TOOL_NAME],
-          description: 'Planning',
+          description:
+            'Produces an implementation plan, the plan is reviewed by the user before implementation',
           reviewOnEnd: true,
         },
         systemPrompt: [
