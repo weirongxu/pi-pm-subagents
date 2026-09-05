@@ -13,6 +13,7 @@ import {
 } from './models-config/models-config.js'
 import { setupSubagentModelCycle } from './models-config/subagent-model-cycle.js'
 import { readModePrompt } from './prompts/mode.js'
+import { isSubagentSpawnContext } from './subagent/identity.js'
 import type { PmSubagentState } from './types.js'
 import { createState, getLastPmSubagentState } from './utils/state.js'
 
@@ -21,6 +22,11 @@ let pendingPmSubagentState: Partial<PmSubagentState> | undefined
 export default async function pmSubagentsExtension(
   pi: ExtensionAPI,
 ): Promise<void> {
+  setupBashReadonlyTool(pi)
+  if (isSubagentSpawnContext()) {
+    return
+  }
+
   const state = createState()
   await loadPmSubagentsConfig()
 
@@ -28,7 +34,6 @@ export default async function pmSubagentsExtension(
 
   const demoEnabled = process.env.PI_DEMO === '1'
 
-  setupBashReadonlyTool(pi)
   await setupCoordinator(pi, state, {
     demoEnabled,
     coordinatorDefinition,

@@ -1,6 +1,5 @@
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 import type { ThinkingLevel } from '@earendil-works/pi-agent-core'
 import type { Api, Model } from '@earendil-works/pi-ai'
@@ -17,8 +16,10 @@ import { formatElapsed } from '../utils/format.js'
 import { lastMessageText } from '../utils/messages.js'
 import { FOLLOW_SYMBOL } from './consts.ts'
 import type { FleetEntryBase } from './fleet.js'
-
-const SELF_DIR = fileURLToPath(new URL('../', import.meta.url))
+import {
+  runInSubagentSpawnContext,
+  SUBAGENT_SESSION_ID_PREFIX,
+} from './identity.js'
 
 const subagentDirFor = (cwd: string, agentDir: string): string => {
   const safeCwd = cwd.replace(/^[/\\]/, '').replace(/[/\\:]/g, '-')
@@ -112,12 +113,6 @@ export class SubagentManager {
       cwd: options.cwd,
       agentDir: getAgentDir(),
       systemPromptOverride: (base) => `${base}\n\n${options.systemPrompt}`,
-      extensionsOverride: (base) => ({
-        ...base,
-        extensions: base.extensions.filter(
-          (extension) => !extension.resolvedPath.startsWith(SELF_DIR),
-        ),
-      }),
     })
     await loader.reload()
     return loader
@@ -137,16 +132,18 @@ export class SubagentManager {
     const id = this.seq
     const subagentSessionDir = subagentDirFor(options.cwd, getAgentDir())
     mkdirSync(subagentSessionDir, { recursive: true })
-    const loader = await this.createLoader(options)
-    const created = await createAgentSession({
-      cwd: options.cwd,
-      model: options.model,
-      thinkingLevel: options.thinkingLevel,
-      tools: options.tools ? [...options.tools] : undefined,
-      resourceLoader: loader,
-      sessionManager: SessionManager.create(options.cwd, subagentSessionDir, {
-        id: `pi-pm-subagents-subagent-${id}-${Date.now()}`,
-      }),
+    const created = await runInSubagentSpawnContext(id, async () => {
+      const loader = await this.createLoader(options)
+      return createAgentSession({
+        cwd: options.cwd,
+        model: options.model,
+        thinkingLevel: options.thinkingLevel,
+        tools: options.tools ? [...options.tools] : undefined,
+        resourceLoader: loader,
+        sessionManager: SessionManager.create(options.cwd, subagentSessionDir, {
+          id: `${SUBAGENT_SESSION_ID_PREFIX}${id}-${Date.now()}`,
+        }),
+      })
     })
 
     const activeTools: string[] = options.tools ? [...options.tools] : []
