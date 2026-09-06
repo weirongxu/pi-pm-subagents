@@ -50,7 +50,7 @@ describe('roles', () => {
         expect(planner.fm.reviewOnEnd).toBe(true)
         expect(planner.fm.removeTools).toEqual(['write', 'edit', 'bash'])
         expect(planner.fm.description).toBe(
-          'Produces an implementation plan; the plan is reviewed by the user before implementation',
+          'Produces an implementation plan, the plan is reviewed by the user before implementation',
         )
       })
 

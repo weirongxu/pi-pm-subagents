@@ -12,7 +12,7 @@ import {
   SessionManager,
 } from '@earendil-works/pi-coding-agent'
 
-import { formatElapsed } from '../utils/format.js'
+import { formatContextUsage, formatElapsed } from '../utils/format.js'
 import { lastMessageText } from '../utils/messages.js'
 import { FOLLOW_SYMBOL } from './consts.ts'
 import type { FleetEntryBase } from './fleet.js'
@@ -73,6 +73,7 @@ export function formatSubagentSummary(
     subagent.status,
     `#${subagent.id}`,
     subagent.title.slice(0, titleWidth),
+    formatContextUsage(subagent.contextUsage),
     `${FOLLOW_SYMBOL} ${subagent.followUpCount}`,
     formatElapsed(subagent),
   ].join(' ')

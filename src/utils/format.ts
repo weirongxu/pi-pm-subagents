@@ -1,3 +1,4 @@
+import type { ContextUsage } from '@earendil-works/pi-coding-agent'
 import { visibleWidth } from '@earendil-works/pi-tui'
 
 import { truncateText } from './truncate.js'
@@ -12,6 +13,25 @@ export function rightAlign(left: string, right: string, width: number): string {
   const leftClamped = truncateText(left, maxLeft)
   const gap = Math.max(1, width - visibleWidth(leftClamped) - rightW)
   return truncateText(leftClamped + ' '.repeat(gap) + right, width)
+}
+
+export function formatTokens(count: number): string {
+  if (count < 1000) return count.toString()
+  if (count < 10000) return `${(count / 1000).toFixed(1)}k`
+  if (count < 1000000) return `${Math.round(count / 1000)}k`
+  if (count < 10000000) return `${(count / 1000000).toFixed(1)}M`
+  return `${Math.round(count / 1000000)}M`
+}
+
+export function formatContextUsage(usage: ContextUsage | undefined): string {
+  if (
+    usage === undefined ||
+    usage.contextWindow === 0 ||
+    usage.tokens === null
+  ) {
+    return '?'
+  }
+  return `${formatTokens(usage.tokens)}/${formatTokens(usage.contextWindow)}`
 }
 
 export function formatElapsed(item: {

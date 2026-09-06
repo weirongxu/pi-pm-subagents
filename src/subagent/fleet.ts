@@ -13,21 +13,18 @@ import {
 } from '@earendil-works/pi-tui'
 import { orderBy } from 'lodash-es'
 
-import { formatElapsed, rightAlign, strInline } from '../utils/format.js'
+import {
+  formatContextUsage,
+  formatElapsed,
+  rightAlign,
+  strInline,
+} from '../utils/format.js'
 import { truncateText } from '../utils/truncate.js'
 import { FOLLOW_SYMBOL } from './consts.ts'
 
 const FLEET_KEY = 'pi-pm-subagents:fleet'
 const TICK_MS = 200
 const MAX_ROWS = 8
-
-function formatTokens(count: number): string {
-  if (count < 1000) return count.toString()
-  if (count < 10000) return `${(count / 1000).toFixed(1)}k`
-  if (count < 1000000) return `${Math.round(count / 1000)}k`
-  if (count < 10000000) return `${(count / 1000000).toFixed(1)}M`
-  return `${Math.round(count / 1000000)}M`
-}
 
 function visibleWindow(
   rowCount: number,
@@ -353,12 +350,7 @@ export class FleetList {
   private renderContextCol(entry: FleetEntryBase, theme: Theme): string {
     const cu = entry.contextUsage
     if (!cu || cu.contextWindow === 0) return theme.fg('muted', ' '.repeat(12))
-    const tokens = cu.tokens
-    const content =
-      tokens !== null
-        ? `${formatTokens(tokens)}/${formatTokens(cu.contextWindow)}`
-        : '?'
-    const padded = content.padStart(12, ' ')
+    const padded = formatContextUsage(cu).padStart(12, ' ')
     const percent = cu.percent
     const color =
       percent !== null && percent > 90

@@ -29,6 +29,11 @@ describe('MessageBatcher', () => {
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
     const subagent = makeSubagent(1, 'task-1', 'done')
+    subagent.contextUsage = {
+      tokens: 60000,
+      contextWindow: 200000,
+      percent: 30,
+    }
 
     batcher.add(subagent, 'done', 'Task completed')
     expect(batcher.pending.length).toBe(1)
@@ -40,6 +45,7 @@ describe('MessageBatcher', () => {
     expect(flushed).toHaveLength(1)
     const firstFlush = flushed[0]
     expect(firstFlush?.[0]).toContain('done #1')
+    expect(firstFlush?.[0]).toContain('60k/200k')
     expect(firstFlush?.[0]).toContain('<type>done</type>')
     expect(firstFlush?.[0]).toContain('<message>Task completed</message>')
     expect(batcher.pending).toEqual([])

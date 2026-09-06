@@ -5,6 +5,7 @@ import type {
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  formatSubagentSummary,
   type LiveSubagent,
   MAX_REUSE_FOLLOWUPS,
   SubagentManager,
@@ -70,6 +71,48 @@ function registerSubagent(
   ).subagents.set(id, subagent)
   return subagent
 }
+
+describe('formatSubagentSummary', () => {
+  it('renders context usage between title and follow symbol', () => {
+    const { session } = makeStubSession()
+    const manager = new SubagentManager()
+    const subagent = registerSubagent(manager, session, {
+      id: 1,
+      status: 'done',
+      followUpCount: 2,
+    })
+    subagent.contextUsage = {
+      tokens: 60000,
+      contextWindow: 200000,
+      percent: 30,
+    }
+
+    const summary = formatSubagentSummary(subagent, 80)
+
+    expect(summary).toBe('done #1 Task 1 60k/200k ⟳ 2 1s')
+  })
+
+  it('renders ? when tokens is null', () => {
+    const { session } = makeStubSession()
+    const manager = new SubagentManager()
+    const subagent = registerSubagent(manager, session, { id: 1 })
+    subagent.contextUsage = {
+      tokens: null,
+      contextWindow: 200000,
+      percent: null,
+    }
+
+    expect(formatSubagentSummary(subagent, 80)).toContain(' Task 1 ? ')
+  })
+
+  it('renders ? when contextUsage is undefined', () => {
+    const { session } = makeStubSession()
+    const manager = new SubagentManager()
+    const subagent = registerSubagent(manager, session, { id: 1 })
+
+    expect(formatSubagentSummary(subagent, 80)).toContain(' Task 1 ? ')
+  })
+})
 
 describe('SubagentManager.followup', () => {
   describe('subagent not found', () => {
