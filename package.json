@@ -12,6 +12,10 @@
     "coordinator"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/weirongxu/pi-pm-subagents.git"
+  },
   "type": "module",
   "pi": {
     "extensions": [
