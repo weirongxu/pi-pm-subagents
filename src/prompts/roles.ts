@@ -1,9 +1,9 @@
 import { readdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { CONFIG_DIR_NAME, getAgentDir } from '@earendil-works/pi-coding-agent'
 
-import { BASH_READONLY_TOOL_NAME } from '../bash-readonly.js'
 import { loadMarkdown, type PromptDefinition } from '../utils/markdown.js'
 import { composeTools } from '../utils/tools.js'
 
@@ -38,33 +38,20 @@ export async function loadMarkdownRolesFromDir(
 }
 
 async function loadBuiltins(): Promise<Map<string, PromptDefinition>> {
-  const builtins = new Map<string, PromptDefinition>([
+  return new Map<string, PromptDefinition>([
     [DEFAULT_ROLE, { fm: {}, systemPrompt: '' }],
-    [
-      'planner',
-      {
-        fm: {
-          removeTools: ['write', 'edit', 'bash'],
-          extraTools: [BASH_READONLY_TOOL_NAME],
-          description:
-            'Produces an implementation plan, the plan is reviewed by the user before implementation',
-          reviewOnEnd: true,
-        },
-        systemPrompt: [
-          'You are in plan mode — a read-only exploration mode. You cannot modify files.',
-          '',
-          '1. Investigate the request thoroughly using read-only tools.',
-          '2. Produce a concrete implementation plan as Markdown',
-          '',
-          'The user will review it and choose how to proceed.',
-        ].join('\n'),
-      },
-    ],
   ])
-  return builtins
 }
 
-export async function loadRoles(cwd: string): Promise<void> {
+export interface LoadRolesOptions {
+  /** Skip roles bundled with the plugin (agents/ directory in the package root). */
+  skipPluginAgents?: boolean
+}
+
+export async function loadRoles(
+  cwd: string,
+  options: LoadRolesOptions = {},
+): Promise<void> {
   roles.clear()
   const addRoles = (newRoles: Map<string, PromptDefinition>) => {
     for (const [name, role] of newRoles) {
@@ -73,6 +60,11 @@ export async function loadRoles(cwd: string): Promise<void> {
   }
 
   addRoles(await loadBuiltins())
+  if (!options.skipPluginAgents) {
+    // Bundled agents live in the package root, next to src/.
+    const here = dirname(fileURLToPath(import.meta.url))
+    addRoles(await loadMarkdownRolesFromDir(join(here, '../..', 'agents')))
+  }
   addRoles(await loadMarkdownRolesFromDir(join(getAgentDir(), 'agents')))
   addRoles(await loadMarkdownRolesFromDir(join(cwd, CONFIG_DIR_NAME, 'agents')))
 }

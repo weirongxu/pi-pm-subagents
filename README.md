@@ -4,65 +4,82 @@ pi-pm-subagents extension for [pi](https://pi.dev):
 
 a **coordinator** mode that drives subagents.
 
-## Coordinator mode
+## Installation
 
-Let the agent delegate some subagents to work and supervise them.
+```bash
+pi install @raidou/pi-pm-subagents
+```
 
-## Planner subagent
+## Usage
 
-**/plan <request>** delegates a planner subagent (in coordinator mode) that explores the code and produces a plan. The planner is a built-in role; override it via a `planner.md` in `<cwd>/.pi/agents/` or the global agents dir.
+Enter Coordinator mode
 
-## Model configuration
+`/pm` or `/coordinator`
 
-**Model priority (spawn time):** `role.model > subagentModel > ctx.model`
+or enable it as the default:
 
-### `subagentModel`
+```
+/pm-default or /coordinator-default
+```
 
-Single-element model for subagents. Stored in `pi-pm-subagents.json`.
+Then the agent will delegate some subagents to work and supervise them.
 
-- **`/pm-subagent-model`** — Select a model for subagents
-- When set to `DEFAULT`, pi uses its built-in agent default model
+### Built-in agent roles
 
-### `subagentModelScoped`
+- explorer
+- researcher
+- reviewer
+- planner
+- worker (default built-in role)
 
-Cycle pool of models. Stored in `pi-pm-subagents.json`. Can include `DEFAULT` marker.
+**/plan <request>** delegates a planner subagent (in coordinator mode) that explores the code and produces a plan.
 
-- **`/pm-subagent-scoped`** — Manage the scope (multi-select UI with Space to toggle, Enter to save)
-  **`DEFAULT` marker:** When `DEFAULT` is selected, pi uses its built-in agent default model instead of a specific model reference.
+## Configuration
 
-### `defaultMode`
+### Prompts
 
-When enabled, sessions that have no recorded mode yet (no last pm-subagents state entry) automatically start in pm (coordinator) mode. Stored in `pi-pm-subagents.json`. Only `coordinator` is supported; any other value is ignored.
+**Coordinator**
 
-- **`/pm-default`** / **`/coordinator-default`** — Toggle pm (coordinator) mode enabled by default on startup
+`~/.pi/agent/pm-subagents-prompts/coordinator.md`
+`~/.pi/agent/pm-subagents-prompts/coordinator-append.md`
 
-Sessions that already have a mode record keep it; an explicit exit within a session is not overridden.
+**Roles**
 
-### Shortcuts (coordinator mode)
+Load precedence (later overrides earlier):
 
-- `Alt+N` — cycle forward to next model in scope, syncs to `subagentModel`
+1. Built-in `worker`
+2. Plugin `agents/` directory
+3. Global `~/.pi/agent/agents`
+4. Project `<cwd>/.pi/agents`
 
-> **Terminal/tmux compatibility note**:
+Set `"skipPluginAgents": true` in `pi-pm-subagents.json` to skip loading the built-in roles (including `planner`).
+
+### Options in `pi-pm-subagents.json`
+
+- `"subagentModel": "<model>"` — default subagent model
+- `"subagentModelScoped": ["<model>", ...]` — subagent scoped model pool
+- `"defaultMode": "coordinator"` — enter coordinator mode on startup (persistent equivalent of `/pm-default`)
+
+### Model command
+
+**Model priority (spawn time):** `role.model > session subagent model (initial value from pi-pm-subagents.json, can be overridden via /pm-subagent-model or Alt+N) > ctx.model`
+
+- **`/pm-subagent-model`** — Change subagent model
+- **`/pm-subagent-scoped`** — Manage the subagent scoped model
+  - `Alt+N` Cycle pool of models. Can include `DEFAULT` (use pi default model) marker.
+
+## Note
+
+**Terminal/tmux compatibility note**:
+
 > `Alt+N` requires terminal support for Kitty keyboard protocol,
 > or enable `set -g extended-keys on` in tmux.
 > In standard xterm and similar terminals, `Alt+letter` is sent as an ESC sequence and may be unreliable.
 
-## Customizing prompts
-
-The coordinator prompt is a Markdown file under `<agentDir>/pm-subagents-prompts/` (`coordinator.md`).
-
-To add extra rules without replacing the whole prompt, drop an append file under `<agentDir>/pm-subagents-prompts/` (`coordinator-append.md`).
-
-## Install
-
-```bash
-pi install git:github.com/raidou/pi-pm-subagents     # adjust to your repo
-```
-
-## Demo commands
-
-`/subagent-demo` is a UI fixture for development. It is only registered when pi is launched with `PI_DEMO=1`:
+## Development
 
 ```bash
 PI_DEMO=1 pi
 ```
+
+`/subagent-demo` is a UI fixture for development. It is only registered when pi is launched with `PI_DEMO=1`.

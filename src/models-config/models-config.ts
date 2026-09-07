@@ -10,9 +10,13 @@ import type { Static } from 'typebox'
 import { Type } from 'typebox'
 import { Parse } from 'typebox/value'
 
-import { renderCoordinatorModeWidget } from '../coordinator/coordinator.js'
+import {
+  enterCoordinatorMode,
+  renderCoordinatorModeWidget,
+} from '../coordinator/coordinator.js'
 import { customSelect } from '../custom-select.js'
 import type { PmSubagentState } from '../types.js'
+import type { PromptDefinition } from '../utils/markdown.js'
 import {
   modelOptionOf,
   parseModelRef,
@@ -28,6 +32,7 @@ const PmSubagentsConfigSchema = Type.Object({
   subagentModel: Type.Optional(Type.String()),
   subagentModelScoped: Type.Optional(Type.Array(Type.String())),
   defaultMode: Type.Optional(Type.String()),
+  skipPluginAgents: Type.Optional(Type.Boolean()),
 })
 
 export function sanitizeConfig(record: PmSubagentsConfig): PmSubagentsConfig {
@@ -45,10 +50,16 @@ export function sanitizeConfig(record: PmSubagentsConfig): PmSubagentsConfig {
   const defaultMode =
     record.defaultMode === 'coordinator' ? 'coordinator' : undefined
 
+  const skipPluginAgents =
+    typeof record.skipPluginAgents === 'boolean'
+      ? record.skipPluginAgents
+      : undefined
+
   return {
     subagentModel,
     subagentModelScoped,
     defaultMode,
+    skipPluginAgents,
   }
 }
 
@@ -116,6 +127,7 @@ async function pickModel(ctx: ExtensionContext): Promise<string | undefined> {
 export function setupPmSubagentsConfig(
   pi: ExtensionAPI,
   state: PmSubagentState,
+  coordinatorDefinition: PromptDefinition,
 ): void {
   pi.registerCommand('pm-subagent-model', {
     description: 'Configure the subagent model',
@@ -170,6 +182,15 @@ export function setupPmSubagentsConfig(
     const enabled = pmSubagentsConfig.defaultMode !== 'coordinator'
     await setDefaultMode(enabled ? 'coordinator' : undefined)
     ctx.ui.notify(`pm mode on startup: ${enabled ? 'on' : 'off'}`, 'info')
+    if (enabled && state.mode !== 'coordinator') {
+      await enterCoordinatorMode(
+        pi,
+        state,
+        undefined,
+        ctx,
+        coordinatorDefinition,
+      )
+    }
   }
 
   pi.registerCommand('coordinator-default', {

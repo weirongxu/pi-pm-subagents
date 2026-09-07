@@ -53,6 +53,18 @@ describe('sanitizeConfig', () => {
     expect(config.subagentModelScoped).toBeUndefined()
   })
 
+  it('keeps valid skipPluginAgents', () => {
+    expect(sanitizeConfig({ skipPluginAgents: true })).toEqual({
+      skipPluginAgents: true,
+    })
+  })
+
+  it('clears invalid skipPluginAgents', () => {
+    expect(
+      sanitizeConfig({ skipPluginAgents: 'yes' as unknown as boolean }),
+    ).toEqual({})
+  })
+
   it('clears invalid defaultMode without affecting a valid subagentModel', () => {
     expect(
       sanitizeConfig({

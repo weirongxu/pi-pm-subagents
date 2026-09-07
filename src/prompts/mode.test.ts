@@ -1,10 +1,14 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
+import { parseFrontmatter } from '@earendil-works/pi-coding-agent'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { readModePrompt } from './mode.js'
+
+const here = dirname(fileURLToPath(import.meta.url))
 
 const MOCK_AGENT_DIR_VAR = 'PI_CODING_AGENT_DIR'
 
@@ -133,9 +137,27 @@ Base prompt content.`,
         'Appended extra content.',
       )
 
+      const bundled = await readFile(
+        join(here, '../../pm-subagents-prompts/coordinator.md'),
+        'utf8',
+      )
+      const { body } = parseFrontmatter(bundled)
+
       const result = await readModePrompt('coordinator')
-      expect(result.systemPrompt).toBe(
-        "You are a COORDINATOR agent; you are readonly, delegate subagents to do tasks\n\n- Delegate tasks and wait for me to tell you subagent's last message when it finishes.\n- Do not trust a subagent's self-reported result blindly.\n\nAppended extra content.",
+      // Intentionally structural assertions instead of hardcoding the full
+      // body: tolerate wording edits to the bundled prompt while guarding
+      // against sections being accidentally dropped from it.
+      expect(result.systemPrompt).toContain('You are a COORDINATOR agent')
+      expect(result.systemPrompt).toContain('## Responsibilities')
+      expect(result.systemPrompt).toContain(
+        '- Delegate tasks and wait for me to tell you subagent',
+      )
+      expect(result.systemPrompt).toContain(
+        `- Do not trust a subagent's self-reported result blindly.`,
+      )
+      expect(result.systemPrompt).toContain(body.trim())
+      expect(result.systemPrompt).toContain(
+        `${body.trim()}\n\nAppended extra content.`,
       )
     })
 

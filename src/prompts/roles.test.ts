@@ -15,6 +15,10 @@ import {
 
 const MOCK_AGENT_DIR_VAR = 'PI_CODING_AGENT_DIR'
 
+// Roles bundled with the plugin in the repo-root agents/ directory.
+// Tests run inside the repo, so these are always loaded (unless skipped).
+const BUNDLED_ROLES = ['explorer', 'planner', 'researcher', 'reviewer']
+
 describe('roles', () => {
   let originalAgentDir: string | undefined
 
@@ -54,18 +58,35 @@ describe('roles', () => {
         )
       })
 
-      it('returns built-ins when no directories exist', async () => {
+      it('returns built-ins and plugin roles when no user directories exist', async () => {
         const tempDir = await mkdtemp(
           join(tmpdir(), 'pi-pm-subagents-test-empty-'),
         )
         try {
           await loadRoles(tempDir)
-          expect(listRoles()).toEqual(['worker', 'planner'])
+          // Tests run inside the repo, so the bundled agents/ directory
+          // (explorer, planner, researcher, reviewer) is picked up.
+          expect(listRoles()[0]).toBe('worker')
+          expect(new Set(listRoles())).toEqual(
+            new Set(['worker', ...BUNDLED_ROLES]),
+          )
           resolveRole('worker')
           resolveRole('planner')
         } finally {
           await rm(tempDir, { recursive: true, force: true })
         }
+      })
+
+      it('resolves plugin roles from the bundled agents directory', async () => {
+        await loadRoles('/fake/cwd')
+        const planner = resolveRole('planner')
+        expect(planner.systemPrompt).toContain('read-only exploration mode')
+        expect(planner.fm.removeTools).toEqual(['write', 'edit', 'bash'])
+        expect(planner.fm.extraTools).toEqual([BASH_READONLY_TOOL_NAME])
+        expect(planner.fm.reviewOnEnd).toBe(true)
+        expect(() => resolveRole('explorer')).not.toThrow()
+        expect(() => resolveRole('researcher')).not.toThrow()
+        expect(() => resolveRole('reviewer')).not.toThrow()
       })
     })
 
@@ -103,7 +124,8 @@ You are a tester.`,
         )
 
         await loadRoles(tempDir)
-        expect(listRoles()).toHaveLength(4)
+        // worker + bundled plugin roles + 2 project roles
+        expect(listRoles()).toHaveLength(1 + BUNDLED_ROLES.length + 2)
         expect(() => resolveRole('worker')).not.toThrow()
         expect(() => resolveRole('planner')).not.toThrow()
         expect(() => resolveRole('code-improver')).not.toThrow()
@@ -229,7 +251,8 @@ You have both tools.`,
         await writeFile(join(agentsDir, 'valid.md'), 'This should be loaded.')
 
         await loadRoles(tempDir)
-        expect(listRoles()).toHaveLength(3)
+        // worker + bundled plugin roles + 1 valid project role
+        expect(listRoles()).toHaveLength(1 + BUNDLED_ROLES.length + 1)
         expect(() => resolveRole('valid')).not.toThrow()
         expect(() => resolveRole('not-a-role')).toThrow()
       })
@@ -290,7 +313,8 @@ Second global content.`,
         )
 
         await loadRoles(tempDir)
-        expect(listRoles()).toHaveLength(4)
+        // worker + bundled plugin roles + 2 global roles
+        expect(listRoles()).toHaveLength(1 + BUNDLED_ROLES.length + 2)
         expect(() => resolveRole('worker')).not.toThrow()
         expect(() => resolveRole('planner')).not.toThrow()
         expect(() => resolveRole('global-role')).not.toThrow()
@@ -390,9 +414,55 @@ Only global content.`,
         )
 
         await loadRoles(tempDir)
-        expect(listRoles()).toHaveLength(4)
+        // worker + bundled plugin roles + 2 user roles
+        expect(listRoles()).toHaveLength(1 + BUNDLED_ROLES.length + 2)
         expect(resolveRole('global-only').systemPrompt).toBe('Global content.')
         expect(resolveRole('project-only').systemPrompt).toBe(
+          'Project content.',
+        )
+      })
+
+      it('user-level role overrides bundled plugin role with the same name', async () => {
+        await writeFile(
+          join(globalAgentsDir, 'reviewer.md'),
+          `---
+description: Global reviewer.
+---
+Global reviewer prompt.`,
+        )
+
+        await loadRoles(tempDir)
+        const reviewer = resolveRole('reviewer')
+        expect(reviewer.fm.description).toBe('Global reviewer.')
+        expect(reviewer.systemPrompt).toBe('Global reviewer prompt.')
+      })
+
+      it('skips plugin roles when skipPluginAgents is true', async () => {
+        await loadRoles(tempDir, { skipPluginAgents: true })
+        expect(() => resolveRole('explorer')).toThrow()
+        expect(() => resolveRole('planner')).toThrow()
+        expect(listRoles()).toEqual(['worker'])
+      })
+
+      it('still loads user roles when skipPluginAgents is true', async () => {
+        await writeFile(join(globalAgentsDir, 'gamma.md'), 'Gamma content.')
+
+        await loadRoles(tempDir, { skipPluginAgents: true })
+        expect(new Set(listRoles())).toEqual(new Set(['worker', 'gamma']))
+        expect(resolveRole('gamma').systemPrompt).toBe('Gamma content.')
+      })
+
+      it('still loads project roles when skipPluginAgents is true', async () => {
+        await writeFile(
+          join(projectAgentsDir, 'project-role.md'),
+          'Project content.',
+        )
+
+        await loadRoles(tempDir, { skipPluginAgents: true })
+        expect(new Set(listRoles())).toEqual(
+          new Set(['worker', 'project-role']),
+        )
+        expect(resolveRole('project-role').systemPrompt).toBe(
           'Project content.',
         )
       })
@@ -454,7 +524,8 @@ Custom prompt.`,
     it('lists built-in roles first in stable order', async () => {
       await loadRoles('/fake/cwd')
       const names = listRoles()
-      expect(names).toEqual(['worker', 'planner'])
+      expect(names[0]).toBe('worker')
+      expect(new Set(names)).toEqual(new Set(['worker', ...BUNDLED_ROLES]))
     })
 
     it('lists project roles after built-ins', async () => {
@@ -472,7 +543,7 @@ Custom prompt.`,
         const names = listRoles()
         expect(names[0]).toBe('worker')
         expect(new Set(names)).toEqual(
-          new Set(['worker', 'planner', 'alpha', 'beta', 'zeta']),
+          new Set([...BUNDLED_ROLES, 'worker', 'alpha', 'beta', 'zeta']),
         )
       } finally {
         await rm(tempDir, { recursive: true, force: true })
@@ -494,9 +565,8 @@ Custom prompt.`,
         await loadRoles('/fake/cwd')
         const names = listRoles()
         expect(names[0]).toBe('worker')
-        expect(names[1]).toBe('planner')
         expect(new Set(names)).toEqual(
-          new Set(['worker', 'planner', 'delta', 'gamma']),
+          new Set([...BUNDLED_ROLES, 'worker', 'delta', 'gamma']),
         )
       } finally {
         await rm(globalTempDir, { recursive: true, force: true })
@@ -534,7 +604,7 @@ Custom prompt.`,
         const names = listRoles()
         expect(names[0]).toBe('worker')
         expect(new Set(names)).toEqual(
-          new Set(['worker', 'planner', 'alpha', 'beta', 'omega']),
+          new Set([...BUNDLED_ROLES, 'worker', 'alpha', 'beta', 'omega']),
         )
       } finally {
         await rm(tempDir, { recursive: true, force: true })

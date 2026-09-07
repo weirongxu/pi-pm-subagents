@@ -38,7 +38,7 @@ export default async function pmSubagentsExtension(
     demoEnabled,
     coordinatorDefinition,
   })
-  setupPmSubagentsConfig(pi, state)
+  setupPmSubagentsConfig(pi, state, coordinatorDefinition)
   setupSubagentModelCycle(pi, state)
 
   pi.on('session_before_switch', (_event, ctx) => {

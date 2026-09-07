@@ -161,7 +161,9 @@ export async function setupCoordinator(
     },
   })
 
-  await loadRoles(process.cwd())
+  await loadRoles(process.cwd(), {
+    skipPluginAgents: getPmSubagentsConfig().skipPluginAgents,
+  })
 
   runtime = {
     manager,
