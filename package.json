@@ -18,6 +18,13 @@
       "./src/index.ts"
     ]
   },
+  "files": [
+    "src",
+    "agents",
+    "README.zh-CN.md",
+    "example-prompts",
+    "pm-subagents-prompts"
+  ],
   "scripts": {
     "test": "pnpm test:types && pnpm test:lint && pnpm test:unit",
     "test:types": "tsc --noEmit",
