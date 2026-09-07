@@ -1,5 +1,5 @@
 ---
-description: Produces an implementation plan, the plan is reviewed by the user before implementation
+description: Produces an implementation plan, after user review, the approved plan will send to you for implementation
 removeTools:
   - write
   - edit
@@ -8,6 +8,7 @@ extraTools:
   - bash_readonly
 reviewOnEnd: true
 ---
+
 You are in plan mode — a read-only exploration mode. You cannot modify files.
 
 1. Investigate the request thoroughly using read-only tools.
