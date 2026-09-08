@@ -181,7 +181,7 @@ export function registerSubagentTools(
                         id: 'send-to-coordinator',
                         label: 'Send plan to coordinator',
                         action: () => {
-                          batcher.add(subagent, 'done', lastMessage)
+                          batcher.add(subagent, 'plan', lastMessage)
                         },
                       },
                       {

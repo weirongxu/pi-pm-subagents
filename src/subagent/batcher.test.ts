@@ -145,6 +145,37 @@ describe('MessageBatcher', () => {
     expect(firstFlush?.[1]).toContain('Subagent activity update')
   })
 
+  it('formats plan items with reviewed-by-user tag', () => {
+    vi.useFakeTimers()
+    const flushed: string[][] = []
+    const batcher = new MessageBatcher((items) => flushed.push(items), 100)
+    const subagent = makeSubagent(1, 'plan-1', 'done')
+
+    batcher.add(subagent, 'plan', 'The implementation plan')
+    batcher.flushNow()
+
+    expect(flushed).toHaveLength(1)
+    const item = flushed[0]?.[0]
+    expect(item).toContain('<subagent-plan>')
+    expect(item).toContain('</subagent-plan>')
+    expect(item).toContain('<type>plan</type>')
+    expect(item).toContain('<reviewed-by-user>true</reviewed-by-user>')
+    expect(item).toContain('<message>The implementation plan</message>')
+  })
+
+  it('does not add reviewed-by-user tag to non-plan items', () => {
+    vi.useFakeTimers()
+    const flushed: string[][] = []
+    const batcher = new MessageBatcher((items) => flushed.push(items), 100)
+    const subagent = makeSubagent(1, 'task-1', 'done')
+
+    batcher.add(subagent, 'done', 'Task completed')
+    batcher.flushNow()
+
+    const item = flushed[0]?.[0]
+    expect(item).not.toContain('reviewed-by-user')
+  })
+
   it('resets timer on each add', () => {
     vi.useFakeTimers()
     const flushed: string[][] = []
