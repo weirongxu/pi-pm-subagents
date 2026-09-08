@@ -31,7 +31,7 @@ export function registerOptionalTools(
 
   if (sessionStarted) filterIt()
   else
-    pi.on('session_start', async () => {
+    pi.on('session_start', () => {
       filterIt()
     })
 }

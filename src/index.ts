@@ -6,6 +6,7 @@ import {
   enterCoordinatorMode,
   setupCoordinator,
 } from './coordinator/coordinator.js'
+import { setupListDirTool } from './list-dir.js'
 import {
   getPmSubagentsConfig,
   loadPmSubagentsConfig,
@@ -23,6 +24,7 @@ export default async function pmSubagentsExtension(
   pi: ExtensionAPI,
 ): Promise<void> {
   setupBashReadonlyTool(pi)
+  setupListDirTool(pi)
   if (isSubagentSpawnContext()) {
     return
   }
