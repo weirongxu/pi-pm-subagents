@@ -23,7 +23,7 @@ export function registerOptionalTools(
 
   const filterIt = () => {
     const activeTools = pi.getActiveTools()
-    const filtered = activeTools.filter((name) => !names.has(name))
+    const filtered = removeToolNames(activeTools, names)
     if (filtered.length !== activeTools.length) {
       pi.setActiveTools(filtered)
     }
@@ -34,6 +34,13 @@ export function registerOptionalTools(
     pi.on('session_start', () => {
       filterIt()
     })
+}
+
+export function removeToolNames(
+  activeTools: readonly string[],
+  removed: ReadonlySet<string>,
+): string[] {
+  return activeTools.filter((name) => !removed.has(name))
 }
 
 export function composeTools(

@@ -1,65 +1,28 @@
-import { defineTool } from '@earendil-works/pi-coding-agent'
-import { Type } from 'typebox'
 import { describe, expect, it } from 'vitest'
 
-import {
-  composeTools,
-  type OptionalToolsApi,
-  registerOptionalTools,
-} from './tools.js'
-
-function fakePi(initialActive: string[]): OptionalToolsApi & {
-  activeTools: string[]
-  sessionStartHandlers: (() => void)[]
-} {
-  const pi = {
-    activeTools: [...initialActive],
-    sessionStartHandlers: [] as (() => void)[],
-    registerTool() {},
-    on(_event: 'session_start', handler: () => void) {
-      pi.sessionStartHandlers.push(handler)
-    },
-    getActiveTools() {
-      return [...pi.activeTools]
-    },
-    setActiveTools(names: string[]) {
-      pi.activeTools = [...names]
-    },
-  }
-  return pi
-}
-
-const toolOf = (name: string) =>
-  defineTool({
-    name,
-    label: name,
-    description: name,
-    parameters: Type.Object({}),
-    execute: async () => ({ content: [], details: undefined }),
+import { composeTools, removeToolNames } from './tools.js'
+describe('removeToolNames', () => {
+  it('removes tools present in the removed set', () => {
+    expect(
+      removeToolNames(
+        ['read', 'bash_readonly', 'grep'],
+        new Set(['bash_readonly']),
+      ),
+    ).toEqual(['read', 'grep'])
   })
 
-describe('registerOptionalTools', () => {
-  it('registers tools and defers filtering to session_start', () => {
-    const pi = fakePi(['read', 'bash_readonly'])
-    registerOptionalTools(pi, [toolOf('bash_readonly')], false)
-    expect(pi.activeTools).toEqual(['read', 'bash_readonly'])
-
-    pi.sessionStartHandlers.forEach((h) => {
-      h()
-    })
-    expect(pi.activeTools).toEqual(['read'])
+  it('returns all tools when nothing matches', () => {
+    expect(
+      removeToolNames(['read', 'grep'], new Set(['bash_readonly'])),
+    ).toEqual(['read', 'grep'])
   })
 
-  it('filters immediately when the session already started', () => {
-    const pi = fakePi(['read', 'grep', 'bash_readonly'])
-    registerOptionalTools(pi, [toolOf('bash_readonly')], true)
-    expect(pi.activeTools).toEqual(['read', 'grep'])
+  it('returns an empty array for empty input', () => {
+    expect(removeToolNames([], new Set(['bash_readonly']))).toEqual([])
   })
 
-  it('keeps other tools untouched', () => {
-    const pi = fakePi(['read'])
-    registerOptionalTools(pi, [toolOf('bash_readonly')], true)
-    expect(pi.activeTools).toEqual(['read'])
+  it('removes everything when all names match', () => {
+    expect(removeToolNames(['a', 'b'], new Set(['a', 'b']))).toEqual([])
   })
 })
 
