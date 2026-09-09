@@ -69,7 +69,7 @@ export function renderReviewPager(
             ['↑↓', 'select'],
             [`1-${choices.length}`, 'jump'],
             ['j/k line', 'line'],
-            ['u/d ␣', 'PageUp/Dn page'],
+            ['u/e/d ␣', 'PgUp/Dn ½page'],
             ['g/G', 'Home/End jump'],
             ['Enter', 'confirm'],
             ['q/esc', 'cancel'],

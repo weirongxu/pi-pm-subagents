@@ -161,7 +161,7 @@ export class SubagentViewer implements Component {
     }
     keys.push(
       ['j/k ↑/↓', 'line'],
-      ['u/d ␣', 'PageUp/Dn page'],
+      ['u/e/d ␣', 'PgUp/Dn ½page'],
       ['g/G', 'Home/End jump'],
       ['q/esc', 'close'],
     )

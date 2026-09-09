@@ -89,17 +89,18 @@ export class ScrollView implements Component {
       this.#moveTo(this.#offset + 1)
     else if (
       data === 'u' ||
+      data === 'e' ||
       matchesKey(data, Key.ctrl('u')) ||
       matchesKey(data, Key.pageUp)
     )
-      this.#moveTo(this.#offset - this.#viewportHeight)
+      this.#moveTo(this.#offset - this.#halfPage)
     else if (
       data === 'd' ||
       data === ' ' ||
       matchesKey(data, Key.ctrl('d')) ||
       matchesKey(data, Key.pageDown)
     )
-      this.#moveTo(this.#offset + this.#viewportHeight)
+      this.#moveTo(this.#offset + this.#halfPage)
     else if (data === 'g' || matchesKey(data, Key.home)) this.#moveTo(0)
     else if (data === 'G' || matchesKey(data, Key.end))
       this.#moveTo(this.#maxOffset)
@@ -114,6 +115,10 @@ export class ScrollView implements Component {
 
   invalidate(): void {
     this.#child.invalidate()
+  }
+
+  get #halfPage(): number {
+    return Math.max(1, Math.floor(this.#viewportHeight / 2))
   }
 
   get #maxOffset(): number {
