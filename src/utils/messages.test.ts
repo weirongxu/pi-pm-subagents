@@ -9,12 +9,7 @@ import type {
 } from '@earendil-works/pi-ai'
 import { describe, expect, it } from 'vitest'
 
-import {
-  formatToolNameWithArgs,
-  lastAssistantText,
-  lastMessageText,
-  messageText,
-} from './messages.js'
+import { lastMessageText, messageText } from './messages.js'
 
 function user(text: string): UserMessage {
   return {
@@ -78,113 +73,6 @@ function toolResultText(text: string, isError = false): ToolResultMessage {
   }
 }
 
-function toolResultMessage(
-  toolCallId: string,
-  toolName: string,
-  text: string,
-  isError = false,
-): ToolResultMessage {
-  return {
-    role: 'toolResult',
-    toolCallId,
-    toolName,
-    content: [{ type: 'text', text }],
-    isError,
-    timestamp: Date.now(),
-  }
-}
-
-describe('lastAssistantText', () => {
-  it('returns the text from the last assistant message', () => {
-    const messages: AgentMessage[] = [
-      user('task'),
-      assistant({ text: 'I will read it' }),
-    ]
-    const result = lastAssistantText(messages)
-    expect(result).toBe('I will read it')
-  })
-
-  it('finds the last assistant message when toolResult follows', () => {
-    const messages: AgentMessage[] = [
-      user('task'),
-      assistant({ text: 'Reading file', toolCall: 'read' }),
-      toolResultText('content'),
-    ]
-    const result = lastAssistantText(messages)
-    expect(result).toBe('Reading file')
-  })
-
-  it('finds the last assistant message when multiple assistants exist', () => {
-    const messages: AgentMessage[] = [
-      user('task'),
-      assistant({ text: 'first' }),
-      toolResultText('result'),
-      assistant({ text: 'second' }),
-    ]
-    const result = lastAssistantText(messages)
-    expect(result).toBe('second')
-  })
-
-  it('returns undefined when only user messages exist', () => {
-    const messages: AgentMessage[] = [user('task'), user('follow-up')]
-    const result = lastAssistantText(messages)
-    expect(result).toBeUndefined()
-  })
-
-  it('returns undefined when the last message is toolResult', () => {
-    const messages: AgentMessage[] = [
-      user('task'),
-      assistant({ toolCall: 'read' }),
-      toolResultText('File content here'),
-    ]
-    const result = lastAssistantText(messages)
-    expect(result).toBeUndefined()
-  })
-
-  it('returns undefined for empty messages array', () => {
-    const messages: AgentMessage[] = []
-    const result = lastAssistantText(messages)
-    expect(result).toBeUndefined()
-  })
-})
-
-describe('lastAssistantText with maxBytes', () => {
-  it('returns text unchanged when under byte limit', () => {
-    const messages: AgentMessage[] = [
-      user('task'),
-      assistant({ text: 'Short text' }),
-    ]
-    const result = lastAssistantText(messages, 100)
-    expect(result).toBe('Short text')
-  })
-
-  it('truncates text with suffix when over byte limit', () => {
-    const messages: AgentMessage[] = [
-      user('task'),
-      assistant({ text: 'a'.repeat(1000) }),
-    ]
-    const result = lastAssistantText(messages, 50)
-    const defaultSuffix = '\n\n[Output truncated.]'
-    expect(result).toContain(defaultSuffix)
-    expect(result?.length).toBeLessThanOrEqual(50 + defaultSuffix.length + 10)
-  })
-
-  it('returns undefined when no valid message exists regardless of maxBytes', () => {
-    const messages: AgentMessage[] = [user('task')]
-    const result = lastAssistantText(messages, 100)
-    expect(result).toBeUndefined()
-  })
-
-  it('does not truncate when maxBytes is undefined', () => {
-    const messages: AgentMessage[] = [
-      user('task'),
-      assistant({ text: 'a'.repeat(1000) }),
-    ]
-    const result = lastAssistantText(messages)
-    expect(result).toBe('a'.repeat(1000))
-  })
-})
-
 describe('lastMessageText', () => {
   it('returns the text from the last assistant message', () => {
     const messages: AgentMessage[] = [
@@ -214,17 +102,17 @@ describe('lastMessageText', () => {
       toolResultText('File content here'),
     ]
     const result = lastMessageText(messages)
-    expect(result).toBe('read\nFile content here')
+    expect(result).toBe('read({})\nFile content here')
   })
 
-  it('returns undefined when toolResult has empty text content', () => {
+  it('returns fenced tool call render when toolResult has empty text content', () => {
     const messages: AgentMessage[] = [
       user('task'),
       assistant({ toolCall: 'read' }),
       toolResultText(''),
     ]
     const result = lastMessageText(messages)
-    expect(result).toBeUndefined()
+    expect(result).toBe('read({})')
   })
 
   it('returns tool result text when assistant only made tool calls and never spoke again', () => {
@@ -235,7 +123,7 @@ describe('lastMessageText', () => {
       toolResultText('Tool output'),
     ]
     const result = lastMessageText(messages)
-    expect(result).toBe('read\nTool output')
+    expect(result).toBe('read({})\nTool output')
   })
 
   it('returns tool result text even when isError is true', () => {
@@ -245,7 +133,7 @@ describe('lastMessageText', () => {
       toolResultText('Error: file not found', true),
     ]
     const result = lastMessageText(messages)
-    expect(result).toBe('read\nError: file not found')
+    expect(result).toBe('read({})\nError: file not found')
   })
 
   it('returns tool result text when last message is toolResult, ignoring earlier assistant text', () => {
@@ -303,24 +191,24 @@ describe('lastMessageText', () => {
     expect(result).toBe('read({"path":"x"})\nFile content here')
   })
 
-  it('returns previous assistant text when last assistant has no text', () => {
+  it('returns fenced tool call render when last assistant has no text', () => {
     const messages: AgentMessage[] = [
       user('task'),
       assistant({ text: 'first assistant' }),
       assistant({ toolCall: 'read' }),
     ]
     const result = lastMessageText(messages)
-    expect(result).toBe('first assistant')
+    expect(result).toBe('read({})')
   })
 
-  it('returns undefined when no assistant has text', () => {
+  it('returns fenced tool call render when no assistant has text', () => {
     const messages: AgentMessage[] = [
       user('task'),
       assistant({ toolCall: 'read' }),
       assistant({}),
     ]
     const result = lastMessageText(messages)
-    expect(result).toBeUndefined()
+    expect(result).toBe('read({})')
   })
 })
 
@@ -362,75 +250,63 @@ describe('lastMessageText with maxBytes', () => {
 })
 
 describe('messageText', () => {
-  it('returns empty string for undefined message', () => {
-    expect(messageText(undefined)).toBe('')
+  it('returns null for undefined message', () => {
+    expect(messageText(undefined, [])).toBeNull()
   })
 
   it('returns text from assistant message', () => {
     const msg = assistant({ text: 'Hello world' })
-    expect(messageText(msg)).toBe('Hello world')
+    expect(messageText(msg, [msg])).toBe('Hello world')
   })
 
-  it('returns tool result text without prefix', () => {
-    const msg = toolResultText('output')
-    expect(messageText(msg)).toBe('output')
+  it('prefixes tool call render when a matching toolCall exists', () => {
+    const result = toolResultText('output')
+    const messages: AgentMessage[] = [
+      assistant({ toolCall: 'read', toolCallArgs: { path: 'a.ts' } }),
+      result,
+    ]
+    expect(messageText(result, messages)).toBe('read({"path":"a.ts"})\noutput')
+  })
+
+  it('falls back to toolName when no matching toolCall exists', () => {
+    const result = toolResultText('output')
+    const messages: AgentMessage[] = [assistant({}), result]
+    expect(messageText(result, messages)).toBe('read\noutput')
   })
 
   it('returns empty string for empty tool result text', () => {
     const msg = toolResultText('')
-    expect(messageText(msg)).toBe('')
+    const messages: AgentMessage[] = [assistant({ toolCall: 'read' }), msg]
+    expect(messageText(msg, messages)).toBe('')
   })
 
-  it('returns empty string for message with only tool calls', () => {
+  it('renders tool calls as name(args)', () => {
     const msg = assistant({ toolCall: 'read' })
-    expect(messageText(msg)).toBe('')
+    expect(messageText(msg, [msg])).toBe('read({})')
   })
-})
 
-describe('formatToolNameWithArgs', () => {
-  it('returns toolName with arguments when matching ToolCall has arguments', () => {
+  it('joins mixed text and tool calls', () => {
+    const msg = assistant({ text: 'Reading now', toolCall: 'read' })
+    expect(messageText(msg, [msg])).toBe('Reading now\nread({})')
+  })
+
+  it('returns empty string for thinking-only assistant', () => {
+    const msg = assistant({})
+    expect(messageText(msg, [msg])).toBe('')
+  })
+
+  it('keeps markdown in text blocks unchanged', () => {
+    const markdown = '# Title\n\n- item\n\n```js\nconsole.log(1)\n```'
+    const msg = assistant({ text: markdown })
+    expect(messageText(msg, [msg])).toBe(markdown)
+  })
+
+  it('returns fenced tool call render for last assistant with only tool calls', () => {
     const messages: AgentMessage[] = [
       user('task'),
-      assistant({ toolCall: 'read', toolCallArgs: { path: 'file.txt' } }),
+      assistant({ toolCall: 'read', toolCallArgs: { path: 'a.ts' } }),
     ]
-    const toolResult = toolResultText('content')
-    const result = formatToolNameWithArgs(toolResult, messages)
-    expect(result).toBe('read({"path":"file.txt"})')
-  })
-
-  it('returns toolName without parens when matching ToolCall has empty arguments', () => {
-    const messages: AgentMessage[] = [
-      user('task'),
-      assistant({ toolCall: 'read', toolCallArgs: {} }),
-    ]
-    const toolResult = toolResultText('content')
-    const result = formatToolNameWithArgs(toolResult, messages)
-    expect(result).toBe('read')
-  })
-
-  it('returns toolName without parens when no matching ToolCall exists', () => {
-    const messages: AgentMessage[] = [user('task')]
-    const toolResult = toolResultText('content')
-    const result = formatToolNameWithArgs(toolResult, messages)
-    expect(result).toBe('read')
-  })
-
-  it('returns toolName with complex arguments when matching ToolCall has complex arguments', () => {
-    const messages: AgentMessage[] = [
-      user('task'),
-      assistant({
-        toolCall: 'write',
-        toolCallArgs: {
-          path: 'file.txt',
-          content: 'hello world',
-          overwrite: true,
-        },
-      }),
-    ]
-    const toolResult = toolResultMessage('call-123', 'write', 'done')
-    const result = formatToolNameWithArgs(toolResult, messages)
-    expect(result).toBe(
-      'write({"path":"file.txt","content":"hello world","overwrite":true})',
-    )
+    const result = lastMessageText(messages)
+    expect(result).toBe('read({"path":"a.ts"})')
   })
 })

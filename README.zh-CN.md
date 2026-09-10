@@ -82,4 +82,4 @@ pi install @raidou/pi-pm-subagents
 PI_DEMO=1 pi
 ```
 
-`/subagent-demo` 是用于开发的 UI fixture。仅在以 `PI_DEMO=1` 启动 pi 时才会注册：
+`/subagent-demo` 和 `/plan-demo` 是用于开发的 UI fixture。仅在以 `PI_DEMO=1` 启动 pi 时才会注册。`/subagent-demo` 展示包含假 subagent 的 subagent 浏览器；`/plan-demo` 使用示例 plan 打开 planner review UI（`/plan` 的评审界面），无需真实 planner subagent

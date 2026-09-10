@@ -1,10 +1,12 @@
 import { formatSubagentSummary, type LiveSubagent } from './manager.js'
 
-const TAG_NAMES: Record<string, string> = {
+const TAG_NAMES = {
+  activity: 'subagent-activity',
   done: 'subagent-done',
-  plan: 'subagent-plan',
-  notify: 'subagent-notify',
-}
+  reviewed: 'subagent-reviewed',
+} as const
+
+export type SubagentMessageType = keyof typeof TAG_NAMES
 
 export class MessageBatcher {
   private items: string[] = []
@@ -19,15 +21,19 @@ export class MessageBatcher {
     return [...this.items]
   }
 
-  add(subagent: LiveSubagent, type: string, message: string): void {
-    const tagName = TAG_NAMES[type] ?? 'subagent-notify'
-    const lines = [`<${tagName}>`, `<type>${type}</type>`]
-    if (type === 'plan') lines.push('<reviewed-by-user>true</reviewed-by-user>')
-    lines.push(
+  add(
+    subagent: LiveSubagent,
+    type: SubagentMessageType,
+    message: string,
+  ): void {
+    const tagName = TAG_NAMES[type]
+    const lines = [
+      `<${tagName}>`,
+      `<type>${type}</type>`,
       `<job>${formatSubagentSummary(subagent)}</job>`,
       `<message>${message}</message>`,
       `</${tagName}>`,
-    )
+    ]
     const item = lines.join('\n')
     this.items.push(item)
     if (this.timer !== undefined) clearTimeout(this.timer)

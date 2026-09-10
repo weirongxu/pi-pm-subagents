@@ -49,45 +49,37 @@ function findToolCall(
   return undefined
 }
 
-export function formatToolNameWithArgs(
-  message: ToolResultMessage,
-  messages: readonly AgentMessage[],
-): string {
-  const toolCall = findToolCall(message.toolCallId, messages)
-  if (toolCall && Object.keys(toolCall.arguments).length > 0) {
-    return `${message.toolName}(${JSON.stringify(toolCall.arguments)})`
-  }
-  return message.toolName
+function formatToolCall(toolCall: ToolCall) {
+  return `${toolCall.name}(${JSON.stringify(toolCall.arguments)})`
 }
 
-export function messageText(message: AgentMessage | undefined): string {
-  if (!message) return ''
-  if (isAssistantMessage(message) || isToolResultMessage(message)) {
-    const text = message.content
+export function messageText(
+  message: AgentMessage | undefined,
+  messages: readonly AgentMessage[],
+): string | null {
+  if (!message) return null
+  if (isAssistantMessage(message)) {
+    const parts = message.content.map((block) => {
+      if (isToolCall(block)) {
+        return formatToolCall(block)
+      }
+      if (block.type === 'text') return block.text
+      return ''
+    })
+    return parts.join('\n').trim()
+  }
+  if (isToolResultMessage(message)) {
+    const result = message.content
       .filter((block): block is TextContent => block.type === 'text')
       .map((block) => block.text)
       .join('\n')
       .trim()
-    return text
+    if (!result) return result
+    const toolCall = findToolCall(message.toolCallId, messages)
+    const toolCallText = toolCall ? formatToolCall(toolCall) : message.toolName
+    return `${toolCallText}\n${result}`
   }
-  return ''
-}
-
-export function lastAssistantText(
-  messages: readonly AgentMessage[],
-  maxBytes?: number,
-): string | undefined {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-    if (isAssistantMessage(message)) {
-      const text = messageText(message)
-      if (!text) continue
-      const result =
-        maxBytes !== undefined ? truncateToBytes(text, maxBytes) : text
-      return result || undefined
-    }
-  }
-  return undefined
+  return null
 }
 
 export function lastMessageText(
@@ -99,21 +91,9 @@ export function lastMessageText(
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]
 
-    if (isAssistantMessage(message)) {
-      const text = messageText(message)
-      if (!text) continue
-      return maxBytes !== undefined ? truncateToBytes(text, maxBytes) : text
-    }
-
-    if (isToolResultMessage(message)) {
-      const text = messageText(message)
-      if (!text) continue
-      const name = formatToolNameWithArgs(message, messages)
-      const composed = `${name}\n${text}`
-      return maxBytes !== undefined
-        ? truncateToBytes(composed, maxBytes)
-        : composed
-    }
+    const text = messageText(message, messages)
+    if (!text) continue
+    return maxBytes !== undefined ? truncateToBytes(text, maxBytes) : text
   }
 
   return undefined

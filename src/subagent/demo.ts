@@ -12,9 +12,11 @@ import type {
   AgentSession,
   AgentSessionEventListener,
   ContextUsage,
+  ExtensionAPI,
   PromptOptions,
 } from '@earendil-works/pi-coding-agent'
 
+import type { PmSubagentState } from '../types.js'
 import type { LiveSubagent } from './manager.js'
 import { SubagentManager } from './manager.js'
 
@@ -770,4 +772,56 @@ grep: 3 files matched`,
       'The release checklist check failed: CHANGELOG.md has no 2.4.0 section and package.json still reports 2.3.1. Both need to be updated before tagging the release.',
     ),
   ],
+}
+
+interface SubagentDemoDeps {
+  getDemoManager(): SubagentManagerDemo | undefined
+  setDemoManager(manager: SubagentManagerDemo | undefined): void
+  updateFleet(): void
+}
+
+export function registerSubagentDemoCommand(
+  pi: ExtensionAPI,
+  state: PmSubagentState,
+  deps: SubagentDemoDeps,
+): void {
+  pi.registerCommand('subagent-demo', {
+    description: 'Browse a subagent live demo (coordinator mode)',
+    handler: async (args, ctx) => {
+      const argList = args.split(/\s+/)
+      if (!ctx.hasUI) return
+      if (state.mode !== 'coordinator') {
+        ctx.ui.notify(
+          'Subagents browser is only available in coordinator mode.',
+          'info',
+        )
+        return
+      }
+
+      if (argList[0] === 'add') {
+        if (!deps.getDemoManager()) {
+          deps.setDemoManager(new SubagentManagerDemo())
+        }
+        deps.getDemoManager()?.add(argList.slice(1).join(' '))
+        deps.updateFleet()
+        ctx.ui.notify(
+          'Added a demo subagent. Use /subagent demo to exit demo mode.',
+          'info',
+        )
+        return
+      }
+      if (deps.getDemoManager()) {
+        deps.setDemoManager(undefined)
+        deps.updateFleet()
+        ctx.ui.notify('Demo mode exited.', 'info')
+        return
+      }
+      deps.setDemoManager(new SubagentManagerDemo())
+      deps.updateFleet()
+      ctx.ui.notify(
+        'Demo mode active: fake subagents loaded. Use /subagent demo to exit.',
+        'info',
+      )
+    },
+  })
 }

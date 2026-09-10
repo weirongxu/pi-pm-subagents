@@ -1,4 +1,4 @@
-## Launch multiple reviewers to review the code based on the following criteria
+## After changing code, always launch multiple reviewers to review the code based on the following criteria
 
 A
 

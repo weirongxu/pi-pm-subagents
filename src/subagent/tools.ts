@@ -11,16 +11,22 @@ import { baseToolsOf } from '../pm-mode.js'
 import { resolveRole, rolesDescription } from '../prompts/roles.js'
 import type { PmSubagentState } from '../types.js'
 import { askHowToProceed } from '../ui/review-pager.js'
+import type { ReviewOnEnd } from '../utils/markdown.js'
 import { composeTools, registerOptionalTools } from '../utils/tools.js'
 import type { MessageBatcher } from './batcher.js'
 import type { FleetList } from './fleet.js'
-import type { SubagentManager } from './manager.js'
 import type { LiveSubagent } from './manager.js'
+import type { SubagentManager } from './manager.js'
 import {
   formatSubagentSummary,
   MAX_CONCURRENCY_SUBAGENT,
   MAX_REUSE_FOLLOWUPS,
 } from './manager.js'
+import {
+  buildReviewOptions,
+  nextRevisedTitle,
+  resolveReviewName,
+} from './review-utils.js'
 
 function toolResultFromError(error: unknown): AgentToolResult<unknown> {
   const message = error instanceof Error ? error.message : String(error)
@@ -134,7 +140,7 @@ export function registerSubagentTools(
           ctx,
         ): Promise<AgentToolResult<unknown>> {
           const role = resolveRole(params.role)
-          const reviewOnEnd = role.fm.reviewOnEnd ?? false
+          const reviewOnEnd: ReviewOnEnd = role.fm.reviewOnEnd ?? false
 
           const tools = composeTools(baseToolsOf(pi, state), {
             tools: role.fm.tools,
@@ -173,41 +179,25 @@ export function registerSubagentTools(
                     return
                   }
 
-                  await askHowToProceed(ctx, {
-                    title: '📋 Planner Review',
-                    plan: lastMessage,
-                    choices: [
-                      {
-                        id: 'send-to-coordinator',
-                        label: 'Send plan to coordinator',
-                        action: () => {
-                          batcher.add(subagent, 'plan', lastMessage)
+                  await askHowToProceed(
+                    ctx,
+                    buildReviewOptions({
+                      content: lastMessage,
+                      name: resolveReviewName(reviewOnEnd),
+                      actions: {
+                        send(message) {
+                          batcher.add(subagent, 'reviewed', message)
                         },
-                      },
-                      {
-                        id: 'update-the-plan',
-                        label: 'Update the plan',
-                        action: async () => {
-                          const updatePrompt = await ctx.ui.editor(
-                            'Update the plan:',
-                            '',
+                        async revise(updatePrompt) {
+                          await manager.followup(
+                            subagent.id,
+                            nextRevisedTitle(subagent.title),
+                            updatePrompt,
                           )
-                          if (updatePrompt?.trim()) {
-                            await manager.followup(
-                              subagent.id,
-                              `${subagent.title} (revised)`,
-                              `Update the plan based on:\n\n${updatePrompt.trim()}`,
-                            )
-                          }
                         },
                       },
-                      {
-                        id: 'discard',
-                        label: 'Discard',
-                        action: () => {},
-                      },
-                    ],
-                  })
+                    }),
+                  )
                 },
               },
             )

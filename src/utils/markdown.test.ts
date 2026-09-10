@@ -292,12 +292,26 @@ Test prompt.`,
     await expect(loadMarkdown(filePath)).rejects.toThrow()
   })
 
-  it('throws when reviewOnEnd is a string', async () => {
-    const filePath = join(tempDir, 'invalid-review-string.md')
+  it('supports reviewOnEnd field as a deliverable name', async () => {
+    const filePath = join(tempDir, 'review-name.md')
     await writeFile(
       filePath,
       `---
-reviewOnEnd: "true"
+reviewOnEnd: "research"
+---
+Test prompt.`,
+    )
+
+    const result = await loadMarkdown(filePath)
+    expect(result?.fm.reviewOnEnd).toBe('research')
+  })
+
+  it('throws when reviewOnEnd is a number', async () => {
+    const filePath = join(tempDir, 'invalid-review-number.md')
+    await writeFile(
+      filePath,
+      `---
+reviewOnEnd: 1
 ---
 Test prompt.`,
     )
@@ -414,6 +428,14 @@ describe('mergePromptDefinitions', () => {
       fm: { ...base.fm, reviewOnEnd: true },
     })
     expect(result.fm.reviewOnEnd).toBe(true)
+  })
+
+  it('passes through string reviewOnEnd when defined', () => {
+    const result = mergePromptDefinitions(base, {
+      ...base,
+      fm: { ...base.fm, reviewOnEnd: 'research' },
+    })
+    expect(result.fm.reviewOnEnd).toBe('research')
   })
 
   it('uses base reviewOnEnd when append has none', () => {

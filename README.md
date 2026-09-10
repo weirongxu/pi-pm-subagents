@@ -82,4 +82,4 @@ Set `"skipPluginAgents": true` in `pi-pm-subagents.json` to skip loading the bui
 PI_DEMO=1 pi
 ```
 
-`/subagent-demo` is a UI fixture for development. It is only registered when pi is launched with `PI_DEMO=1`.
+`/subagent-demo` and `/plan-demo` are UI fixtures for development. They are only registered when pi is launched with `PI_DEMO=1`. `/subagent-demo` shows the subagent browser with fake subagents; `/plan-demo` opens the planner review UI (`/plan` review pager) with a sample plan, without needing a real planner subagent.

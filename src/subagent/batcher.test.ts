@@ -61,7 +61,7 @@ describe('MessageBatcher', () => {
 
     batcher.add(subagent1, 'done', 'Task 1 completed')
     vi.advanceTimersByTime(50)
-    batcher.add(subagent2, 'failed', 'Task 2 failed')
+    batcher.add(subagent2, 'done', 'Task 2 failed')
     vi.advanceTimersByTime(100)
 
     expect(flushed).toHaveLength(1)
@@ -145,25 +145,25 @@ describe('MessageBatcher', () => {
     expect(firstFlush?.[1]).toContain('Subagent activity update')
   })
 
-  it('formats plan items with reviewed-by-user tag', () => {
+  it('adds reviewed tag only for reviewed type', () => {
     vi.useFakeTimers()
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
     const subagent = makeSubagent(1, 'plan-1', 'done')
 
-    batcher.add(subagent, 'plan', 'The implementation plan')
+    batcher.add(subagent, 'reviewed', 'The implementation plan')
     batcher.flushNow()
 
     expect(flushed).toHaveLength(1)
     const item = flushed[0]?.[0]
-    expect(item).toContain('<subagent-plan>')
-    expect(item).toContain('</subagent-plan>')
-    expect(item).toContain('<type>plan</type>')
-    expect(item).toContain('<reviewed-by-user>true</reviewed-by-user>')
+    expect(item).toContain('<subagent-reviewed>')
+    expect(item).toContain('</subagent-reviewed>')
+    expect(item).toContain('<type>reviewed</type>')
+    expect(item).not.toContain('reviewed-by-user')
     expect(item).toContain('<message>The implementation plan</message>')
   })
 
-  it('does not add reviewed-by-user tag to non-plan items', () => {
+  it('uses done tag for done type', () => {
     vi.useFakeTimers()
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
@@ -173,6 +173,9 @@ describe('MessageBatcher', () => {
     batcher.flushNow()
 
     const item = flushed[0]?.[0]
+    expect(item).toContain('<subagent-done>')
+    expect(item).toContain('</subagent-done>')
+    expect(item).toContain('<type>done</type>')
     expect(item).not.toContain('reviewed-by-user')
   })
 

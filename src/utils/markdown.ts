@@ -17,6 +17,10 @@ const ThinkingLevelSchema = Type.Union([
   Type.Literal('max'),
 ])
 
+export const ReviewOnEndSchema = Type.Union([Type.Boolean(), Type.String()])
+
+export type ReviewOnEnd = Static<typeof ReviewOnEndSchema>
+
 const PromptFrontmatterSchema = Type.Object({
   description: Type.Optional(Type.String()),
   model: Type.Optional(Type.String()),
@@ -24,7 +28,7 @@ const PromptFrontmatterSchema = Type.Object({
   tools: Type.Optional(StringList),
   extraTools: Type.Optional(StringList),
   removeTools: Type.Optional(StringList),
-  reviewOnEnd: Type.Optional(Type.Boolean()),
+  reviewOnEnd: Type.Optional(ReviewOnEndSchema),
 })
 
 export type PromptFrontmatter = Static<typeof PromptFrontmatterSchema>

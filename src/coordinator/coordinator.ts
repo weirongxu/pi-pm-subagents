@@ -5,11 +5,15 @@ import type {
 
 import { getPmSubagentsConfig } from '../models-config/models-config.js'
 import { formatSubagentModelLabel } from '../models-config/subagent-model-utils.js'
+import { registerPlanDemoCommand } from '../plan/demo.js'
 import { applyModeFor, assertModeIdle, exitModeFor } from '../pm-mode.js'
 import { loadRoles } from '../prompts/roles.js'
 import { ActivityReporter } from '../subagent/activity.js'
 import { MessageBatcher } from '../subagent/batcher.js'
-import { SubagentManagerDemo } from '../subagent/demo.js'
+import {
+  registerSubagentDemoCommand,
+  type SubagentManagerDemo,
+} from '../subagent/demo.js'
 import { FleetList } from '../subagent/fleet.js'
 import {
   type LiveSubagent,
@@ -233,43 +237,15 @@ export async function setupCoordinator(
   })
 
   if (demoEnabled) {
-    pi.registerCommand('subagent-demo', {
-      description: 'Browse a subagent live demo (coordinator mode)',
-      handler: async (args, ctx) => {
-        const argList = args.split(/\s+/)
-        if (!ctx.hasUI) return
-        if (state.mode !== 'coordinator') {
-          ctx.ui.notify(
-            'Subagents browser is only available in coordinator mode.',
-            'info',
-          )
-          return
-        }
-
-        const runtime = requiredRuntime()
-        const { fleet } = runtime
-
-        if (argList[0] === 'add') {
-          runtime.demoSubagentManager ??= new SubagentManagerDemo()
-          runtime.demoSubagentManager.add(argList.slice(1).join(' '))
-          fleet.update()
-          ctx.ui.notify(
-            'Added a demo subagent. Use /subagent demo to exit demo mode.',
-            'info',
-          )
-        } else if (runtime.demoSubagentManager) {
-          runtime.demoSubagentManager = undefined
-          fleet.update()
-          ctx.ui.notify('Demo mode exited.', 'info')
-        } else {
-          runtime.demoSubagentManager = new SubagentManagerDemo()
-          fleet.update()
-          ctx.ui.notify(
-            'Demo mode active: fake subagents loaded. Use /subagent demo to exit.',
-            'info',
-          )
-        }
+    registerSubagentDemoCommand(pi, state, {
+      getDemoManager: () => requiredRuntime().demoSubagentManager,
+      setDemoManager: (manager) => {
+        requiredRuntime().demoSubagentManager = manager
+      },
+      updateFleet: () => {
+        requiredRuntime().fleet.update()
       },
     })
+    registerPlanDemoCommand(pi)
   }
 }
