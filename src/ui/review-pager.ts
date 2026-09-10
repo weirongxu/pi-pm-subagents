@@ -1,4 +1,5 @@
 import {
+  type ExtensionAPI,
   type ExtensionContext,
   getMarkdownTheme,
   type Theme,
@@ -17,6 +18,7 @@ import { ScrollView } from './scroll-view.js'
 
 const VIEWPORT_HEIGHT_PCT = 80
 const OVERLAY_WIDTH_PCT = '90%'
+const REVIEW_NOTIFY_EVENT = 'pi-notify:notify'
 
 const EDITOR_LINES_BEFORE = 4
 const EDITOR_LINES_AFTER = 3
@@ -285,10 +287,12 @@ export function renderReviewPager(
 }
 
 export async function askHowToProceed(
+  pi: ExtensionAPI,
   ctx: ExtensionContext,
   options: ReviewPagerOptions,
 ): Promise<void> {
   ctx.ui.setWorkingVisible(false)
+  pi.events.emit(REVIEW_NOTIFY_EVENT, options.title)
   try {
     const result = await renderReviewPager(ctx, options)
     if (!result) return

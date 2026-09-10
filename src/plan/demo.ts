@@ -12,6 +12,7 @@ export function registerPlanDemoCommand(pi: ExtensionAPI): void {
     handler: async (_args: string, ctx: ExtensionContext) => {
       if (!ctx.hasUI) return
       await askHowToProceed(
+        pi,
         ctx,
         buildReviewOptions({
           content: DEMO_PLAN,

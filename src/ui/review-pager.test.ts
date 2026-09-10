@@ -1,10 +1,16 @@
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+} from '@earendil-works/pi-coding-agent'
 import type { Theme } from '@earendil-works/pi-coding-agent'
 import type { TUI } from '@earendil-works/pi-tui'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  askHowToProceed,
   capEditorLines,
   createReviewPagerComponent,
+  type ReviewPagerOptions,
   type ReviewPagerResult,
 } from './review-pager.js'
 
@@ -153,6 +159,30 @@ describe('createReviewPagerComponent', () => {
     expect(result).toEqual({ choiceId: 'discard' })
     // Still in menu mode: no editor chrome rendered
     expect(component.render(60).join('\n')).not.toContain('shift+enter')
+  })
+})
+
+describe('askHowToProceed', () => {
+  it('emits a notify event before opening the pager', async () => {
+    const emit = vi.fn()
+    const setWorkingVisible = vi.fn()
+    const options: ReviewPagerOptions = {
+      ...makeOptions(),
+      choices: [{ id: 'send', label: 'Send it' }],
+    }
+    const ctx = {
+      ui: {
+        setWorkingVisible,
+        custom: () => Promise.resolve<ReviewPagerResult>({ choiceId: 'send' }),
+      },
+    } as unknown as ExtensionContext
+    await askHowToProceed(
+      { events: { emit } } as unknown as ExtensionAPI,
+      ctx,
+      options,
+    )
+    expect(emit).toHaveBeenCalledWith('pi-notify:notify', options.title)
+    expect(setWorkingVisible).toHaveBeenCalledTimes(2)
   })
 })
 

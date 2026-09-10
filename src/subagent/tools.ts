@@ -180,6 +180,7 @@ export function registerSubagentTools(
                   }
 
                   await askHowToProceed(
+                    pi,
                     ctx,
                     buildReviewOptions({
                       content: lastMessage,
