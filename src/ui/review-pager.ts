@@ -147,7 +147,7 @@ export function createReviewPagerComponent(
           ['esc', 'back to choices'],
         ]
       : [
-          ['↑↓', 'select'],
+          ['↑↓/n/p', 'select'],
           [`1-${choices.length}`, 'jump'],
           ['j/k line', 'line'],
           ['u/e/d ␣', 'PgUp/Dn ½page'],
@@ -199,13 +199,13 @@ export function createReviewPagerComponent(
       selectChoice(choices[index])
       return
     }
-    if (matchesKey(data, 'up')) {
-      selected = Math.max(0, selected - 1)
+    if (data === 'n' || matchesKey(data, 'down')) {
+      selected = Math.min(choices.length - 1, selected + 1)
       tui.requestRender()
       return
     }
-    if (matchesKey(data, 'down')) {
-      selected = Math.min(choices.length - 1, selected + 1)
+    if (data === 'p' || matchesKey(data, 'up')) {
+      selected = Math.max(0, selected - 1)
       tui.requestRender()
       return
     }

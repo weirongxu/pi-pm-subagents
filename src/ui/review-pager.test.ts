@@ -138,6 +138,47 @@ describe('createReviewPagerComponent', () => {
     expect(result).toEqual({ choiceId: 'send' })
   })
 
+  it('p does not move above the first choice', () => {
+    let result: ReviewPagerResult | undefined
+    const component = makeComponent((r) => {
+      result = r
+    })
+    component.handleInput('p')
+    component.handleInput(ENTER)
+    expect(result).toEqual({ choiceId: 'send' })
+  })
+
+  it('n moves down and enters the third choice', () => {
+    let result: ReviewPagerResult | undefined
+    const component = makeComponent((r) => {
+      result = r
+    })
+    component.handleInput('n')
+    component.handleInput('n')
+    component.handleInput(ENTER)
+    expect(result).toEqual({ choiceId: 'discard' })
+  })
+
+  it('n n p enters the second choice', () => {
+    let result: ReviewPagerResult | undefined
+    const component = makeComponent((r) => {
+      result = r
+    })
+    component.handleInput('n')
+    component.handleInput('n')
+    component.handleInput('p')
+    // Second choice is the inline editor: enter switches to edit mode
+    component.handleInput(ENTER)
+    const lines = component.render(60).join('\n')
+    expect(lines).toContain('Update the plan:')
+    expect(result).toBeUndefined()
+  })
+
+  it('renders n/p in the footer select hint', () => {
+    const component = makeComponent(() => {})
+    expect(component.render(120).join('\n')).toContain('↑↓/n/p')
+  })
+
   it('degrades to plain choice selection when no inline choice exists', () => {
     let result: ReviewPagerResult | undefined
     const component = createReviewPagerComponent(
