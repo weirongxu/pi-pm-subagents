@@ -150,7 +150,7 @@ Base prompt content.`,
       expect(result.systemPrompt).toContain('You are a COORDINATOR agent')
       expect(result.systemPrompt).toContain('## Responsibilities')
       expect(result.systemPrompt).toContain(
-        '- Delegate tasks and wait for me to tell you subagent',
+        `- Delegate tasks; the subagent's final message is delivered automatically`,
       )
       expect(result.systemPrompt).toContain(
         `- Do not trust a subagent's self-reported result blindly.`,

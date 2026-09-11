@@ -69,7 +69,7 @@ export function registerSubagentTools(
       defineTool({
         name: SUBAGENT_TOOLS.list,
         label: 'List Subagents',
-        description: `List all background subagents, don't poll this tool to wait subagents complete, just wait silently`,
+        description: `List all background subagents. For inspection only (user asks, or you suspect a stall) — never to wait for completion. After delegating, just end your turn; completions arrive automatically.`,
         parameters: Type.Object({}),
         async execute() {
           if (Date.now() - lastListAt < LIST_COOL_DOWN_MS)
@@ -77,10 +77,11 @@ export function registerSubagentTools(
               content: [
                 {
                   type: 'text',
-                  text: "Please don't poll for this tool, just wait silently",
+                  text: 'End your turn now — completions are delivered automatically.',
                 },
               ],
               details: {},
+              terminate: true,
             }
 
           lastListAt = Date.now()
@@ -105,7 +106,7 @@ export function registerSubagentTools(
           if (hasRunning)
             lines.push(
               '',
-              `DO NOT POLL THIS TOOL TO WAIT FOR SUBAGENTS COMPLETION, JUST WAIT SILENTLY, YOU WILL BE NOTIFIED WHEN SUBAGENTS FINISH.`,
+              `Don't poll after this — end your turn; you'll be notified when subagents finish.`,
             )
           return {
             content: [
@@ -122,7 +123,10 @@ export function registerSubagentTools(
       defineTool({
         name: SUBAGENT_TOOLS.delegate,
         label: 'Delegate Subagent',
-        description: `Delegate task to background with full tool access. The tool returns immediately with a subagent id; I'll send you last message when subagent finishes. Max concurrency ${MAX_CONCURRENCY_SUBAGENT} running subagents\nAvailable roles:\n${rolesDescription(baseToolsOf(pi, state))}`,
+        description: `Delegate task to background with full tool access. Returns immediately with a subagent id; end your turn after delegating — the subagent's final message is delivered automatically. Never poll subagent_list or send status-check followups. Max concurrency ${MAX_CONCURRENCY_SUBAGENT} running subagents\n\nAvailable roles:\n${rolesDescription(baseToolsOf(pi, state))}`,
+        promptGuidelines: [
+          'Call subagent_delegate alone in a single tool batch, as the last action of your turn — its result ends the turn and subagent results are delivered automatically.',
+        ],
         parameters: Type.Object({
           title: Type.String(),
           prompt: Type.String({
@@ -213,10 +217,11 @@ export function registerSubagentTools(
             content: [
               {
                 type: 'text',
-                text: `Subagent id #${subagent.id} running at background. I'll send you last message when it finishes.`,
+                text: `Subagent id #${subagent.id} is running in background. End your turn now; its final message will arrive automatically. Do not poll.`,
               },
             ],
             details: { subagentId: subagent.id, status: subagent.status },
+            terminate: true,
           }
         },
       }),
@@ -224,7 +229,10 @@ export function registerSubagentTools(
       defineTool({
         name: SUBAGENT_TOOLS.followup,
         label: 'Follow Up Subagent',
-        description: `Continue working with an existing subagent. Max reuse ${MAX_REUSE_FOLLOWUPS} times.`,
+        description: `Continue working with an existing subagent (new instructions or corrections only — never status checks). Max reuse ${MAX_REUSE_FOLLOWUPS} times.`,
+        promptGuidelines: [
+          "Call subagent_followup alone in a single tool batch, as the last action of your turn — its result ends the turn and the subagent's final message is delivered automatically.",
+        ],
         parameters: Type.Object({
           id: Type.Number(),
           title: Type.String(),
@@ -254,10 +262,11 @@ export function registerSubagentTools(
             content: [
               {
                 type: 'text',
-                text: `Subagent #${subagent.id} continued. I'll send you last message when it finishes.`,
+                text: `Subagent #${subagent.id} continued. End your turn now; its final message will arrive automatically. Do not poll.`,
               },
             ],
             details: { subagentId: subagent.id, status: subagent.status },
+            terminate: true,
           }
         },
       }),
