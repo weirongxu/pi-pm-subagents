@@ -5,6 +5,7 @@ import type {
 
 import { getPmSubagentsConfig } from '../models-config/models-config.js'
 import { formatSubagentModelLabel } from '../models-config/subagent-model-utils.js'
+import { runPlanCommand } from '../plan/command.js'
 import { registerPlanDemoCommand } from '../plan/demo.js'
 import { applyModeFor, assertModeIdle, exitModeFor } from '../pm-mode.js'
 import { loadRoles } from '../prompts/roles.js'
@@ -212,26 +213,8 @@ export async function setupCoordinator(
   pi.registerCommand('plan', {
     description: 'Delegate a planner subagent. Usage: /plan <request>',
     handler: async (args, ctx) => {
-      if (state.mode !== 'coordinator') {
-        await enterCoordinatorMode(
-          pi,
-          state,
-          undefined,
-          ctx,
-          coordinatorDefinition,
-        )
-      }
-      let request = args.trim()
-      if (!request && ctx.hasUI) {
-        request = (await ctx.ui.editor('Enter the request to plan:', '')) ?? ''
-      }
-      if (!request.trim()) return
-      notifyAgentMessage(
-        pi,
-        [
-          `<planRequest>${request}</planRequest>`,
-          "Use role 'planner' to create a plan. then other subagents to implements",
-        ].join('\n'),
+      await runPlanCommand(pi, state, args, ctx, () =>
+        enterCoordinatorMode(pi, state, undefined, ctx, coordinatorDefinition),
       )
     },
   })

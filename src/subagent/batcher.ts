@@ -1,3 +1,4 @@
+import { escapeXml } from '../utils/xml.js'
 import { formatSubagentSummary, type LiveSubagent } from './manager.js'
 
 const TAG_NAMES = {
@@ -30,8 +31,8 @@ export class MessageBatcher {
     const lines = [
       `<${tagName}>`,
       `<type>${type}</type>`,
-      `<job>${formatSubagentSummary(subagent)}</job>`,
-      `<message>${message}</message>`,
+      `<job>${escapeXml(formatSubagentSummary(subagent))}</job>`,
+      `<message>${escapeXml(message)}</message>`,
       `</${tagName}>`,
     ]
     const item = lines.join('\n')

@@ -11,11 +11,13 @@ import {
   matchesKey,
   visibleWidth,
 } from '@earendil-works/pi-tui'
-import { orderBy } from 'lodash-es'
+import { orderBy, sumBy } from 'lodash-es'
 
+import { countBy } from '../utils/collection.js'
 import {
   formatContextUsage,
   formatElapsed,
+  formatTokens,
   rightAlign,
   strInline,
 } from '../utils/format.js'
@@ -246,6 +248,32 @@ export class FleetList {
     this.update()
   }
 
+  private renderMainLine(
+    items: FleetEntry[],
+    theme: Theme,
+    width: number,
+  ): string {
+    const label = ` ${theme.fg('dim', 'subagents')}`
+    if (items.length === 0) return label
+    const counts: Record<FleetEntryStatus, number> = Object.assign(
+      { running: 0, done: 0, failed: 0, killed: 0 },
+      countBy(items, (item) => item.status),
+    )
+    const parts = [
+      `done(${counts.done})`,
+      `running(${counts.running})`,
+      `failed(${counts.failed})`,
+      `killed(${counts.killed})`,
+    ]
+    const tokens = items.flatMap((e) =>
+      e.contextUsage?.tokens != null ? [e.contextUsage.tokens] : [],
+    )
+    if (tokens.length > 0) {
+      parts.push(formatTokens(sumBy(tokens)))
+    }
+    return rightAlign(label, theme.fg('dim', parts.join(' ')), width)
+  }
+
   private renderBar(width: number): string[] {
     const ctx = this.ctx
     if (!ctx) return []
@@ -257,7 +285,7 @@ export class FleetList {
     const hint = this.activeSelect
       ? '↑↓ select · enter view · esc back'
       : 'esc to interrupt · ←/↓ for items'
-    const mainLine = ` ${theme.fg('dim', 'subagents')}`
+    const mainLine = this.renderMainLine(this.options.list(), theme, width)
     const lines: string[] = [
       truncateText(` ${theme.fg('dim', hint)}`, width),
       '',

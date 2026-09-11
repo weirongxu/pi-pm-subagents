@@ -324,6 +324,53 @@ describe('SubagentManager.followup', () => {
       expect(subagent.previousEntries).toEqual([])
       expect(subagent.title).toBe('Task 1')
     })
+
+    it('records contextUsage in the previous entry on followup', async () => {
+      const contextUsage: ContextUsage = {
+        tokens: 50000,
+        contextWindow: 200000,
+        percent: 25.0,
+      }
+      const { session } = makeStubSession()
+      const manager = new SubagentManager()
+      const subagent = registerSubagent(manager, session, {
+        id: 1,
+        status: 'done',
+        followUpCount: 0,
+      })
+      subagent.contextUsage = contextUsage
+
+      await manager.followup(1, 'Title 2', 'task 2')
+
+      expect(subagent.previousEntries[0]).toMatchObject({
+        title: 'Task 1',
+        contextUsage,
+      })
+    })
+
+    it('records contextUsage in the previous entry when steering a running subagent', async () => {
+      const contextUsage: ContextUsage = {
+        tokens: 80000,
+        contextWindow: 200000,
+        percent: 40.0,
+      }
+      const { session, steerMock } = makeStubSession()
+      const manager = new SubagentManager()
+      const subagent = registerSubagent(manager, session, {
+        id: 1,
+        status: 'running',
+        followUpCount: 0,
+      })
+      subagent.contextUsage = contextUsage
+
+      await manager.followup(1, 'New Title', 'more work')
+
+      expect(subagent.previousEntries[0]).toMatchObject({
+        status: 'done',
+        contextUsage,
+      })
+      expect(steerMock).toHaveBeenCalled()
+    })
   })
 })
 

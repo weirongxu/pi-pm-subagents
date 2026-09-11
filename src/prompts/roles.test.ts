@@ -47,10 +47,8 @@ describe('roles', () => {
       it('includes planner role with reviewOnEnd enabled', async () => {
         await loadRoles('/fake/cwd')
         const planner = resolveRole('planner')
-        expect(planner.systemPrompt).toContain('read-only exploration mode')
-        expect(planner.systemPrompt).toContain(
-          'Produce a concrete implementation plan as Markdown',
-        )
+        expect(planner.systemPrompt).toContain('You are PLANNER (read-only)')
+        expect(planner.systemPrompt).toContain('## Plan structure')
         expect(planner.fm.reviewOnEnd).toBe(true)
         expect(planner.fm.removeTools).toEqual(['write', 'edit', 'bash'])
       })
@@ -77,7 +75,7 @@ describe('roles', () => {
       it('resolves plugin roles from the bundled agents directory', async () => {
         await loadRoles('/fake/cwd')
         const planner = resolveRole('planner')
-        expect(planner.systemPrompt).toContain('read-only exploration mode')
+        expect(planner.systemPrompt).toContain('You are PLANNER (read-only)')
         expect(planner.fm.removeTools).toEqual(['write', 'edit', 'bash'])
         expect(planner.fm.extraTools).toEqual([BASH_READONLY_TOOL_NAME])
         expect(planner.fm.reviewOnEnd).toBe(true)

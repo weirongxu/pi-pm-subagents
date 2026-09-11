@@ -147,14 +147,15 @@ Base prompt content.`,
       // Intentionally structural assertions instead of hardcoding the full
       // body: tolerate wording edits to the bundled prompt while guarding
       // against sections being accidentally dropped from it.
-      expect(result.systemPrompt).toContain('You are a COORDINATOR agent')
+      expect(result.systemPrompt).toContain(
+        'You are COORDINATOR; you are read-only',
+      )
       expect(result.systemPrompt).toContain('## Responsibilities')
       expect(result.systemPrompt).toContain(
         `- Delegate tasks; the subagent's final message is delivered automatically`,
       )
-      expect(result.systemPrompt).toContain(
-        `- Do not trust a subagent's self-reported result blindly.`,
-      )
+      expect(result.systemPrompt).toContain('## Workflow')
+      expect(result.systemPrompt).toContain('**Report**')
       expect(result.systemPrompt).toContain(body.trim())
       expect(result.systemPrompt).toContain(
         `${body.trim()}\n\nAppended extra content.`,

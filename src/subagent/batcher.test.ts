@@ -94,6 +94,22 @@ describe('MessageBatcher', () => {
     expect(batcher.pending).toEqual([])
   })
 
+  it('escapes XML special characters in message and job summary', () => {
+    vi.useFakeTimers()
+    const flushed: string[][] = []
+    const batcher = new MessageBatcher((items) => flushed.push(items), 100)
+    const subagent = makeSubagent(1, 'fix <auth> & "quotes"', 'done')
+
+    batcher.add(subagent, 'done', 'parsed <config> && values > 0')
+    batcher.flushNow()
+
+    const item = flushed[0]?.[0]
+    expect(item).toContain(
+      '<message>parsed &lt;config&gt; &amp;&amp; values &gt; 0</message>',
+    )
+    expect(item).toContain('fix &lt;auth&gt; &amp; "quotes"')
+  })
+
   it('flushes immediately when requested via flushNow', () => {
     vi.useFakeTimers()
     const flushed: string[][] = []

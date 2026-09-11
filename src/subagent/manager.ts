@@ -188,6 +188,7 @@ export class SubagentManager {
       title: followupSubagent.title,
       status: wasRunning ? 'done' : followupSubagent.status,
       followUpCount: followupSubagent.followUpCount,
+      contextUsage: followupSubagent.contextUsage,
       startedAt: prevStartedAt,
       completedAt: wasRunning
         ? Date.now()

@@ -532,6 +532,132 @@ describe('FleetList renderBar when inactive', () => {
     expect(mainLine).not.toContain('◯')
   })
 
+  it('renders status counts and total context usage on the subagents header line', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+        contextUsage: { tokens: 50000, contextWindow: 200000, percent: 25 },
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+        contextUsage: { tokens: 80000, contextWindow: 200000, percent: 40 },
+      },
+      {
+        id: 3,
+        title: 'task 3',
+        previousEntries: [],
+        status: 'done',
+        startedAt: now - 10000,
+        completedAt: now - 5000,
+        followUpCount: 0,
+        role: 'worker',
+        contextUsage: { tokens: 30000, contextWindow: 200000, percent: 15 },
+      },
+    ]
+
+    const fleetList = new FleetList({ list: () => entries, onOpen: () => {} })
+    const fakeContext = createFakeContext()
+    fleetList.setContext(fakeContext as unknown as ExtensionContext)
+    fleetList['activeSelect'] = false
+
+    const render = (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(100)
+
+    const mainLine = render.find((line: string) => line.includes('subagents'))
+    expect(mainLine).toBeDefined()
+    expect(mainLine).toContain('done(1)')
+    expect(mainLine).toContain('running(2)')
+    expect(mainLine).toContain('160k')
+  })
+
+  it('renders done(0) when only running items are present', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+        contextUsage: undefined,
+      },
+      {
+        id: 2,
+        title: 'task 2',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+        contextUsage: undefined,
+      },
+    ]
+
+    const fleetList = new FleetList({ list: () => entries, onOpen: () => {} })
+    const fakeContext = createFakeContext()
+    fleetList.setContext(fakeContext as unknown as ExtensionContext)
+    fleetList['activeSelect'] = false
+
+    const render = (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(100)
+
+    const mainLine = render.find((line: string) => line.includes('subagents'))
+    expect(mainLine).toBeDefined()
+    expect(mainLine).toContain('done(0)')
+    expect(mainLine).toContain('running(2)')
+    expect(mainLine).toContain('failed(0)')
+    expect(mainLine).toContain('killed(0)')
+    expect(mainLine).not.toContain('undefined')
+  })
+
+  it('omits the token total from the header when no running subagent has context usage', () => {
+    const now = Date.now()
+    const entries: FleetEntry[] = [
+      {
+        id: 1,
+        title: 'task 1',
+        previousEntries: [],
+        status: 'running',
+        startedAt: now,
+        followUpCount: 0,
+        role: 'worker',
+        contextUsage: undefined,
+      },
+    ]
+
+    const fleetList = new FleetList({ list: () => entries, onOpen: () => {} })
+    const fakeContext = createFakeContext()
+    fleetList.setContext(fakeContext as unknown as ExtensionContext)
+    fleetList['activeSelect'] = false
+
+    const render = (
+      fleetList as unknown as { renderBar: (w: number) => string[] }
+    ).renderBar(100)
+
+    const mainLine = render.find((line: string) => line.includes('subagents'))
+    expect(mainLine).toBeDefined()
+    expect(mainLine).toContain('done(0)')
+    expect(mainLine).toContain('running(1)')
+    expect(mainLine).not.toMatch(/\d[km]?$/) // no token total (e.g. "160k")
+  })
+
   it('renders all subagents without selected bullet (●) when inactive', () => {
     const now = Date.now()
     const entries: FleetEntry[] = [

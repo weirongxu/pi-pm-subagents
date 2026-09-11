@@ -22,5 +22,6 @@ B
 
 ## Notes
 
+- Ask for the user's consent before modifying package.json, tsconfig, or eslint etc project settings
 - Don't use git mv to rename files
 - Don't add the change to git staged
