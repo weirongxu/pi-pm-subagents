@@ -7,22 +7,19 @@ import {
 } from './review-utils.js'
 
 describe('nextRevisedTitle', () => {
-  it('appends "(revised 1)" when there is no suffix', () => {
-    expect(nextRevisedTitle('Fix login bug')).toBe('Fix login bug (revised 1)')
+  it('appends "r1" when there is no suffix', () => {
+    expect(nextRevisedTitle('Fix login bug')).toBe('Fix login bug (r1)')
   })
 
-  it('increments an existing "(revised N)" suffix', () => {
-    expect(nextRevisedTitle('Fix login bug (revised 1)')).toBe(
-      'Fix login bug (revised 2)',
-    )
-    expect(nextRevisedTitle('Fix login bug (revised 9)')).toBe(
-      'Fix login bug (revised 10)',
-    )
+  it('increments an existing "rN" suffix', () => {
+    expect(nextRevisedTitle('Fix login bug (r1)')).toBe('Fix login bug (r2)')
+    expect(nextRevisedTitle('Fix login bug (r9)')).toBe('Fix login bug (r10)')
   })
 
-  it('does not touch a title that merely contains "revised" mid-string', () => {
+  it('does not touch a title with an r mid-string or containing "revised"', () => {
+    expect(nextRevisedTitle('plan (r1) draft')).toBe('plan (r1) draft (r1)')
     expect(nextRevisedTitle('revised plan (draft)')).toBe(
-      'revised plan (draft) (revised 1)',
+      'revised plan (draft) (r1)',
     )
   })
 })

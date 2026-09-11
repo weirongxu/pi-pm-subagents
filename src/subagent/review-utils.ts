@@ -57,10 +57,10 @@ export function buildReviewOptions(input: {
   }
 }
 
-const REVISED_SUFFIX = / \(revised (\d+)\)$/
+const REVISED_SUFFIX = / \(r(\d+)\)$/
 
 export function nextRevisedTitle(title: string): string {
   const match = REVISED_SUFFIX.exec(title)
-  if (!match) return `${title} (revised 1)`
-  return `${title.slice(0, -match[0].length)} (revised ${Number(match[1]) + 1})`
+  if (!match) return `${title} (r1)`
+  return `${title.slice(0, -match[0].length)} (r${Number(match[1]) + 1})`
 }
