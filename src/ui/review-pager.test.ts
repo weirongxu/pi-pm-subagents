@@ -37,6 +37,8 @@ vi.mock('@earendil-works/pi-coding-agent', async (importOriginal) => ({
 const ENTER = '\r'
 const ESC = '\x1b'
 const CTRL_C = '\x03'
+const PAGE_UP = '\x1b[5~'
+const PAGE_DOWN = '\x1b[6~'
 
 const makeTui = (): TUI =>
   ({
@@ -172,6 +174,48 @@ describe('createReviewPagerComponent', () => {
     const lines = component.render(60).join('\n')
     expect(lines).toContain('Update the plan:')
     expect(result).toBeUndefined()
+  })
+
+  it('scrolls the plan with pgup/pgdn in the editor', () => {
+    const plan = Array.from({ length: 60 }, (_, i) => `line${i}`).join('\n\n')
+    const component = createReviewPagerComponent(
+      makeTui(),
+      makeTheme(),
+      { ...makeOptions(), plan },
+      () => {},
+    )
+    component.handleInput('2')
+    const before = component.render(60).join('\n')
+    component.handleInput(PAGE_DOWN)
+    const scrolled = component.render(60).join('\n')
+    expect(scrolled).not.toBe(before)
+    component.handleInput(PAGE_UP)
+    expect(component.render(60).join('\n')).toBe(before)
+  })
+
+  it('keeps pgdn/pgup hint in the edit footer', () => {
+    const component = makeComponent(() => {})
+    component.handleInput('2')
+    const lines = component.render(120).join('\n')
+    expect(lines).toContain('PgUp/PgDn')
+    expect(lines).toContain('plan ½page')
+  })
+
+  it('sends letters and space to the editor instead of scrolling', () => {
+    let result: ReviewPagerResult | undefined
+    const component = makeComponent((r) => {
+      result = r
+    })
+    component.handleInput('2')
+    component.handleInput('u')
+    component.handleInput('d')
+    component.handleInput(' ')
+    component.handleInput('x')
+    component.handleInput(ENTER)
+    expect(result).toEqual({
+      choiceId: 'update-the-plan',
+      updatePrompt: 'ud x',
+    })
   })
 
   it('renders n/p in the footer select hint', () => {

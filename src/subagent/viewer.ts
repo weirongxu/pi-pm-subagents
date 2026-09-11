@@ -160,9 +160,9 @@ export class SubagentViewer implements Component {
       ])
     }
     keys.push(
-      ['j/k ↑/↓', 'line'],
-      ['u/e/d ␣', 'PgUp/Dn ½page'],
-      ['g/G', 'Home/End jump'],
+      ['j/k ↑↓', 'line up/down'],
+      ['u/e/d ␣ PgUp/PgDn', '½page'],
+      ['g/G', 'start/end'],
       ['q/esc', 'close'],
     )
     return truncateText(

@@ -7,6 +7,7 @@ import {
 import {
   Editor,
   type Focusable,
+  Key,
   Markdown,
   matchesKey,
   type TUI,
@@ -145,13 +146,14 @@ export function createReviewPagerComponent(
           ['Enter', 'submit'],
           ['shift+enter', 'newline'],
           ['esc', 'back to choices'],
+          ['PgUp/PgDn', 'plan ½page'],
         ]
       : [
           ['↑↓/n/p', 'select'],
-          [`1-${choices.length}`, 'jump'],
-          ['j/k line', 'line'],
-          ['u/e/d ␣', 'PgUp/Dn ½page'],
-          ['g/G', 'Home/End jump'],
+          [`1-${Math.min(choices.length, 9)}`, 'choose'],
+          ['j/k', 'line up/down'],
+          ['u/e/d ␣ PgUp/PgDn', '½page'],
+          ['g/G', 'start/end'],
           ['Enter', 'confirm'],
           ['q/esc', 'cancel'],
         ]
@@ -240,6 +242,10 @@ export function createReviewPagerComponent(
     }
     if (data === '\x03') {
       done(undefined)
+      return
+    }
+    if (matchesKey(data, Key.pageUp) || matchesKey(data, Key.pageDown)) {
+      scroll.handleInput(data)
       return
     }
     editor.handleInput(data)
