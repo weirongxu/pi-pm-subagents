@@ -2,9 +2,56 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   buildReviewOptions,
+  createReviewedActions,
   nextRevisedTitle,
   resolveReviewName,
 } from './review-utils.js'
+
+describe('createReviewedActions', () => {
+  it('accumulates corrections across revise rounds and delivers them on send', async () => {
+    const sent: Array<{
+      message: string
+      corrections: readonly string[]
+    }>[] = []
+    const revisions: string[] = []
+    const actions = createReviewedActions({
+      send(message, corrections) {
+        sent.push([{ message, corrections }])
+      },
+      async revise(fullPrompt) {
+        revisions.push(fullPrompt)
+      },
+    })
+
+    await actions.revise('add retry logic')
+    await actions.revise('drop the caching layer')
+    await actions.send('The final plan')
+
+    expect(sent).toEqual([
+      [
+        {
+          message: 'The final plan',
+          corrections: ['add retry logic', 'drop the caching layer'],
+        },
+      ],
+    ])
+    expect(revisions).toEqual(['add retry logic', 'drop the caching layer'])
+  })
+
+  it('delivers empty corrections when sending without revise rounds', async () => {
+    let delivered: readonly string[] = []
+    const actions = createReviewedActions({
+      send(_message, corrections) {
+        delivered = corrections
+      },
+      async revise() {},
+    })
+
+    await actions.send('The approved plan')
+
+    expect(delivered).toEqual([])
+  })
+})
 
 describe('nextRevisedTitle', () => {
   it('appends "r1" when there is no suffix', () => {
@@ -84,7 +131,7 @@ describe('buildReviewOptions', () => {
     expect(send).toHaveBeenCalledWith('the content')
   })
 
-  it('revise action delegates rendered prompt with trimmed input', async () => {
+  it('revise action delegates raw trimmed input', async () => {
     const revise = vi.fn()
     const options = buildReviewOptions({
       content: 'content',
@@ -94,7 +141,7 @@ describe('buildReviewOptions', () => {
 
     await options.choices[1]?.action?.('  fix it  ')
 
-    expect(revise).toHaveBeenCalledWith('Update the plan based on:\n\nfix it')
+    expect(revise).toHaveBeenCalledWith('fix it')
   })
 
   it('revise action does nothing for blank input', async () => {

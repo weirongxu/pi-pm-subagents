@@ -4,22 +4,32 @@ import { formatSubagentSummary, type LiveSubagent } from './manager.js'
 const TAG_NAMES = {
   activity: 'subagent-activity',
   done: 'subagent-done',
-  reviewed: 'subagent-reviewed',
 } as const
 
 export type SubagentMessageType = keyof typeof TAG_NAMES
 
+const REVIEWED_TAG = 'subagent-reviewed'
+
+export function formatCorrections(corrections: readonly string[]): string[] {
+  const lines = ['<corrections>']
+  for (const correction of corrections) {
+    lines.push(`<r>${escapeXml(correction)}</r>`)
+  }
+  lines.push('</corrections>')
+  return lines
+}
+
 export class MessageBatcher {
-  private items: string[] = []
+  private buffer: string[] = []
   private timer: ReturnType<typeof setTimeout> | undefined
 
   constructor(
-    private readonly flush: (items: string[]) => void,
+    private readonly flush: (buffer: string[]) => void,
     private readonly windowMs = 3000,
   ) {}
 
   get pending(): readonly string[] {
-    return [...this.items]
+    return [...this.buffer]
   }
 
   add(
@@ -27,16 +37,36 @@ export class MessageBatcher {
     type: SubagentMessageType,
     message: string,
   ): void {
-    const tagName = TAG_NAMES[type]
+    this.push(subagent, TAG_NAMES[type], type, message)
+  }
+
+  addReviewed(
+    subagent: LiveSubagent,
+    message: string,
+    corrections: readonly string[],
+  ): void {
+    this.push(subagent, REVIEWED_TAG, 'reviewed', message, corrections)
+  }
+
+  private push(
+    subagent: LiveSubagent,
+    tagName: string,
+    typeName: SubagentMessageType | 'reviewed',
+    message: string,
+    corrections?: readonly string[],
+  ): void {
     const lines = [
       `<${tagName}>`,
-      `<type>${type}</type>`,
+      `<type>${typeName}</type>`,
       `<job>${escapeXml(formatSubagentSummary(subagent))}</job>`,
-      `<message>${escapeXml(message)}</message>`,
-      `</${tagName}>`,
     ]
+    if (corrections && corrections.length > 0) {
+      lines.push(...formatCorrections(corrections))
+    }
+    lines.push(`<message>${escapeXml(message)}</message>`)
+    lines.push(`</${tagName}>`)
     const item = lines.join('\n')
-    this.items.push(item)
+    this.buffer.push(item)
     if (this.timer !== undefined) clearTimeout(this.timer)
     this.timer = setTimeout(() => {
       this.flushNow()
@@ -48,11 +78,11 @@ export class MessageBatcher {
       clearTimeout(this.timer)
       this.timer = undefined
     }
-    if (this.items.length === 0) return
+    if (this.buffer.length === 0) return
 
-    const items = this.items
-    this.items = []
-    this.flush(items)
+    const buffer = this.buffer
+    this.buffer = []
+    this.flush(buffer)
   }
 
   clear(): void {
@@ -60,6 +90,6 @@ export class MessageBatcher {
       clearTimeout(this.timer)
       this.timer = undefined
     }
-    this.items = []
+    this.buffer = []
   }
 }

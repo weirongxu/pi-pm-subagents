@@ -14,6 +14,22 @@ export interface ReviewActions {
   revise: (updatePrompt: string) => Promise<void> | void
 }
 
+export function createReviewedActions(input: {
+  send: (message: string, corrections: readonly string[]) => void
+  revise: (fullPrompt: string) => Promise<unknown>
+}): ReviewActions {
+  const corrections: string[] = []
+  return {
+    send(message) {
+      input.send(message, corrections)
+    },
+    async revise(updatePrompt) {
+      corrections.push(updatePrompt)
+      await input.revise(updatePrompt)
+    },
+  }
+}
+
 function reviewTitle(name: string): string {
   const capitalized = name.charAt(0).toUpperCase() + name.slice(1)
   return `📋 ${capitalized} Review`
@@ -42,9 +58,7 @@ export function buildReviewOptions(input: {
         inlineEditor: true,
         action: (updatePrompt) => {
           if (updatePrompt?.trim()) {
-            return actions.revise(
-              `Update the ${name} based on:\n\n${updatePrompt.trim()}`,
-            )
+            return actions.revise(updatePrompt.trim())
           }
         },
       },

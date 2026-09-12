@@ -24,6 +24,7 @@ import {
 } from './manager.js'
 import {
   buildReviewOptions,
+  createReviewedActions,
   nextRevisedTitle,
   resolveReviewName,
 } from './review-utils.js'
@@ -145,6 +146,7 @@ export function registerSubagentTools(
         ): Promise<AgentToolResult<unknown>> {
           const role = resolveRole(params.role)
           const reviewOnEnd: ReviewOnEnd = role.fm.reviewOnEnd ?? false
+          const reviewName = resolveReviewName(reviewOnEnd)
 
           const tools = composeTools(baseToolsOf(pi, state), {
             tools: role.fm.tools,
@@ -159,6 +161,17 @@ export function registerSubagentTools(
           )
 
           let subagent: LiveSubagent
+          const actions = createReviewedActions({
+            send: (message, corrections) => {
+              batcher.addReviewed(subagent, message, corrections)
+            },
+            revise: (fullPrompt) =>
+              manager.followup(
+                subagent.id,
+                nextRevisedTitle(subagent.title),
+                fullPrompt,
+              ),
+          })
           try {
             subagent = await manager.createNewSubagent(
               params.title,
@@ -188,19 +201,8 @@ export function registerSubagentTools(
                     ctx,
                     buildReviewOptions({
                       content: lastMessage,
-                      name: resolveReviewName(reviewOnEnd),
-                      actions: {
-                        send(message) {
-                          batcher.add(subagent, 'reviewed', message)
-                        },
-                        async revise(updatePrompt) {
-                          await manager.followup(
-                            subagent.id,
-                            nextRevisedTitle(subagent.title),
-                            updatePrompt,
-                          )
-                        },
-                      },
+                      name: reviewName,
+                      actions,
                     }),
                   )
                 },
