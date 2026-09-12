@@ -15,6 +15,7 @@ export class ActivityReporter {
       onActivity: (subagent: LiveSubagent, report: string) => void
       checkIntervalMs?: number
       notificationIntervalMs?: number
+      shouldPause: () => boolean
     },
   ) {}
 
@@ -34,6 +35,7 @@ export class ActivityReporter {
   }
 
   private tick(): void {
+    if (this.options.shouldPause()) return
     const now = Date.now()
     const notificationMs =
       this.options.notificationIntervalMs ?? NOTIFICATION_INTERVAL_MS

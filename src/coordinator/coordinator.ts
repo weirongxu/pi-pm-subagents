@@ -134,6 +134,7 @@ export async function setupCoordinator(
     coordinatorDefinition: PromptDefinition
   },
 ): Promise<void> {
+  let pendingUiPrompts = 0
   const batcher = new MessageBatcher((messages: readonly string[]) => {
     if (state.mode !== 'coordinator') return
     notifyAgentMessage(pi, messages.join('\n\n'))
@@ -156,6 +157,14 @@ export async function setupCoordinator(
     onActivity: (subagent, report) => {
       batcher.add(subagent, 'activity', report)
     },
+    shouldPause: () => pendingUiPrompts > 0,
+  })
+
+  pi.on('ui_prompt_start', () => {
+    pendingUiPrompts++
+  })
+  pi.on('ui_prompt_end', () => {
+    pendingUiPrompts = Math.max(0, pendingUiPrompts - 1)
   })
 
   const fleet = new FleetList({

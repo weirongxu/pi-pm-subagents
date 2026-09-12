@@ -55,6 +55,7 @@ describe('ActivityReporter integration', () => {
       onActivity: () => {
         reportCount += 1
       },
+      shouldPause: () => false,
     })
 
     activityReporter.start()
@@ -76,6 +77,7 @@ describe('ActivityReporter integration', () => {
         ] as LiveSubagent[],
       onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 100,
+      shouldPause: () => false,
     })
 
     activityReporter.start()
@@ -95,6 +97,7 @@ describe('ActivityReporter integration', () => {
       onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 100,
       notificationIntervalMs: 1000,
+      shouldPause: () => false,
     })
 
     activityReporter.start()
@@ -116,6 +119,7 @@ describe('ActivityReporter integration', () => {
       onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 200,
       notificationIntervalMs: 1000,
+      shouldPause: () => false,
     })
 
     activityReporter.start()
@@ -139,6 +143,7 @@ describe('ActivityReporter integration', () => {
       },
       checkIntervalMs: 50,
       notificationIntervalMs: 100,
+      shouldPause: () => false,
     })
 
     activityReporter.start()
@@ -166,6 +171,7 @@ describe('ActivityReporter per-subagent throttling', () => {
       onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 100,
       notificationIntervalMs: 200,
+      shouldPause: () => false,
     })
 
     activityReporter.start()
@@ -192,6 +198,7 @@ describe('ActivityReporter per-subagent throttling', () => {
       onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 100,
       notificationIntervalMs: 200,
+      shouldPause: () => false,
     })
 
     activityReporter.start()
@@ -218,6 +225,7 @@ describe('ActivityReporter per-subagent throttling', () => {
       onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 100,
       notificationIntervalMs: 1500,
+      shouldPause: () => false,
     })
 
     activityReporter.start()
@@ -225,6 +233,63 @@ describe('ActivityReporter per-subagent throttling', () => {
     expect(reports).toHaveLength(0)
 
     vi.advanceTimersByTime(400)
+    expect(reports).toHaveLength(1)
+  })
+})
+
+describe('ActivityReporter shouldPause', () => {
+  it('does not report and does not update lastSentAt while paused', () => {
+    vi.useFakeTimers()
+    const reports: { subagent: LiveSubagent; report: string }[] = []
+    const subagent = makeSubagent(1, [])
+    subagent.startedAt = Date.now() - 60000
+
+    let paused = true
+    const activityReporter = new ActivityReporter({
+      list: () => [subagent],
+      onActivity: (subagent, report) => reports.push({ subagent, report }),
+      checkIntervalMs: 100,
+      notificationIntervalMs: 200,
+      shouldPause: () => paused,
+    })
+
+    activityReporter.start()
+    // Would be due immediately; paused ticks must not fire or record lastSentAt.
+    vi.advanceTimersByTime(1000)
+    expect(reports).toHaveLength(0)
+
+    paused = false
+    vi.advanceTimersByTime(100)
+    expect(reports).toHaveLength(1)
+  })
+
+  it('resumes original cadence after pause is lifted', () => {
+    vi.useFakeTimers()
+    const reports: { subagent: LiveSubagent; report: string }[] = []
+    const subagent = makeSubagent(1, [])
+    subagent.startedAt = Date.now()
+
+    let paused = false
+    const activityReporter = new ActivityReporter({
+      list: () => [subagent],
+      onActivity: (subagent, report) => reports.push({ subagent, report }),
+      checkIntervalMs: 100,
+      notificationIntervalMs: 300,
+      shouldPause: () => paused,
+    })
+
+    activityReporter.start()
+    // Not yet due (notificationIntervalMs=300).
+    vi.advanceTimersByTime(200)
+    expect(reports).toHaveLength(0)
+
+    // Pause across the due point; pause must not advance lastSentAt.
+    paused = true
+    vi.advanceTimersByTime(500)
+    expect(reports).toHaveLength(0)
+
+    paused = false
+    vi.advanceTimersByTime(100)
     expect(reports).toHaveLength(1)
   })
 })

@@ -14,7 +14,7 @@ You are COORDINATOR; you are read-only and delegate subagents to do tasks.
 
 ## Workflow
 
-Run this workflow to completion before reporting.
+Run this workflow to completion task.
 
 - **Implement** — delegate worker implement.
 - **Review** — delegate reviewer subagents to review the changes by review standards;
