@@ -5,7 +5,6 @@ import {
   type Theme,
 } from '@earendil-works/pi-coding-agent'
 import {
-  Editor,
   type Focusable,
   Key,
   Markdown,
@@ -13,57 +12,18 @@ import {
   type TUI,
 } from '@earendil-works/pi-tui'
 
-import { truncateText } from '../utils/truncate.js'
 import { BorderView } from './border-view.js'
+import { renderFooterKeys } from './footer.js'
+import {
+  capEditorLines,
+  createInlineEditor,
+  EDITOR_MAX_LINES,
+} from './inline-editor.js'
 import { ScrollView } from './scroll-view.js'
 
 const VIEWPORT_HEIGHT_PCT = 80
 const OVERLAY_WIDTH_PCT = '90%'
 const REVIEW_NOTIFY_EVENT = 'pi-notify:notify'
-
-const EDITOR_LINES_BEFORE = 4
-const EDITOR_LINES_AFTER = 3
-const EDITOR_BORDER_LINES = 2
-const EDITOR_WINDOW_LINES = EDITOR_LINES_BEFORE + 1 + EDITOR_LINES_AFTER
-const EDITOR_MAX_LINES = EDITOR_WINDOW_LINES + EDITOR_BORDER_LINES
-const CURSOR_SEQ = '\x1b[7m'
-
-/**
- * Assumes editor.render() output is [topBorder, ...content, bottomBorder];
- * this editor never sets an autocomplete provider, so no trailing list lines.
- * `formatHidden` counts hidden lines among the rendered output only (Editor
- * already self-truncates to its own max visible lines, so it may undercount
- * the editor's real buffer size).
- */
-export function capEditorLines(
-  lines: string[],
-  formatHidden: (hidden: number) => string,
-): string[] {
-  if (lines.length <= EDITOR_MAX_LINES) return lines
-  const topBorder = lines[0] ?? ''
-  const bottomBorder = lines[lines.length - 1] ?? ''
-  const content = lines.slice(1, -1)
-  const windowSize = EDITOR_WINDOW_LINES
-  const cursor = content.findIndex((line) => line.includes(CURSOR_SEQ))
-  if (cursor === -1) {
-    const capped = [
-      ...content.slice(0, windowSize - 1),
-      formatHidden(content.length - (windowSize - 1)),
-    ]
-    return [topBorder, ...capped, bottomBorder]
-  }
-  const start = Math.max(
-    0,
-    Math.min(cursor - EDITOR_LINES_BEFORE, content.length - windowSize),
-  )
-  const capped = content.slice(start, start + windowSize)
-  if (start > 0) capped[0] = formatHidden(start)
-  if (start + windowSize < content.length)
-    capped[capped.length - 1] = formatHidden(
-      content.length - (start + windowSize),
-    )
-  return [topBorder, ...capped, bottomBorder]
-}
 
 export interface ReviewChoice {
   readonly id: string
@@ -115,16 +75,7 @@ export function createReviewPagerComponent(
     },
   })
 
-  const editor = new Editor(tui, {
-    borderColor: (str) => theme.fg('borderMuted', str),
-    selectList: {
-      selectedPrefix: (text) => theme.fg('accent', text),
-      selectedText: (text) => theme.fg('accent', text),
-      description: (text) => theme.fg('muted', text),
-      scrollInfo: (text) => theme.fg('dim', text),
-      noMatch: (text) => theme.fg('warning', text),
-    },
-  })
+  const editor = createInlineEditor(tui, theme)
   const inlineChoice = choices.find((c) => c.inlineEditor)
   editor.focused = focused
   editor.onSubmit = (text) => {
@@ -178,21 +129,8 @@ export function createReviewPagerComponent(
       ...scroll.render(width),
       ...choiceSection,
       ...editorSection,
-      footerLine(width, footerKeys),
+      renderFooterKeys(theme, footerKeys, width),
     ]
-  }
-
-  function footerLine(width: number, keys: [string, string][]): string {
-    const sep = theme.fg('dim', ' · ')
-    return truncateText(
-      keys
-        .map(
-          ([key, desc]) =>
-            `${theme.fg('syntaxKeyword', key)} ${theme.fg('success', desc)}`,
-        )
-        .join(sep),
-      width,
-    )
   }
 
   function handleMenuInput(data: string): void {

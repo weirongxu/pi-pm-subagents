@@ -9,9 +9,9 @@ import { escapeXml } from '../utils/xml.js'
 export function buildPlanRequestMessage(prompt: string): string {
   return [
     "Use the subagent tool with role 'planner' to create an implementation plan for the request below. Once the plan is ready, delegate implementation to other subagents.",
-    '<request>',
+    '<plan-prompt>',
     escapeXml(prompt),
-    '</request>',
+    '</plan-prompt>',
   ].join('\n')
 }
 

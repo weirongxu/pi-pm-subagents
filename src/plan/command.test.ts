@@ -35,12 +35,12 @@ function fakeCtx(options: {
 const okEnter = async () => {}
 
 describe('buildPlanRequestMessage', () => {
-  it('wraps the prompt in a closed request tag', () => {
+  it('wraps the prompt in a closed plan-prompt tag', () => {
     const message = buildPlanRequestMessage('add dark mode')
-    expect(message).toContain('<request>')
-    expect(message).toContain('</request>')
+    expect(message).toContain('<plan-prompt>')
+    expect(message).toContain('</plan-prompt>')
     expect(message).toContain("role 'planner'")
-    expect(message).not.toContain('<plan-request>')
+    expect(message).not.toContain('<request>')
   })
 
   it('escapes XML special characters in the prompt', () => {
@@ -67,7 +67,7 @@ describe('runPlanCommand', () => {
     expect(state.mode).toBeUndefined()
     expect(pi.sent).toHaveLength(1)
     expect(pi.sent[0]).toContain('build a parser')
-    expect(pi.sent[0]).toContain('</request>')
+    expect(pi.sent[0]).toContain('</plan-prompt>')
   })
 
   it('does not re-enter when already in coordinator mode', async () => {

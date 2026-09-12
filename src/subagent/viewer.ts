@@ -4,7 +4,12 @@ import type {
   Theme,
   ThemeColor,
 } from '@earendil-works/pi-coding-agent'
-import type { Component, OverlayHandle, TUI } from '@earendil-works/pi-tui'
+import type {
+  Component,
+  Editor,
+  OverlayHandle,
+  TUI,
+} from '@earendil-works/pi-tui'
 import {
   isKeyRelease,
   Key,
@@ -14,6 +19,12 @@ import {
 } from '@earendil-works/pi-tui'
 
 import { BorderView } from '../ui/border-view.js'
+import { renderFooterKeys } from '../ui/footer.js'
+import {
+  capEditorLines,
+  createInlineEditor,
+  EDITOR_MAX_LINES,
+} from '../ui/inline-editor.js'
 import { ScrollView } from '../ui/scroll-view.js'
 import { rightAlign, strInline } from '../utils/format.js'
 import { truncateText } from '../utils/truncate.js'
@@ -35,13 +46,20 @@ let openedViewerHandle: OverlayHandle | undefined
 const TOOL_RESULT_PREVIEW = 500
 const VIEWPORT_HEIGHT_PCT = 80
 const VIEWER_CHROME_LINES = 7
+const EDITOR_CHROME_LINES =
+  VIEWER_CHROME_LINES + 1 /* label */ + EDITOR_MAX_LINES
 const OVERLAY_WIDTH_PCT = '90%'
 
-export type ViewerResult = undefined | 'steer'
+type Mode = 'view' | 'edit'
+
+export type ViewerResult = undefined
 
 export class SubagentViewer implements Component {
   #stopArmed = false
+  #mode: Mode = 'view'
+  #submitting = false
   readonly #scroll: ScrollView
+  readonly #editor: Editor
   readonly #unsubscribe: () => void
 
   constructor(
@@ -50,6 +68,10 @@ export class SubagentViewer implements Component {
     private subagent: LiveSubagent,
     private manager: SubagentManager,
     private done: (result: ViewerResult) => void,
+    private notify: (
+      message: string,
+      level: 'info' | 'warning',
+    ) => void = () => {},
   ) {
     this.#scroll = new ScrollView(tui, theme, {
       child: {
@@ -60,10 +82,15 @@ export class SubagentViewer implements Component {
         Math.max(
           3,
           Math.floor((tui.terminal.rows * VIEWPORT_HEIGHT_PCT) / 100) -
-            VIEWER_CHROME_LINES,
+            (this.#mode === 'edit' ? EDITOR_CHROME_LINES : VIEWER_CHROME_LINES),
         ),
       autoFollow: true,
     })
+    this.#editor = createInlineEditor(tui, theme)
+    this.#editor.focused = false
+    this.#editor.onSubmit = (text) => {
+      void this.#submitSteer(text)
+    }
     this.#unsubscribe = subagent.session.subscribe(() => {
       tui.requestRender()
     })
@@ -71,7 +98,15 @@ export class SubagentViewer implements Component {
 
   handleInput(data: string): void {
     if (isKeyRelease(data)) return
+    if (this.#mode === 'edit') {
+      this.#handleEditInput(data)
+      return
+    }
 
+    this.#handleViewInput(data)
+  }
+
+  #handleViewInput(data: string): void {
     if (matchesKey(data, Key.escape) || data === 'q') {
       this.done(undefined)
       return
@@ -92,11 +127,66 @@ export class SubagentViewer implements Component {
     if (this.#stopArmed) this.#stopArmed = false
 
     if (matchesKey(data, Key.enter) && this.subagent.status === 'running') {
-      this.done('steer')
+      this.#mode = 'edit'
+      this.#editor.focused = true
+      this.#editor.setText('')
+      this.tui.requestRender()
       return
     }
 
     this.#scroll.handleInput(data)
+  }
+
+  #handleEditInput(data: string): void {
+    if (this.#submitting) {
+      // Steer in flight: ignore further input until it resolves.
+      return
+    }
+    // NOTE: esc cancels the steer and returns to view mode, keeping the overlay open
+    if (matchesKey(data, Key.escape)) {
+      this.#mode = 'view'
+      this.#editor.focused = false
+      this.tui.requestRender()
+      return
+    }
+    // NOTE: raw Ctrl+C byte — force-close the whole viewer (Esc above only cancels the edit)
+    if (data === '\x03') {
+      this.done(undefined)
+      return
+    }
+    if (matchesKey(data, Key.pageUp) || matchesKey(data, Key.pageDown)) {
+      this.#scroll.handleInput(data)
+      return
+    }
+    this.#editor.handleInput(data)
+    this.tui.requestRender()
+  }
+
+  async #submitSteer(text: string): Promise<void> {
+    const trimmed = text.trim()
+    if (!trimmed) {
+      this.#mode = 'view'
+      this.#editor.focused = false
+      this.tui.requestRender()
+      return
+    }
+    if (this.#submitting) return
+    this.#submitting = true
+    const id = this.subagent.id
+    try {
+      const ok = await this.manager.steer(id, trimmed)
+      this.notify(
+        ok
+          ? `Steered subagent #${id}.`
+          : `Subagent #${id} is no longer running.`,
+        ok ? 'info' : 'warning',
+      )
+    } finally {
+      this.#submitting = false
+      this.#mode = 'view'
+      this.#editor.focused = false
+      this.tui.requestRender()
+    }
   }
 
   render(width: number): string[] {
@@ -105,17 +195,22 @@ export class SubagentViewer implements Component {
     const lines = [this.headerLine(width)]
     const tools = this.toolsLine(width)
     if (tools) lines.push(tools)
-    lines.push(
-      separator,
-      ...this.#scroll.render(width),
-      separator,
-      this.footerLine(width),
-    )
+    lines.push(separator, ...this.#scroll.render(width), separator)
+    if (this.#mode === 'edit') {
+      lines.push(
+        this.theme.fg('muted', `Steer subagent #${this.subagent.id}:`),
+        ...capEditorLines(this.#editor.render(width), (n) =>
+          this.theme.fg('dim', `… +${n} hidden`),
+        ),
+      )
+    }
+    lines.push(this.footerLine(width))
     return lines
   }
 
   invalidate(): void {
     this.#scroll.invalidate()
+    this.#editor.invalidate()
   }
 
   dispose(): void {
@@ -150,8 +245,16 @@ export class SubagentViewer implements Component {
 
   private footerLine(width: number): string {
     const th = this.theme
+    if (this.#mode === 'edit') {
+      const keys: [string, string][] = [
+        ['Enter', 'submit'],
+        ['shift+enter', 'newline'],
+        ['esc', 'cancel steer'],
+        ['PgUp/PgDn', 'history ½page'],
+      ]
+      return renderFooterKeys(th, keys, width)
+    }
     const running = this.subagent.status === 'running'
-    const sep = th.fg('dim', ' · ')
     const keys: [string, string][] = []
     if (running) {
       keys.push(this.#stopArmed ? ['x', 'again to STOP'] : ['x', 'stop'], [
@@ -165,15 +268,7 @@ export class SubagentViewer implements Component {
       ['g/G', 'start/end'],
       ['q/esc', 'close'],
     )
-    return truncateText(
-      keys
-        .map(
-          ([key, desc]) =>
-            `${th.fg('syntaxKeyword', key)} ${th.fg('success', desc)}`,
-        )
-        .join(sep),
-      width,
-    )
+    return renderFooterKeys(th, keys, width)
   }
 
   private renderContent(width: number): string[] {
@@ -267,12 +362,20 @@ export async function openSubagentViewer(
   }
   openedViewerHandle?.hide()
   ctx.ui.setWorkingVisible(false)
-  let result: ViewerResult
   try {
-    result = await ctx.ui.custom<ViewerResult>(
+    await ctx.ui.custom<ViewerResult>(
       (tui, theme, _keybindings, done) =>
         new BorderView(theme, {
-          child: new SubagentViewer(tui, theme, subagent, manager, done),
+          child: new SubagentViewer(
+            tui,
+            theme,
+            subagent,
+            manager,
+            done,
+            (message, level) => {
+              ctx.ui.notify(message, level)
+            },
+          ),
         }),
       {
         overlay: true,
@@ -290,16 +393,4 @@ export async function openSubagentViewer(
     openedViewerHandle = undefined
     ctx.ui.setWorkingVisible(true)
   }
-
-  if (result !== 'steer') return
-  const message = await ctx.ui.editor(`Steer subagent #${id}:`, '')
-  const trimmed = message?.trim()
-  if (trimmed) {
-    const ok = await manager.steer(id, trimmed)
-    ctx.ui.notify(
-      ok ? `Steered subagent #${id}.` : `Subagent #${id} is no longer running.`,
-      ok ? 'info' : 'warning',
-    )
-  }
-  return openSubagentViewer(ctx, manager, id)
 }
