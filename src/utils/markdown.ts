@@ -33,6 +33,8 @@ const PromptFrontmatterSchema = Type.Object({
 
 export type PromptFrontmatter = Static<typeof PromptFrontmatterSchema>
 
+export const APPEND_SUFFIX = '-append'
+
 export interface PromptDefinition {
   fm: PromptFrontmatter
   systemPrompt?: string

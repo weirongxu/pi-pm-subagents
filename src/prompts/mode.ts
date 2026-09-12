@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
 import {
+  APPEND_SUFFIX,
   loadMarkdown,
   mergePromptDefinitions,
   type PromptDefinition,
@@ -16,7 +17,7 @@ export async function readModePrompt(name: string): Promise<PromptDefinition> {
 
   const overridePath = join(modesPromptsDir, `${name}.md`)
   const bundledPath = join(here, '../..', 'pm-subagents-prompts', `${name}.md`)
-  const appendPath = join(modesPromptsDir, `${name}-append.md`)
+  const appendPath = join(modesPromptsDir, `${name}${APPEND_SUFFIX}.md`)
 
   const base =
     (await loadMarkdown(overridePath)) ?? (await loadMarkdown(bundledPath))

@@ -4,30 +4,54 @@ import { fileURLToPath } from 'node:url'
 
 import { CONFIG_DIR_NAME, getAgentDir } from '@earendil-works/pi-coding-agent'
 
-import { loadMarkdown, type PromptDefinition } from '../utils/markdown.js'
+import {
+  APPEND_SUFFIX,
+  loadMarkdown,
+  mergePromptDefinitions,
+  type PromptDefinition,
+} from '../utils/markdown.js'
 import { composeTools } from '../utils/tools.js'
 
 const DEFAULT_ROLE = 'worker'
 
 const roles: Map<string, PromptDefinition> = new Map()
 
+export interface RoleWithAppend {
+  role?: PromptDefinition
+  append?: PromptDefinition
+}
+
 export async function loadMarkdownRolesFromDir(
   dir: string,
-): Promise<Map<string, PromptDefinition>> {
-  const loadedRoles = new Map<string, PromptDefinition>()
+): Promise<Map<string, RoleWithAppend>> {
+  const loadedRoles = new Map<string, RoleWithAppend>()
 
   try {
     const entries = await readdir(dir, { withFileTypes: true })
-
     await Promise.all(
       entries
         .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
         .map(async (entry) => {
-          const roleName = entry.name.slice(0, -'.md'.length)
-          const definition = await loadMarkdown(join(dir, entry.name))
-          if (definition) {
-            loadedRoles.set(roleName, definition)
+          const fileName = entry.name.slice(0, -'.md'.length)
+          let definition: PromptDefinition | undefined
+          try {
+            definition = await loadMarkdown(join(dir, entry.name))
+          } catch {
+            // NOTE: skip unreadable or malformed files without losing the rest of the directory
+            return
           }
+          if (!definition) return
+          const isAppend = fileName.endsWith(APPEND_SUFFIX)
+          const roleName = isAppend
+            ? fileName.slice(0, -APPEND_SUFFIX.length)
+            : fileName
+          const loaded = loadedRoles.get(roleName) ?? {}
+          if (isAppend) {
+            loaded.append = definition
+          } else {
+            loaded.role = definition
+          }
+          loadedRoles.set(roleName, loaded)
         }),
     )
   } catch {
@@ -37,9 +61,9 @@ export async function loadMarkdownRolesFromDir(
   return loadedRoles
 }
 
-async function loadBuiltins(): Promise<Map<string, PromptDefinition>> {
-  return new Map<string, PromptDefinition>([
-    [DEFAULT_ROLE, { fm: {}, systemPrompt: '' }],
+async function loadBuiltins(): Promise<Map<string, RoleWithAppend>> {
+  return new Map<string, RoleWithAppend>([
+    [DEFAULT_ROLE, { role: { fm: {}, systemPrompt: '' } }],
   ])
 }
 
@@ -53,9 +77,11 @@ export async function loadRoles(
   options: LoadRolesOptions = {},
 ): Promise<void> {
   roles.clear()
-  const addRoles = (newRoles: Map<string, PromptDefinition>) => {
-    for (const [name, role] of newRoles) {
-      roles.set(name, role)
+  const addRoles = (dirRoles: Map<string, RoleWithAppend>) => {
+    for (const [name, { role, append }] of dirRoles) {
+      const base = role ?? roles.get(name)
+      if (!base) continue
+      roles.set(name, append ? mergePromptDefinitions(base, append) : base)
     }
   }
 

@@ -85,6 +85,97 @@ describe('roles', () => {
       })
     })
 
+    describe('append roles', () => {
+      let tempDir: string
+      let agentsDir: string
+
+      beforeEach(async () => {
+        tempDir = await mkdtemp(join(tmpdir(), 'pi-pm-subagents-test-append-'))
+        agentsDir = join(tempDir, '.pi', 'agents')
+        await mkdir(agentsDir, { recursive: true })
+      })
+
+      afterEach(async () => {
+        await rm(tempDir, { recursive: true, force: true })
+      })
+
+      it('merges append file into the bundled planner role', async () => {
+        await writeFile(
+          join(agentsDir, 'planner-append.md'),
+          '- plan markdown 使用中文',
+        )
+
+        await loadRoles(tempDir)
+        const planner = resolveRole('planner')
+        expect(planner.systemPrompt).toContain('You are PLANNER (read-only)')
+        expect(planner.systemPrompt).toContain('- plan markdown 使用中文')
+        expect(planner.fm.reviewOnEnd).toBe(true)
+        expect(planner.fm.removeTools).toEqual(['write', 'edit', 'bash'])
+      })
+
+      it('does not register the append file as a standalone role', async () => {
+        await writeFile(join(agentsDir, 'planner-append.md'), 'Extra.')
+
+        await loadRoles(tempDir)
+        expect(() => resolveRole('planner-append')).toThrow()
+        expect(listRoles()).not.toContain('planner-append')
+      })
+
+      it('overrides frontmatter fields and merges tools', async () => {
+        await writeFile(
+          join(agentsDir, 'planner-append.md'),
+          `---
+description: Chinese planner.
+extraTools: [grep]
+---
+Extra prompt.`,
+        )
+
+        await loadRoles(tempDir)
+        const planner = resolveRole('planner')
+        expect(planner.fm.description).toBe('Chinese planner.')
+        expect(new Set(planner.fm.extraTools)).toEqual(
+          new Set([BASH_READONLY_TOOL_NAME, 'grep']),
+        )
+        expect(planner.systemPrompt).toContain('You are PLANNER (read-only)')
+        expect(planner.systemPrompt).toContain('Extra prompt.')
+      })
+
+      it('skips appends whose base role does not exist', async () => {
+        await writeFile(join(agentsDir, 'ghost-append.md'), 'Ghost extra.')
+
+        await loadRoles(tempDir)
+        expect(() => resolveRole('ghost')).toThrow()
+        expect(() => resolveRole('ghost-append')).toThrow()
+      })
+
+      it('applies global appends before project appends', async () => {
+        const globalTempDir = await mkdtemp(
+          join(tmpdir(), 'pi-pm-subagents-test-append-global-'),
+        )
+        const globalAgentsDir = join(globalTempDir, 'agents')
+        await mkdir(globalAgentsDir, { recursive: true })
+        process.env[MOCK_AGENT_DIR_VAR] = globalTempDir
+
+        try {
+          await writeFile(join(globalAgentsDir, 'worker-append.md'), 'GLOBAL')
+          await writeFile(join(agentsDir, 'worker-append.md'), 'PROJECT')
+
+          await loadRoles(tempDir)
+          const worker = resolveRole('worker')
+          const prompt = worker.systemPrompt ?? ''
+          expect(prompt).toContain('GLOBAL')
+          expect(prompt).toContain('PROJECT')
+          expect(prompt.indexOf('PROJECT')).toBeGreaterThan(
+            prompt.indexOf('GLOBAL'),
+          )
+        } finally {
+          await rm(globalTempDir, { recursive: true, force: true })
+          process.env[MOCK_AGENT_DIR_VAR] = originalAgentDir
+        }
+      })
+    })
+
     describe('project-level roles', () => {
       let tempDir: string
       let agentsDir: string
