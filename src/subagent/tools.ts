@@ -95,14 +95,14 @@ export function registerSubagentTools(
             }
           }
 
-          const sorted = orderBy(allSubagents, (it) => it.id, 'desc')
+          const sorted = orderBy(allSubagents, (it) => it.record.id, 'desc')
           const lines = [`Subagents (${allSubagents.length}):`]
           for (const subagent of sorted) {
             lines.push(formatSubagentSummary(subagent))
           }
 
           const hasRunning = sorted.some(
-            (subagent) => subagent.status === 'running',
+            (subagent) => subagent.record.status === 'running',
           )
           if (hasRunning)
             lines.push(
@@ -167,8 +167,8 @@ export function registerSubagentTools(
             },
             revise: (fullPrompt) =>
               manager.followup(
-                subagent.id,
-                nextRevisedTitle(subagent.title),
+                subagent.record.id,
+                nextRevisedTitle(subagent.record.title),
                 fullPrompt,
               ),
           })
@@ -185,9 +185,9 @@ export function registerSubagentTools(
                 role: params.role,
                 onComplete: async (subagent, lastMessage) => {
                   if (state.mode !== 'coordinator') return
-                  if (subagent.status === 'killed') return
+                  if (subagent.record.status === 'killed') return
                   if (!lastMessage) return
-                  if (subagent.status === 'failed') {
+                  if (subagent.record.status === 'failed') {
                     batcher.add(subagent, 'done', lastMessage)
                     return
                   }
@@ -213,16 +213,19 @@ export function registerSubagentTools(
             return toolResultFromError(error)
           }
 
-          stopSubagentOnAbort(signal, subagent.id, manager)
+          stopSubagentOnAbort(signal, subagent.record.id, manager)
 
           return {
             content: [
               {
                 type: 'text',
-                text: `Subagent id #${subagent.id} is running in background. End your turn now; its final message will arrive automatically. Do not poll.`,
+                text: `Subagent id #${subagent.record.id} is running in background. End your turn now; its final message will arrive automatically. Do not poll.`,
               },
             ],
-            details: { subagentId: subagent.id, status: subagent.status },
+            details: {
+              subagentId: subagent.record.id,
+              status: subagent.record.status,
+            },
             terminate: true,
           }
         },
@@ -258,16 +261,19 @@ export function registerSubagentTools(
             return toolResultFromError(error)
           }
 
-          stopSubagentOnAbort(signal, subagent.id, manager)
+          stopSubagentOnAbort(signal, subagent.record.id, manager)
 
           return {
             content: [
               {
                 type: 'text',
-                text: `Subagent #${subagent.id} continued. End your turn now; its final message will arrive automatically. Do not poll.`,
+                text: `Subagent #${subagent.record.id} continued. End your turn now; its final message will arrive automatically. Do not poll.`,
               },
             ],
-            details: { subagentId: subagent.id, status: subagent.status },
+            details: {
+              subagentId: subagent.record.id,
+              status: subagent.record.status,
+            },
             terminate: true,
           }
         },
@@ -294,17 +300,23 @@ export function registerSubagentTools(
             const stopped = await manager.abort(params.id)
             const message = stopped
               ? `Subagent #${params.id} killed.`
-              : `Subagent #${params.id} is not running (status: ${subagent.status}).`
+              : `Subagent #${params.id} is not running (status: ${subagent.record.status}).`
             return {
               content: [{ type: 'text', text: message }],
-              details: { subagentId: params.id, status: subagent.status },
+              details: {
+                subagentId: params.id,
+                status: subagent.record.status,
+              },
             }
           } catch (error) {
             const message =
               error instanceof Error ? error.message : String(error)
             return {
               content: [{ type: 'text', text: message }],
-              details: { subagentId: params.id, status: subagent.status },
+              details: {
+                subagentId: params.id,
+                status: subagent.record.status,
+              },
             }
           }
         },

@@ -4,6 +4,17 @@ import { describe, expect, it } from 'vitest'
 
 import { getLastPmSubagentState } from './state.js'
 
+function customEntry(data: unknown): SessionEntry {
+  return {
+    type: 'custom',
+    id: String(Math.random()),
+    parentId: null,
+    timestamp: new Date().toISOString(),
+    customType: 'pm-subagents',
+    data,
+  }
+}
+
 function user(text: string): UserMessage {
   return {
     role: 'user',
@@ -94,5 +105,24 @@ describe('getLastPmSubagentState', () => {
     ]
     const result = getLastPmSubagentState(entries)
     expect(result).toEqual({ mode: undefined })
+  })
+
+  it('returns valid subagents through a round-trip', () => {
+    const subagents = [
+      {
+        id: 1,
+        title: 'worker',
+        prompt: 'do the thing',
+        status: 'done',
+        startedAt: 1,
+        completedAt: 2,
+        followUpCount: 0,
+        activeTools: ['read'],
+        role: 'worker',
+        previousEntries: [],
+      },
+    ]
+    const result = getLastPmSubagentState([customEntry({ subagents })])
+    expect(result?.subagents).toEqual(subagents)
   })
 })

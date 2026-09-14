@@ -18,6 +18,7 @@ import {
   wrapTextWithAnsi,
 } from '@earendil-works/pi-tui'
 
+import type { SubagentStatus } from '../types.js'
 import { BorderView } from '../ui/border-view.js'
 import { renderFooterKeys } from '../ui/footer.js'
 import {
@@ -28,11 +29,7 @@ import {
 import { ScrollView } from '../ui/scroll-view.js'
 import { rightAlign, strInline } from '../utils/format.js'
 import { truncateText } from '../utils/truncate.js'
-import type {
-  LiveSubagent,
-  SubagentManager,
-  SubagentStatus,
-} from './manager.js'
+import type { LiveSubagent, SubagentManager } from './manager.js'
 
 const STATUS_COLOR = {
   running: 'accent',
@@ -112,10 +109,10 @@ export class SubagentViewer implements Component {
       return
     }
 
-    if (data === 'x' && this.subagent.status === 'running') {
+    if (data === 'x' && this.subagent.record.status === 'running') {
       if (this.#stopArmed) {
         this.#stopArmed = false
-        void this.manager.abort(this.subagent.id).then(() => {
+        void this.manager.abort(this.subagent.record.id).then(() => {
           this.tui.requestRender()
         })
       } else {
@@ -126,7 +123,10 @@ export class SubagentViewer implements Component {
     }
     if (this.#stopArmed) this.#stopArmed = false
 
-    if (matchesKey(data, Key.enter) && this.subagent.status === 'running') {
+    if (
+      matchesKey(data, Key.enter) &&
+      this.subagent.record.status === 'running'
+    ) {
       this.#mode = 'edit'
       this.#editor.focused = true
       this.#editor.setText('')
@@ -172,7 +172,7 @@ export class SubagentViewer implements Component {
     }
     if (this.#submitting) return
     this.#submitting = true
-    const id = this.subagent.id
+    const id = this.subagent.record.id
     try {
       const ok = await this.manager.steer(id, trimmed)
       this.notify(
@@ -198,7 +198,7 @@ export class SubagentViewer implements Component {
     lines.push(separator, ...this.#scroll.render(width), separator)
     if (this.#mode === 'edit') {
       lines.push(
-        this.theme.fg('muted', `Steer subagent #${this.subagent.id}:`),
+        this.theme.fg('muted', `Steer subagent #${this.subagent.record.id}:`),
         ...capEditorLines(this.#editor.render(width), (n) =>
           this.theme.fg('dim', `… +${n} hidden`),
         ),
@@ -219,13 +219,13 @@ export class SubagentViewer implements Component {
 
   private headerLine(width: number): string {
     const th = this.theme
-    const status = this.subagent.status
+    const status = this.subagent.record.status
     const color = STATUS_COLOR[status]
-    const id = `#${this.subagent.id}`
-    const role = `[${this.subagent.role}]`
+    const id = `#${this.subagent.record.id}`
+    const role = `[${this.subagent.record.role}]`
     const titleMaxWidth = width - visibleWidth(`${status + id} ${role}`) - 1
     return rightAlign(
-      `${th.fg('muted', `#${this.subagent.id}`)} ${th.fg('muted', role)} ${truncateText(strInline(this.subagent.title), titleMaxWidth)}`,
+      `${th.fg('muted', `#${this.subagent.record.id}`)} ${th.fg('muted', role)} ${truncateText(strInline(this.subagent.record.title), titleMaxWidth)}`,
       th.fg(color, status),
       width,
     )
@@ -233,7 +233,7 @@ export class SubagentViewer implements Component {
 
   private toolsLine(width: number): string {
     const th = this.theme
-    const tools = this.subagent.activeTools
+    const tools = this.subagent.record.activeTools
     if (tools.length === 0) return ''
     const sep = th.fg('dim', ' · ')
     return rightAlign(
@@ -254,7 +254,7 @@ export class SubagentViewer implements Component {
       ]
       return renderFooterKeys(th, keys, width)
     }
-    const running = this.subagent.status === 'running'
+    const running = this.subagent.record.status === 'running'
     const keys: [string, string][] = []
     if (running) {
       keys.push(this.#stopArmed ? ['x', 'again to STOP'] : ['x', 'stop'], [

@@ -9,14 +9,16 @@ const makeSubagent = (
   status: string,
 ): LiveSubagent =>
   ({
-    id,
-    title,
-    text: title,
-    status: status as never,
-    startedAt: Date.now() - 5000,
+    record: {
+      id,
+      title,
+      text: title,
+      status: status as never,
+      startedAt: Date.now() - 5000,
+      followUpCount: 0,
+      activeTools: [],
+    },
     session: { messages: [] as never },
-    followUpCount: 0,
-    activeTools: [],
   }) as unknown as LiveSubagent
 
 describe('MessageBatcher', () => {
@@ -29,7 +31,7 @@ describe('MessageBatcher', () => {
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
     const subagent = makeSubagent(1, 'task-1', 'done')
-    subagent.contextUsage = {
+    subagent.record.contextUsage = {
       tokens: 60000,
       contextWindow: 200000,
       percent: 30,

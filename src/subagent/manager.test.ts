@@ -53,17 +53,19 @@ function registerSubagent(
   const followUpCount = overrides.followUpCount ?? 0
 
   const subagent: LiveSubagent = {
-    id,
-    title: `Task ${id}`,
-    previousEntries: [],
-    prompt: `Do task ${id}`,
-    status,
+    record: {
+      id,
+      title: `Task ${id}`,
+      previousEntries: [],
+      prompt: `Do task ${id}`,
+      status,
+      startedAt: Date.now() - 1000,
+      completedAt: status !== 'running' ? Date.now() : undefined,
+      followUpCount,
+      activeTools: [],
+      role: 'worker',
+    },
     session: session as unknown as AgentSession,
-    startedAt: Date.now() - 1000,
-    completedAt: status !== 'running' ? Date.now() : undefined,
-    followUpCount,
-    activeTools: [],
-    role: 'worker',
   }
 
   ;(
@@ -81,7 +83,7 @@ describe('formatSubagentSummary', () => {
       status: 'done',
       followUpCount: 2,
     })
-    subagent.contextUsage = {
+    subagent.record.contextUsage = {
       tokens: 60000,
       contextWindow: 200000,
       percent: 30,
@@ -96,7 +98,7 @@ describe('formatSubagentSummary', () => {
     const { session } = makeStubSession()
     const manager = new SubagentManager()
     const subagent = registerSubagent(manager, session, { id: 1 })
-    subagent.contextUsage = {
+    subagent.record.contextUsage = {
       tokens: null,
       contextWindow: 200000,
       percent: null,
@@ -143,13 +145,13 @@ describe('SubagentManager.followup', () => {
 
       const result = await manager.followup(1, 'New Title', 'New Task')
 
-      expect(result.id).toBe(1)
-      expect(result.status).toBe('running')
-      expect(result.title).toBe('New Title')
-      expect(result.prompt).toBe('New Task')
-      expect(result.followUpCount).toBe(1)
-      expect(result.startedAt).toBeGreaterThan(0)
-      expect(result.completedAt).toBeUndefined()
+      expect(result.record.id).toBe(1)
+      expect(result.record.status).toBe('running')
+      expect(result.record.title).toBe('New Title')
+      expect(result.record.prompt).toBe('New Task')
+      expect(result.record.followUpCount).toBe(1)
+      expect(result.record.startedAt).toBeGreaterThan(0)
+      expect(result.record.completedAt).toBeUndefined()
       expect(onStartMock).toHaveBeenCalledOnce()
       expect(onStatusChangeMock).toHaveBeenCalled()
       expect(promptMock).toHaveBeenCalledOnce()
@@ -190,11 +192,11 @@ describe('SubagentManager.followup', () => {
 
       const result = await manager.followup(1, 'New Title', 'New Task')
 
-      expect(result.id).toBe(1)
-      expect(result.status).toBe('running')
-      expect(result.title).toBe('New Title')
-      expect(result.prompt).toBe('New Task')
-      expect(result.followUpCount).toBe(1)
+      expect(result.record.id).toBe(1)
+      expect(result.record.status).toBe('running')
+      expect(result.record.title).toBe('New Title')
+      expect(result.record.prompt).toBe('New Task')
+      expect(result.record.followUpCount).toBe(1)
       expect(steerMock).toHaveBeenCalledOnce()
       expect(steerMock).toHaveBeenCalledWith('New Task')
       expect(promptMock).not.toHaveBeenCalled()
@@ -210,13 +212,13 @@ describe('SubagentManager.followup', () => {
         followUpCount: 0,
       })
       const originalStartedAt = Date.now() - 5000
-      subagent.startedAt = originalStartedAt
+      subagent.record.startedAt = originalStartedAt
 
       await manager.followup(1, 'title', 'task')
 
       expect(steerMock).toHaveBeenCalled()
-      expect(subagent.startedAt).toBe(originalStartedAt)
-      expect(subagent.completedAt).toBeUndefined()
+      expect(subagent.record.startedAt).toBe(originalStartedAt)
+      expect(subagent.record.completedAt).toBeUndefined()
     })
 
     it('increments followUpCount each time', async () => {
@@ -237,7 +239,7 @@ describe('SubagentManager.followup', () => {
       const subagent = (
         manager as unknown as { subagents: Map<number, LiveSubagent> }
       ).subagents.get(1)
-      expect(subagent?.followUpCount).toBe(5)
+      expect(subagent?.record.followUpCount).toBe(5)
     })
 
     it(`throws when followUpCount reaches MAX_REUSE_FOLLOWUPS (${MAX_REUSE_FOLLOWUPS})`, async () => {
@@ -268,8 +270,8 @@ describe('SubagentManager.followup', () => {
       await manager.followup(1, 'New Title', 'task')
 
       expect(steerMock).toHaveBeenCalled()
-      expect(subagent.previousEntries).toHaveLength(1)
-      expect(subagent.previousEntries[0]).toMatchObject({
+      expect(subagent.record.previousEntries).toHaveLength(1)
+      expect(subagent.record.previousEntries[0]).toMatchObject({
         title: 'Task 1',
         status: 'done',
         followUpCount: 0,
@@ -291,23 +293,23 @@ describe('SubagentManager.followup', () => {
       await manager.followup(1, 'Title 2', 'task 2')
       await manager.followup(1, 'Title 3', 'task 3')
 
-      expect(subagent.previousEntries).toHaveLength(3)
-      expect(subagent.previousEntries[0]).toMatchObject({
+      expect(subagent.record.previousEntries).toHaveLength(3)
+      expect(subagent.record.previousEntries[0]).toMatchObject({
         title: 'Title 2',
         status: 'done',
         followUpCount: 2,
       })
-      expect(subagent.previousEntries[1]).toMatchObject({
+      expect(subagent.record.previousEntries[1]).toMatchObject({
         title: 'Title 1',
         status: 'done',
         followUpCount: 1,
       })
-      expect(subagent.previousEntries[2]).toMatchObject({
+      expect(subagent.record.previousEntries[2]).toMatchObject({
         title: 'Task 1',
         status: 'done',
         followUpCount: 0,
       })
-      expect(subagent.title).toBe('Title 3')
+      expect(subagent.record.title).toBe('Title 3')
     })
 
     it('does not modify previousEntries when followup budget exhausted', async () => {
@@ -321,8 +323,8 @@ describe('SubagentManager.followup', () => {
 
       await expect(manager.followup(1, 'New Title', 'task')).rejects.toThrow()
 
-      expect(subagent.previousEntries).toEqual([])
-      expect(subagent.title).toBe('Task 1')
+      expect(subagent.record.previousEntries).toEqual([])
+      expect(subagent.record.title).toBe('Task 1')
     })
 
     it('records contextUsage in the previous entry on followup', async () => {
@@ -338,11 +340,11 @@ describe('SubagentManager.followup', () => {
         status: 'done',
         followUpCount: 0,
       })
-      subagent.contextUsage = contextUsage
+      subagent.record.contextUsage = contextUsage
 
       await manager.followup(1, 'Title 2', 'task 2')
 
-      expect(subagent.previousEntries[0]).toMatchObject({
+      expect(subagent.record.previousEntries[0]).toMatchObject({
         title: 'Task 1',
         contextUsage,
       })
@@ -361,11 +363,11 @@ describe('SubagentManager.followup', () => {
         status: 'running',
         followUpCount: 0,
       })
-      subagent.contextUsage = contextUsage
+      subagent.record.contextUsage = contextUsage
 
       await manager.followup(1, 'New Title', 'more work')
 
-      expect(subagent.previousEntries[0]).toMatchObject({
+      expect(subagent.record.previousEntries[0]).toMatchObject({
         status: 'done',
         contextUsage,
       })
@@ -385,12 +387,12 @@ describe('SubagentManager subscribe contextUsage', () => {
     const manager = new SubagentManager()
     const subagent = registerSubagent(manager, session, { id: 1 })
 
-    expect(subagent.contextUsage).toBeUndefined()
+    expect(subagent.record.contextUsage).toBeUndefined()
     ;(manager as unknown as { subscribe: (s: LiveSubagent) => void }).subscribe(
       subagent,
     )
 
-    expect(subagent.contextUsage).toEqual(contextUsage)
+    expect(subagent.record.contextUsage).toEqual(contextUsage)
   })
 
   it('updates contextUsage on message_end event', () => {
@@ -424,7 +426,7 @@ describe('SubagentManager subscribe contextUsage', () => {
       subagent,
     )
 
-    expect(subagent.contextUsage).toEqual(initialUsage)
+    expect(subagent.record.contextUsage).toEqual(initialUsage)
 
     getContextUsageMock.mockReturnValue(updatedUsage)
     const calls = subscribeMock.mock.calls
@@ -434,6 +436,6 @@ describe('SubagentManager subscribe contextUsage', () => {
       subscribeCallback({ type: 'message_end', turnIndex: 0 })
     }
 
-    expect(subagent.contextUsage).toEqual(updatedUsage)
+    expect(subagent.record.contextUsage).toEqual(updatedUsage)
   })
 })

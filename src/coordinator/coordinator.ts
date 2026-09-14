@@ -16,11 +16,7 @@ import {
   type SubagentManagerDemo,
 } from '../subagent/demo.js'
 import { FleetList } from '../subagent/fleet.js'
-import {
-  type LiveSubagent,
-  SubagentManager,
-  type SubagentStatus,
-} from '../subagent/manager.js'
+import { SubagentManager } from '../subagent/manager.js'
 import { registerSubagentTools, SUBAGENT_TOOLS } from '../subagent/tools.js'
 import { openSubagentViewer } from '../subagent/viewer.js'
 import type { PmSubagentState } from '../types.js'
@@ -35,8 +31,6 @@ const COORDINATOR_MODE_WIDGET_KEY = 'pi-pm-subagents:coordinator-mode'
 /** job event for pi-notify */
 const JOB_START_EVENT = 'pi-notify:job:start'
 const JOB_END_EVENT = 'pi-notify:job:end'
-
-export type { LiveSubagent, SubagentStatus }
 
 interface CoordinatorRuntime {
   manager: SubagentManager
@@ -143,12 +137,12 @@ export async function setupCoordinator(
     onStatusChange: () => runtime?.fleet.update(),
     onEachStart: (subagent) => {
       pi.events.emit(JOB_START_EVENT, {
-        id: `pi-pm-subagents:session:${subagent.id}`,
+        id: `pi-pm-subagents:session:${subagent.record.id}`,
       })
     },
     onEachEnd: (subagent) => {
       pi.events.emit(JOB_END_EVENT, {
-        id: `pi-pm-subagents:session:${subagent.id}`,
+        id: `pi-pm-subagents:session:${subagent.record.id}`,
       })
     },
   })
@@ -168,7 +162,10 @@ export async function setupCoordinator(
   })
 
   const fleet = new FleetList({
-    list: () => runtime?.demoSubagentManager?.list() ?? manager.list(),
+    list: () => {
+      const items = runtime?.demoSubagentManager?.list() ?? manager.list()
+      return items.map(({ record }) => record)
+    },
     onOpen: async (ctx, id) => {
       const activeManager = runtime?.demoSubagentManager ?? manager
       return openSubagentViewer(ctx, activeManager, id)

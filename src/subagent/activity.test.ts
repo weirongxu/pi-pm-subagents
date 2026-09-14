@@ -5,14 +5,16 @@ import type { LiveSubagent } from './manager.js'
 
 const makeSubagent = (id: number, messages: unknown[]): LiveSubagent =>
   ({
-    id,
-    title: `task-${id}`,
-    text: `task-${id}`,
-    status: 'running',
-    startedAt: Date.now() - 1000,
+    record: {
+      id,
+      title: `task-${id}`,
+      text: `task-${id}`,
+      status: 'running',
+      startedAt: Date.now() - 1000,
+      followUpCount: 0,
+      activeTools: [],
+    },
     session: { messages: messages as never },
-    followUpCount: 0,
-    activeTools: [],
   }) as unknown as LiveSubagent
 
 const assistant = (text: string) =>
@@ -72,9 +74,9 @@ describe('ActivityReporter integration', () => {
     const activityReporter = new ActivityReporter({
       list: () =>
         [
-          { id: 1, status: 'done', title: 'Task 1' },
-          { id: 2, status: 'failed', title: 'Task 2' },
-        ] as LiveSubagent[],
+          { record: { id: 1, status: 'done', title: 'Task 1' } },
+          { record: { id: 2, status: 'failed', title: 'Task 2' } },
+        ] as unknown as LiveSubagent[],
       onActivity: (subagent, report) => reports.push({ subagent, report }),
       checkIntervalMs: 100,
       shouldPause: () => false,
@@ -90,7 +92,7 @@ describe('ActivityReporter integration', () => {
     vi.useFakeTimers()
     const reports: { subagent: LiveSubagent; report: string }[] = []
     const subagent = makeSubagent(1, [assistant('Doing task')])
-    subagent.startedAt = Date.now() - 60000
+    subagent.record.startedAt = Date.now() - 60000
 
     const activityReporter = new ActivityReporter({
       list: () => [subagent],
@@ -104,7 +106,7 @@ describe('ActivityReporter integration', () => {
     vi.advanceTimersByTime(100)
 
     expect(reports).toHaveLength(1)
-    expect(reports[0]?.subagent.id).toBe(1)
+    expect(reports[0]?.subagent.record.id).toBe(1)
     expect(reports[0]?.report).toBe('Doing task')
   })
 
@@ -112,7 +114,7 @@ describe('ActivityReporter integration', () => {
     vi.useFakeTimers()
     const reports: { subagent: LiveSubagent; report: string }[] = []
     const subagent = makeSubagent(1, [])
-    subagent.startedAt = Date.now() - 60000
+    subagent.record.startedAt = Date.now() - 60000
 
     const activityReporter = new ActivityReporter({
       list: () => [subagent],
@@ -134,7 +136,7 @@ describe('ActivityReporter integration', () => {
     vi.useFakeTimers()
     let reportCount = 0
     const subagent = makeSubagent(1, [])
-    subagent.startedAt = Date.now() - 60000
+    subagent.record.startedAt = Date.now() - 60000
 
     const activityReporter = new ActivityReporter({
       list: () => [subagent],
@@ -164,7 +166,7 @@ describe('ActivityReporter per-subagent throttling', () => {
     vi.useFakeTimers()
     const reports: { subagent: LiveSubagent; report: string }[] = []
     const subagent = makeSubagent(1, [])
-    subagent.startedAt = Date.now() - 60000
+    subagent.record.startedAt = Date.now() - 60000
 
     const activityReporter = new ActivityReporter({
       list: () => [subagent],
@@ -189,9 +191,9 @@ describe('ActivityReporter per-subagent throttling', () => {
     vi.useFakeTimers()
     const reports: { subagent: LiveSubagent; report: string }[] = []
     const s1 = makeSubagent(1, [])
-    s1.startedAt = Date.now() - 60000
+    s1.record.startedAt = Date.now() - 60000
     const s2 = makeSubagent(2, [])
-    s2.startedAt = Date.now() - 60000
+    s2.record.startedAt = Date.now() - 60000
 
     const activityReporter = new ActivityReporter({
       list: () => [s1, s2],
@@ -205,20 +207,20 @@ describe('ActivityReporter per-subagent throttling', () => {
     vi.advanceTimersByTime(100)
     expect(reports).toHaveLength(2)
 
-    s1.status = 'done'
+    s1.record.status = 'done'
     vi.advanceTimersByTime(100)
     expect(reports).toHaveLength(2)
 
     vi.advanceTimersByTime(100)
     expect(reports).toHaveLength(3)
-    expect(reports[2]?.subagent.id).toBe(2)
+    expect(reports[2]?.subagent.record.id).toBe(2)
   })
 
   it('does not send report when subagent is not due yet', () => {
     vi.useFakeTimers()
     const reports: { subagent: LiveSubagent; report: string }[] = []
     const subagent = makeSubagent(1, [])
-    subagent.startedAt = Date.now() - 1000
+    subagent.record.startedAt = Date.now() - 1000
 
     const activityReporter = new ActivityReporter({
       list: () => [subagent],
@@ -242,7 +244,7 @@ describe('ActivityReporter shouldPause', () => {
     vi.useFakeTimers()
     const reports: { subagent: LiveSubagent; report: string }[] = []
     const subagent = makeSubagent(1, [])
-    subagent.startedAt = Date.now() - 60000
+    subagent.record.startedAt = Date.now() - 60000
 
     let paused = true
     const activityReporter = new ActivityReporter({
@@ -267,7 +269,7 @@ describe('ActivityReporter shouldPause', () => {
     vi.useFakeTimers()
     const reports: { subagent: LiveSubagent; report: string }[] = []
     const subagent = makeSubagent(1, [])
-    subagent.startedAt = Date.now()
+    subagent.record.startedAt = Date.now()
 
     let paused = false
     const activityReporter = new ActivityReporter({

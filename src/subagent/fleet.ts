@@ -1,8 +1,4 @@
-import type {
-  ContextUsage,
-  ExtensionContext,
-  Theme,
-} from '@earendil-works/pi-coding-agent'
+import type { ExtensionContext, Theme } from '@earendil-works/pi-coding-agent'
 import type { TUI } from '@earendil-works/pi-tui'
 import { Editor } from '@earendil-works/pi-tui'
 import {
@@ -13,6 +9,11 @@ import {
 } from '@earendil-works/pi-tui'
 import { orderBy, sumBy } from 'lodash-es'
 
+import type {
+  SubagentBaseRecord,
+  SubagentRecord,
+  SubagentStatus,
+} from '../types.js'
 import { countBy } from '../utils/collection.js'
 import {
   formatContextUsage,
@@ -38,32 +39,15 @@ function visibleWindow(
   return { start, end, hiddenAbove: start, hiddenBelow: rowCount - end }
 }
 
-export type FleetEntryStatus = 'running' | 'done' | 'failed' | 'killed'
-
-export interface FleetEntryBase {
-  title: string
-  status: FleetEntryStatus
-  followUpCount: number
-  startedAt: number
-  completedAt?: number
-  contextUsage?: ContextUsage
-}
-
-export interface FleetEntry extends FleetEntryBase {
-  id: number
-  previousEntries: FleetEntryBase[]
-  role: string
-}
-
 export interface FleetListOptions {
-  list: () => FleetEntry[]
+  list: () => SubagentRecord[]
   onOpen: (ctx: ExtensionContext, id: number) => void | Promise<void>
 }
 
 type FleetRow = {
   kind: 'item' | 'previous'
-  entry: FleetEntryBase
-  item: FleetEntry
+  entry: SubagentBaseRecord
+  item: SubagentRecord
 }
 
 export class FleetList {
@@ -249,13 +233,13 @@ export class FleetList {
   }
 
   private renderMainLine(
-    items: FleetEntry[],
+    items: SubagentRecord[],
     theme: Theme,
     width: number,
   ): string {
     const label = ` ${theme.fg('dim', 'subagents')}`
     if (items.length === 0) return label
-    const counts: Record<FleetEntryStatus, number> = Object.assign(
+    const counts: Record<SubagentStatus, number> = Object.assign(
       { running: 0, done: 0, failed: 0, killed: 0 },
       countBy(items, (item) => item.status),
     )
@@ -333,7 +317,7 @@ export class FleetList {
   }
 
   private renderTitle(
-    status: FleetEntryStatus,
+    status: SubagentStatus,
     title: string,
     theme: Theme,
   ): string {
@@ -353,7 +337,7 @@ export class FleetList {
   }
 
   private renderItemRow(
-    entry: FleetEntryBase,
+    entry: SubagentBaseRecord,
     prefix: string,
     width: number,
     isSelected: boolean,
@@ -375,7 +359,7 @@ export class FleetList {
     return isSelected ? theme.bg('selectedBg', line) : line
   }
 
-  private renderContextCol(entry: FleetEntryBase, theme: Theme): string {
+  private renderContextCol(entry: SubagentBaseRecord, theme: Theme): string {
     const cu = entry.contextUsage
     if (!cu || cu.contextWindow === 0) return theme.fg('muted', ' '.repeat(12))
     const padded = formatContextUsage(cu).padStart(12, ' ')

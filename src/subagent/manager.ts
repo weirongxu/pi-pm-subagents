@@ -5,17 +5,16 @@ import type { ThinkingLevel } from '@earendil-works/pi-agent-core'
 import type { Api, Model } from '@earendil-works/pi-ai'
 import {
   type AgentSession,
-  type ContextUsage,
   createAgentSession,
   DefaultResourceLoader,
   getAgentDir,
   SessionManager,
 } from '@earendil-works/pi-coding-agent'
 
+import type { SubagentRecord } from '../types.js'
 import { formatContextUsage, formatElapsed } from '../utils/format.js'
 import { lastMessageText } from '../utils/messages.js'
 import { FOLLOW_SYMBOL } from './consts.ts'
-import type { FleetEntryBase } from './fleet.js'
 import {
   runInSubagentSpawnContext,
   SUBAGENT_SESSION_ID_PREFIX,
@@ -31,8 +30,6 @@ const MAX_SUBAGENT_OUTPUT_BYTES = 50 * 1024
 export const MAX_REUSE_FOLLOWUPS = 50
 export const MAX_CONCURRENCY_SUBAGENT = 5
 
-export type SubagentStatus = 'running' | 'done' | 'failed' | 'killed'
-
 export interface SpawnOptions {
   cwd: string
   model?: Model<Api>
@@ -44,18 +41,8 @@ export interface SpawnOptions {
 }
 
 export interface LiveSubagent {
-  id: number
-  title: string
-  previousEntries: FleetEntryBase[]
-  prompt: string
-  status: SubagentStatus
+  record: SubagentRecord
   session: AgentSession
-  startedAt: number
-  completedAt?: number
-  followUpCount: number
-  activeTools: string[]
-  role: string
-  contextUsage?: ContextUsage
   onComplete?: (subagent: LiveSubagent, lastMessage: string) => Promise<void>
 }
 
@@ -70,12 +57,12 @@ export function formatSubagentSummary(
   titleWidth = 80,
 ): string {
   return [
-    subagent.status,
-    `#${subagent.id}`,
-    subagent.title.slice(0, titleWidth),
-    formatContextUsage(subagent.contextUsage),
-    `${FOLLOW_SYMBOL} ${subagent.followUpCount}`,
-    formatElapsed(subagent),
+    subagent.record.status,
+    `#${subagent.record.id}`,
+    subagent.record.title.slice(0, titleWidth),
+    formatContextUsage(subagent.record.contextUsage),
+    `${FOLLOW_SYMBOL} ${subagent.record.followUpCount}`,
+    formatElapsed(subagent.record),
   ].join(' ')
 }
 
@@ -87,7 +74,7 @@ export class SubagentManager {
 
   private countRunning(): number {
     return [...this.subagents.values()].filter(
-      (subagent) => subagent.status === 'running',
+      (subagent) => subagent.record.status === 'running',
     ).length
   }
 
@@ -102,7 +89,7 @@ export class SubagentManager {
   latest(): LiveSubagent | undefined {
     let latest: LiveSubagent | undefined
     for (const subagent of this.subagents.values()) {
-      if (!latest || subagent.id > latest.id) latest = subagent
+      if (!latest || subagent.record.id > latest.record.id) latest = subagent
     }
     return latest
   }
@@ -147,18 +134,20 @@ export class SubagentManager {
       })
     })
 
-    const activeTools: string[] = options.tools ? [...options.tools] : []
-    const subagent: LiveSubagent = {
+    const record: SubagentRecord = {
       id,
       title,
       previousEntries: [],
       prompt,
       status: 'running',
-      session: created.session,
       startedAt: Date.now(),
       followUpCount: 0,
-      activeTools,
+      activeTools: options.tools ? [...options.tools] : [],
       role: options.role ?? 'worker',
+    }
+    const subagent: LiveSubagent = {
+      record,
+      session: created.session,
       onComplete: options.onComplete,
     }
 
@@ -177,36 +166,35 @@ export class SubagentManager {
   ): Promise<LiveSubagent> {
     const followupSubagent = this.subagents.get(id)
     if (!followupSubagent) throw new Error(`Subagent #${id} not found`)
-    if (followupSubagent.followUpCount >= MAX_REUSE_FOLLOWUPS)
+    if (followupSubagent.record.followUpCount >= MAX_REUSE_FOLLOWUPS)
       throw new Error(
         `Subagent #${id} follow-up budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
       )
 
-    const wasRunning = followupSubagent.status === 'running'
-    const prevStartedAt = followupSubagent.startedAt
-    followupSubagent.previousEntries.unshift({
-      title: followupSubagent.title,
-      status: wasRunning ? 'done' : followupSubagent.status,
-      followUpCount: followupSubagent.followUpCount,
-      contextUsage: followupSubagent.contextUsage,
+    const record = followupSubagent.record
+    const wasRunning = record.status === 'running'
+    const prevStartedAt = record.startedAt
+    record.previousEntries.unshift({
+      title: record.title,
+      status: wasRunning ? 'done' : record.status,
+      followUpCount: record.followUpCount,
+      contextUsage: record.contextUsage,
       startedAt: prevStartedAt,
-      completedAt: wasRunning
-        ? Date.now()
-        : (followupSubagent.completedAt ?? Date.now()),
+      completedAt: wasRunning ? Date.now() : (record.completedAt ?? Date.now()),
     })
-    followupSubagent.title = title
-    followupSubagent.prompt = prompt
-    followupSubagent.followUpCount += 1
+    record.title = title
+    record.prompt = prompt
+    record.followUpCount += 1
 
-    if (followupSubagent.status === 'running') {
+    if (record.status === 'running') {
       await followupSubagent.session.steer(prompt)
       this.options.onStatusChange?.()
       return followupSubagent
     }
 
-    followupSubagent.status = 'running'
-    followupSubagent.startedAt = Date.now()
-    followupSubagent.completedAt = undefined
+    record.status = 'running'
+    record.startedAt = Date.now()
+    record.completedAt = undefined
     this.options.onStatusChange?.()
     this.options.onEachStart?.(followupSubagent)
     void this.run(followupSubagent, prompt)
@@ -215,15 +203,15 @@ export class SubagentManager {
 
   async steer(id: number, text: string): Promise<boolean> {
     const subagent = this.subagents.get(id)
-    if (!subagent || subagent.status !== 'running') return false
+    if (!subagent || subagent.record.status !== 'running') return false
     await subagent.session.steer(text)
     return true
   }
 
   async abort(id: number): Promise<boolean> {
     const subagent = this.subagents.get(id)
-    if (!subagent || subagent.status !== 'running') return false
-    subagent.status = 'killed'
+    if (!subagent || subagent.record.status !== 'running') return false
+    subagent.record.status = 'killed'
     this.options.onStatusChange?.()
     await subagent.session.abort()
     return true
@@ -232,8 +220,8 @@ export class SubagentManager {
   disposeAll(): void {
     const disposedSessions = new Set<AgentSession>()
     for (const subagent of this.subagents.values()) {
-      if (subagent.status === 'running') {
-        subagent.status = 'killed'
+      if (subagent.record.status === 'running') {
+        subagent.record.status = 'killed'
         this.options.onEachEnd?.(subagent)
       }
       if (!disposedSessions.has(subagent.session)) {
@@ -245,10 +233,10 @@ export class SubagentManager {
   }
 
   private subscribe(subagent: LiveSubagent): void {
-    subagent.contextUsage = subagent.session.getContextUsage()
+    subagent.record.contextUsage = subagent.session.getContextUsage()
     subagent.session.subscribe((event) => {
       if (event.type === 'message_end') {
-        subagent.contextUsage = subagent.session.getContextUsage()
+        subagent.record.contextUsage = subagent.session.getContextUsage()
       }
     })
   }
@@ -262,14 +250,14 @@ export class SubagentManager {
         MAX_SUBAGENT_OUTPUT_BYTES,
       )
       lastMessage = finalText ?? '(Subagent finished without a final message.)'
-      if (subagent.status === 'running') subagent.status = 'done'
+      if (subagent.record.status === 'running') subagent.record.status = 'done'
     } catch (error) {
-      if (subagent.status === 'running') {
+      if (subagent.record.status === 'running') {
         lastMessage = error instanceof Error ? error.message : String(error)
-        subagent.status = 'failed'
+        subagent.record.status = 'failed'
       }
     } finally {
-      subagent.completedAt = Date.now()
+      subagent.record.completedAt = Date.now()
       this.options.onStatusChange?.()
       await subagent.onComplete?.(subagent, lastMessage ?? '')
       this.options.onEachEnd?.(subagent)

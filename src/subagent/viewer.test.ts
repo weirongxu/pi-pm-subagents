@@ -24,18 +24,24 @@ const makeTheme = (): Theme =>
     bold: (text: string) => text,
   }) as unknown as Theme
 
-function makeSubagent(overrides: Partial<LiveSubagent> = {}): LiveSubagent {
+function makeSubagent(
+  overrides: Partial<LiveSubagent['record']> = {},
+  session: Partial<LiveSubagent['session']> = {},
+): LiveSubagent {
   return {
-    id: 3,
-    role: 'worker',
-    title: 'Do the thing',
-    status: 'running',
-    activeTools: [],
+    record: {
+      id: 3,
+      role: 'worker',
+      title: 'Do the thing',
+      status: 'running',
+      activeTools: [],
+      ...overrides,
+    },
     session: {
       messages: [],
       subscribe: () => () => {},
+      ...session,
     },
-    ...overrides,
   } as unknown as LiveSubagent
 }
 
@@ -176,20 +182,17 @@ describe('SubagentViewer', () => {
 
   it('scrolls history with pgdn in edit mode', () => {
     const message = Array.from({ length: 60 }, (_, i) => `line${i}`).join('\n')
-    const component = makeViewer(
-      makeSubagent({
-        session: {
-          messages: [
-            {
-              role: 'user',
-              content: message,
-              timestamp: Date.now(),
-            },
-          ],
-          subscribe: () => () => {},
-        } as unknown as AgentSession,
-      }),
-    )
+    const session = {
+      messages: [
+        {
+          role: 'user',
+          content: message,
+          timestamp: Date.now(),
+        },
+      ],
+      subscribe: () => () => {},
+    } as unknown as AgentSession
+    const component = makeViewer(makeSubagent({}, session))
     const before = component.render(120).join('\n')
     component.handleInput(ENTER)
     component.handleInput(PAGE_DOWN)
@@ -198,20 +201,17 @@ describe('SubagentViewer', () => {
 
   it('shrinks the scroll viewport in edit mode', () => {
     const message = Array.from({ length: 60 }, (_, i) => `line${i}`).join('\n')
-    const component = makeViewer(
-      makeSubagent({
-        session: {
-          messages: [
-            {
-              role: 'user',
-              content: message,
-              timestamp: Date.now(),
-            },
-          ],
-          subscribe: () => () => {},
-        } as unknown as AgentSession,
-      }),
-    )
+    const session = {
+      messages: [
+        {
+          role: 'user',
+          content: message,
+          timestamp: Date.now(),
+        },
+      ],
+      subscribe: () => () => {},
+    } as unknown as AgentSession
+    const component = makeViewer(makeSubagent({}, session))
     component.render(120) // settle auto-follow at the view-mode viewport
     const viewLines = component.render(120)
     component.handleInput(ENTER)

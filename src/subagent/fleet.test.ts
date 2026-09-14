@@ -3,8 +3,13 @@ import type { TUI } from '@earendil-works/pi-tui'
 import { Editor } from '@earendil-works/pi-tui'
 import { describe, expect, it } from 'vitest'
 
+import type { SubagentRecord } from '../types.js'
 import { formatElapsed } from '../utils/format.js'
-import { type FleetEntry, FleetList, type FleetListOptions } from './fleet.js'
+import { FleetList, type FleetListOptions } from './fleet.js'
+
+// Old FleetEntry shape: a record without prompt/activeTools (cast where needed)
+type FleetEntry = Omit<SubagentRecord, 'prompt' | 'activeTools'> &
+  Partial<Pick<SubagentRecord, 'prompt' | 'activeTools'>>
 
 function createFakeTheme() {
   return {
@@ -27,7 +32,7 @@ describe('FleetList roster sorting', () => {
 
   function createFleetList(entries: FleetEntry[]) {
     return new FleetList({
-      list: () => entries,
+      list: () => entries as SubagentRecord[],
       onOpen: () => {},
     })
   }
@@ -415,7 +420,7 @@ describe('FleetList focus gate (#123)', () => {
     ]
 
     fleetList = new FleetList({
-      list: () => entries,
+      list: () => entries as SubagentRecord[],
       onOpen: () => {},
     })
 
@@ -509,7 +514,7 @@ describe('FleetList renderBar when inactive', () => {
     ]
 
     const fleetList = new FleetList({
-      list: () => entries,
+      list: () => entries as SubagentRecord[],
       onOpen: () => {},
     })
 
@@ -568,7 +573,10 @@ describe('FleetList renderBar when inactive', () => {
       },
     ]
 
-    const fleetList = new FleetList({ list: () => entries, onOpen: () => {} })
+    const fleetList = new FleetList({
+      list: () => entries as SubagentRecord[],
+      onOpen: () => {},
+    })
     const fakeContext = createFakeContext()
     fleetList.setContext(fakeContext as unknown as ExtensionContext)
     fleetList['activeSelect'] = false
@@ -609,7 +617,10 @@ describe('FleetList renderBar when inactive', () => {
       },
     ]
 
-    const fleetList = new FleetList({ list: () => entries, onOpen: () => {} })
+    const fleetList = new FleetList({
+      list: () => entries as SubagentRecord[],
+      onOpen: () => {},
+    })
     const fakeContext = createFakeContext()
     fleetList.setContext(fakeContext as unknown as ExtensionContext)
     fleetList['activeSelect'] = false
@@ -642,7 +653,10 @@ describe('FleetList renderBar when inactive', () => {
       },
     ]
 
-    const fleetList = new FleetList({ list: () => entries, onOpen: () => {} })
+    const fleetList = new FleetList({
+      list: () => entries as SubagentRecord[],
+      onOpen: () => {},
+    })
     const fakeContext = createFakeContext()
     fleetList.setContext(fakeContext as unknown as ExtensionContext)
     fleetList['activeSelect'] = false
@@ -683,7 +697,7 @@ describe('FleetList renderBar when inactive', () => {
     ]
 
     const fleetList = new FleetList({
-      list: () => entries,
+      list: () => entries as SubagentRecord[],
       onOpen: () => {},
     })
 
@@ -720,7 +734,7 @@ describe('FleetList renderBar when inactive', () => {
     ]
 
     const fleetList = new FleetList({
-      list: () => entries,
+      list: () => entries as SubagentRecord[],
       onOpen: () => {},
     })
 
@@ -782,7 +796,7 @@ describe('FleetList renderBar when inactive', () => {
     ]
 
     const fleetList = new FleetList({
-      list: () => entries,
+      list: () => entries as SubagentRecord[],
       onOpen: () => {},
     })
 
@@ -838,7 +852,7 @@ describe('FleetList renderBar selection highlight', () => {
 
   function createFleetList(entries: FleetEntry[]): FleetList {
     const fleetList = new FleetList({
-      list: () => entries,
+      list: () => entries as SubagentRecord[],
       onOpen: () => {},
     })
     fleetList.setContext(createFakeContext() as unknown as ExtensionContext)
@@ -1154,7 +1168,7 @@ describe('FleetList row-based selection navigation', () => {
 
   function createFleetList(entries: FleetEntry[]): FleetList {
     const fleetList = new FleetList({
-      list: () => entries,
+      list: () => entries as SubagentRecord[],
       onOpen: () => {},
     })
     fleetList.setContext(createFakeContext() as unknown as ExtensionContext)
@@ -1358,7 +1372,7 @@ describe('FleetList renderBar uses sorted roster order', () => {
 
   function createFleetList(entries: FleetEntry[]): FleetList {
     const fleetList = new FleetList({
-      list: () => entries,
+      list: () => entries as SubagentRecord[],
       onOpen: () => {},
     })
     fleetList.setContext(createFakeContext() as unknown as ExtensionContext)
@@ -1717,7 +1731,7 @@ describe('FleetList context usage rendering', () => {
 
   function createFleetList(entries: FleetEntry[]): FleetList {
     const fleetList = new FleetList({
-      list: () => entries,
+      list: () => entries as SubagentRecord[],
       onOpen: () => {},
     })
     fleetList.setContext(createFakeContext() as unknown as ExtensionContext)

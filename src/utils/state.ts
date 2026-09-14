@@ -17,6 +17,7 @@ export function persist(pi: ExtensionAPI, state: PmSubagentState): void {
     modeDiffTools: state.modeDiffTools,
     previousModel: state.previousModel,
     sessionSubagentModel: state.sessionSubagentModel,
+    subagents: state.subagents,
   })
 }
 
@@ -35,6 +36,7 @@ export function getLastPmSubagentState(
       modeDiffTools: data.modeDiffTools,
       previousModel: data.previousModel,
       sessionSubagentModel: data.sessionSubagentModel,
+      subagents: data.subagents,
     }
   }
   return undefined
