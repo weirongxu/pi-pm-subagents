@@ -17,7 +17,8 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 
 import type { PmSubagentState } from '../types.js'
-import type { LiveSubagent } from './manager.js'
+import { createState } from '../utils/state.js'
+import type { LiveSubagent, RestoreResult } from './manager.js'
 import { SubagentManager } from './manager.js'
 
 type MockAgentSession = Pick<
@@ -26,6 +27,10 @@ type MockAgentSession = Pick<
 >
 
 export class SubagentManagerDemo extends SubagentManager {
+  constructor() {
+    super({ state: createState() })
+  }
+
   readonly #subagents: LiveSubagent[] = initialDemoSubagents()
 
   override list(): LiveSubagent[] {
@@ -36,13 +41,15 @@ export class SubagentManagerDemo extends SubagentManager {
     return this.#subagents.find((w) => w.record.id === id)
   }
 
-  override latest(): LiveSubagent | undefined {
-    return this.#subagents[this.#subagents.length - 1]
-  }
-
   override createNewSubagent(): Promise<LiveSubagent> {
     return Promise.reject(
       new Error('spawn is not supported for demo subagents'),
+    )
+  }
+
+  override restore(): Promise<RestoreResult> {
+    return Promise.reject(
+      new Error('restore is not supported for demo subagents'),
     )
   }
 
@@ -54,7 +61,7 @@ export class SubagentManagerDemo extends SubagentManager {
     const subagent = this.get(id)
     if (!subagent || subagent.record.status !== 'running') return false
     subagent.record.status = 'killed'
-    subagent.record.completedAt = Date.now()
+    subagent.record.completedAt ??= Date.now()
     return true
   }
 
@@ -71,6 +78,8 @@ export class SubagentManagerDemo extends SubagentManager {
         followUpCount: 0,
         activeTools: ['read', 'write', 'bash'],
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: normalContextUsage(),
       },
       session: mockSessionFor('2'),
@@ -108,6 +117,8 @@ function initialDemoSubagents(): LiveSubagent[] {
         followUpCount: 2,
         activeTools: ['read', 'edit', 'bash'],
         role: 'reviewer',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: normalContextUsage(),
       },
       session: mockSessionFor('1', 6),
@@ -124,6 +135,8 @@ function initialDemoSubagents(): LiveSubagent[] {
         followUpCount: 0,
         activeTools: ['read', 'write', 'bash'],
         role: 'tester',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: normalContextUsage(),
       },
       session: mockSessionFor('2', 6),
@@ -157,6 +170,8 @@ function initialDemoSubagents(): LiveSubagent[] {
         followUpCount: 2,
         activeTools: ['read', 'bash'],
         role: 'investigator',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: highContextUsage(),
       },
       session: mockSessionFor('3', 6),
@@ -181,6 +196,8 @@ function initialDemoSubagents(): LiveSubagent[] {
         followUpCount: 1,
         activeTools: ['read', 'edit'],
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: unknownTokensContextUsage(),
       },
       session: mockSessionFor('4', 6),
@@ -197,6 +214,8 @@ function initialDemoSubagents(): LiveSubagent[] {
         followUpCount: 0,
         activeTools: ['read', 'write'],
         role: 'docs',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       session: mockSessionFor('5', 6),
     },
@@ -212,6 +231,8 @@ function initialDemoSubagents(): LiveSubagent[] {
         followUpCount: 0,
         activeTools: ['read', 'edit', 'bash'],
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: nearFullContextUsage(),
       },
       session: mockSessionFor('6', 6),
@@ -245,6 +266,8 @@ function initialDemoSubagents(): LiveSubagent[] {
         followUpCount: 3,
         activeTools: ['read', 'bash'],
         role: 'investigator',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: normalContextUsage(),
       },
       session: mockSessionFor('7', 6),
@@ -283,6 +306,8 @@ function initialDemoSubagents(): LiveSubagent[] {
         followUpCount: 4,
         activeTools: ['read', 'bash'],
         role: 'reviewer',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: highContextUsage(),
       },
       session: mockSessionFor('8', 6),
@@ -307,6 +332,8 @@ function initialDemoSubagents(): LiveSubagent[] {
         followUpCount: 1,
         activeTools: ['read', 'bash'],
         role: 'tester',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: unknownTokensContextUsage(),
       },
       session: mockSessionFor('9', 6),

@@ -6,15 +6,11 @@ import {
 import { orderBy } from 'lodash-es'
 import { Type } from 'typebox'
 
-import { resolveSubagentModelForSpawn } from '../models-config/subagent-model-utils.js'
+import { requiredRuntime } from '../coordinator/runtime.js'
 import { baseToolsOf } from '../pm-mode.js'
-import { resolveRole, rolesDescription } from '../prompts/roles.js'
+import { listRoles, resolveRole, rolesDescription } from '../prompts/roles.js'
 import type { PmSubagentState } from '../types.js'
-import { askHowToProceed } from '../ui/review-pager.js'
-import type { ReviewOnEnd } from '../utils/markdown.js'
-import { composeTools, registerOptionalTools } from '../utils/tools.js'
-import type { MessageBatcher } from './batcher.js'
-import type { FleetList } from './fleet.js'
+import { registerOptionalTools } from '../utils/tools.js'
 import type { LiveSubagent } from './manager.js'
 import type { SubagentManager } from './manager.js'
 import {
@@ -22,12 +18,7 @@ import {
   MAX_CONCURRENCY_SUBAGENT,
   MAX_REUSE_FOLLOWUPS,
 } from './manager.js'
-import {
-  buildReviewOptions,
-  createReviewedActions,
-  nextRevisedTitle,
-  resolveReviewName,
-} from './review-utils.js'
+import { buildSpawnOptions } from './spawn-options.js'
 
 function toolResultFromError(error: unknown): AgentToolResult<unknown> {
   const message = error instanceof Error ? error.message : String(error)
@@ -59,13 +50,11 @@ const LIST_COOL_DOWN_MS = 1 * 60 * 1000
 export function registerSubagentTools(
   pi: ExtensionAPI,
   state: PmSubagentState,
-  manager: SubagentManager,
-  fleet: FleetList,
-  batcher: MessageBatcher,
 ): void {
   let lastListAt = Date.now()
 
   pi.on('session_start', () => {
+    const { manager, fleet } = requiredRuntime()
     const tools = [
       defineTool({
         name: SUBAGENT_TOOLS.list,
@@ -145,68 +134,19 @@ export function registerSubagentTools(
           ctx,
         ): Promise<AgentToolResult<unknown>> {
           const role = resolveRole(params.role)
-          const reviewOnEnd: ReviewOnEnd = role.fm.reviewOnEnd ?? false
-          const reviewName = resolveReviewName(reviewOnEnd)
-
-          const tools = composeTools(baseToolsOf(pi, state), {
-            tools: role.fm.tools,
-            extraTools: role.fm.extraTools,
-            removeTools: role.fm.removeTools,
-          })
-
-          const model = resolveSubagentModelForSpawn(
-            ctx,
-            role.fm.model,
-            state.sessionSubagentModel,
-          )
-
-          let subagent: LiveSubagent
-          const actions = createReviewedActions({
-            send: (message, corrections) => {
-              batcher.addReviewed(subagent, message, corrections)
-            },
-            revise: (fullPrompt) =>
-              manager.followup(
-                subagent.record.id,
-                nextRevisedTitle(subagent.record.title),
-                fullPrompt,
+          if (!role) {
+            return toolResultFromError(
+              new Error(
+                `Role "${params.role}" not found. Available roles: ${listRoles().join(', ')}`,
               ),
-          })
+            )
+          }
+          let subagent: LiveSubagent
           try {
             subagent = await manager.createNewSubagent(
               params.title,
               params.prompt,
-              {
-                cwd: ctx.cwd,
-                model,
-                thinkingLevel: role.fm.thinkingLevel ?? 'low',
-                tools,
-                systemPrompt: role.systemPrompt,
-                role: params.role,
-                onComplete: async (subagent, lastMessage) => {
-                  if (state.mode !== 'coordinator') return
-                  if (subagent.record.status === 'killed') return
-                  if (!lastMessage) return
-                  if (subagent.record.status === 'failed') {
-                    batcher.add(subagent, 'done', lastMessage)
-                    return
-                  }
-                  if (!reviewOnEnd || !ctx.hasUI) {
-                    batcher.add(subagent, 'done', lastMessage)
-                    return
-                  }
-
-                  await askHowToProceed(
-                    pi,
-                    ctx,
-                    buildReviewOptions({
-                      content: lastMessage,
-                      name: reviewName,
-                      actions,
-                    }),
-                  )
-                },
-              },
+              buildSpawnOptions(pi, state, ctx, role, params.role),
             )
             fleet.update()
           } catch (error) {

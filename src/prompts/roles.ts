@@ -14,6 +14,8 @@ import { composeTools } from '../utils/tools.js'
 
 const DEFAULT_ROLE = 'worker'
 
+export const EMPTY_ROLE: PromptDefinition = { fm: {}, systemPrompt: '' }
+
 const roles: Map<string, PromptDefinition> = new Map()
 
 export interface RoleWithAppend {
@@ -62,9 +64,7 @@ export async function loadMarkdownRolesFromDir(
 }
 
 async function loadBuiltins(): Promise<Map<string, RoleWithAppend>> {
-  return new Map<string, RoleWithAppend>([
-    [DEFAULT_ROLE, { role: { fm: {}, systemPrompt: '' } }],
-  ])
+  return new Map<string, RoleWithAppend>([[DEFAULT_ROLE, { role: EMPTY_ROLE }]])
 }
 
 export interface LoadRolesOptions {
@@ -95,17 +95,10 @@ export async function loadRoles(
   addRoles(await loadMarkdownRolesFromDir(join(cwd, CONFIG_DIR_NAME, 'agents')))
 }
 
-export function resolveRole(name: string = DEFAULT_ROLE): PromptDefinition {
-  if (roles.size === 0) {
-    throw new Error('Roles not loaded. Call loadRoles() first.')
-  }
-  const role = roles.get(name)
-  if (!role) {
-    throw new Error(
-      `Role "${name}" not found. Available roles: ${[...roles.keys()].join(', ')}`,
-    )
-  }
-  return role
+export function resolveRole(
+  name: string = DEFAULT_ROLE,
+): PromptDefinition | null {
+  return roles.get(name) ?? null
 }
 
 export function listRoles(): string[] {

@@ -8,8 +8,13 @@ import { formatElapsed } from '../utils/format.js'
 import { FleetList, type FleetListOptions } from './fleet.js'
 
 // Old FleetEntry shape: a record without prompt/activeTools (cast where needed)
-type FleetEntry = Omit<SubagentRecord, 'prompt' | 'activeTools'> &
-  Partial<Pick<SubagentRecord, 'prompt' | 'activeTools'>>
+type FleetEntry = Omit<
+  SubagentRecord,
+  'prompt' | 'activeTools' | 'cwd' | 'sessionFile'
+> &
+  Partial<
+    Pick<SubagentRecord, 'prompt' | 'activeTools' | 'cwd' | 'sessionFile'>
+  >
 
 function createFakeTheme() {
   return {
@@ -48,6 +53,8 @@ describe('FleetList roster sorting', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 5,
@@ -58,6 +65,8 @@ describe('FleetList roster sorting', () => {
         completedAt: now - 15000,
         followUpCount: 1,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 3,
@@ -67,6 +76,8 @@ describe('FleetList roster sorting', () => {
         startedAt: now - 3000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 4,
@@ -76,6 +87,8 @@ describe('FleetList roster sorting', () => {
         startedAt: now - 4000,
         followUpCount: 2,
         role: 'supervisor',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 2,
@@ -86,6 +99,8 @@ describe('FleetList roster sorting', () => {
         completedAt: now - 6000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
 
@@ -116,6 +131,8 @@ describe('FleetList roster sorting', () => {
         startedAt: now - 1000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 3,
@@ -125,6 +142,8 @@ describe('FleetList roster sorting', () => {
         startedAt: now - 3000,
         followUpCount: 1,
         role: 'supervisor',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 2,
@@ -134,6 +153,8 @@ describe('FleetList roster sorting', () => {
         startedAt: now - 2000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
 
@@ -155,6 +176,8 @@ describe('FleetList roster sorting', () => {
         completedAt: now - 1000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 5,
@@ -165,6 +188,8 @@ describe('FleetList roster sorting', () => {
         completedAt: now - 4000,
         followUpCount: 1,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 1,
@@ -175,6 +200,8 @@ describe('FleetList roster sorting', () => {
         completedAt: now - 500,
         followUpCount: 0,
         role: 'supervisor',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
 
@@ -196,6 +223,8 @@ describe('FleetList roster sorting', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 4,
@@ -205,6 +234,8 @@ describe('FleetList roster sorting', () => {
         startedAt: now - 2000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 2,
@@ -215,6 +246,8 @@ describe('FleetList roster sorting', () => {
         completedAt: now - 7000,
         followUpCount: 1,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 3,
@@ -224,6 +257,8 @@ describe('FleetList roster sorting', () => {
         startedAt: now - 3000,
         followUpCount: 0,
         role: 'supervisor',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
 
@@ -253,6 +288,8 @@ describe('formatElapsed', () => {
     status: 'running',
     followUpCount: 0,
     role: 'worker',
+    cwd: '/tmp/demo',
+    sessionFile: '/tmp/demo/session.jsonl',
     ...overrides,
   })
 
@@ -416,6 +453,8 @@ describe('FleetList focus gate (#123)', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
 
@@ -510,6 +549,8 @@ describe('FleetList renderBar when inactive', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
 
@@ -548,6 +589,8 @@ describe('FleetList renderBar when inactive', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: { tokens: 50000, contextWindow: 200000, percent: 25 },
       },
       {
@@ -558,6 +601,8 @@ describe('FleetList renderBar when inactive', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: { tokens: 80000, contextWindow: 200000, percent: 40 },
       },
       {
@@ -569,6 +614,8 @@ describe('FleetList renderBar when inactive', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: { tokens: 30000, contextWindow: 200000, percent: 15 },
       },
     ]
@@ -603,6 +650,8 @@ describe('FleetList renderBar when inactive', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: undefined,
       },
       {
@@ -613,6 +662,8 @@ describe('FleetList renderBar when inactive', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: undefined,
       },
     ]
@@ -649,6 +700,8 @@ describe('FleetList renderBar when inactive', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: undefined,
       },
     ]
@@ -683,6 +736,8 @@ describe('FleetList renderBar when inactive', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 2,
@@ -693,6 +748,8 @@ describe('FleetList renderBar when inactive', () => {
         completedAt: now - 5000,
         followUpCount: 1,
         role: 'supervisor',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
 
@@ -730,6 +787,8 @@ describe('FleetList renderBar when inactive', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
 
@@ -792,6 +851,8 @@ describe('FleetList renderBar when inactive', () => {
         completedAt: now - 5000,
         followUpCount: 2,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
 
@@ -876,6 +937,8 @@ describe('FleetList renderBar selection highlight', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -916,6 +979,8 @@ describe('FleetList renderBar selection highlight', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -952,6 +1017,8 @@ describe('FleetList renderBar selection highlight', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 2,
@@ -961,6 +1028,8 @@ describe('FleetList renderBar selection highlight', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 1,
@@ -970,6 +1039,8 @@ describe('FleetList renderBar selection highlight', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1015,6 +1086,8 @@ describe('FleetList renderBar selection highlight', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1039,6 +1112,8 @@ describe('FleetList renderBar selection highlight', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 1,
@@ -1049,6 +1124,8 @@ describe('FleetList renderBar selection highlight', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1083,6 +1160,8 @@ describe('FleetList renderBar selection highlight', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 2,
@@ -1093,6 +1172,8 @@ describe('FleetList renderBar selection highlight', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1121,6 +1202,8 @@ describe('FleetList renderBar selection highlight', () => {
         startedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 1,
@@ -1130,6 +1213,8 @@ describe('FleetList renderBar selection highlight', () => {
         startedAt: now - 3000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1202,6 +1287,8 @@ describe('FleetList row-based selection navigation', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1243,6 +1330,8 @@ describe('FleetList row-based selection navigation', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1278,6 +1367,8 @@ describe('FleetList row-based selection navigation', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
 
@@ -1328,6 +1419,8 @@ describe('FleetList row-based selection navigation', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 2,
@@ -1337,6 +1430,8 @@ describe('FleetList row-based selection navigation', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1399,6 +1494,8 @@ describe('FleetList renderBar uses sorted roster order', () => {
       completedAt: now - id * 10000 + 5000,
       followUpCount: 0,
       role: 'worker',
+      cwd: '/tmp/demo',
+      sessionFile: '/tmp/demo/session.jsonl',
     }
   }
 
@@ -1414,6 +1511,8 @@ describe('FleetList renderBar uses sorted roster order', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 2,
@@ -1424,6 +1523,8 @@ describe('FleetList renderBar uses sorted roster order', () => {
         completedAt: now - 15000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 3,
@@ -1434,6 +1535,8 @@ describe('FleetList renderBar uses sorted roster order', () => {
         completedAt: now - 25000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1464,6 +1567,8 @@ describe('FleetList renderBar uses sorted roster order', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 2,
@@ -1474,6 +1579,8 @@ describe('FleetList renderBar uses sorted roster order', () => {
         completedAt: now - 15000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 3,
@@ -1484,6 +1591,8 @@ describe('FleetList renderBar uses sorted roster order', () => {
         completedAt: now - 25000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1540,6 +1649,8 @@ describe('FleetList renderBar uses sorted roster order', () => {
         completedAt: now - 5000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
       {
         id: 2,
@@ -1550,6 +1661,8 @@ describe('FleetList renderBar uses sorted roster order', () => {
         completedAt: now - 15000,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1613,6 +1726,8 @@ describe('FleetList renderBar uses sorted roster order', () => {
       completedAt: now - (i + 1) * 10000 + 5000,
       followUpCount: 0,
       role: 'worker',
+      cwd: '/tmp/demo',
+      sessionFile: '/tmp/demo/session.jsonl',
     }))
     const fleetList = createFleetList(entries)
     fleetList['activeSelect'] = true
@@ -1755,6 +1870,8 @@ describe('FleetList context usage rendering', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: { tokens: 60000, contextWindow: 200000, percent: 30.0 },
       },
     ]
@@ -1780,6 +1897,8 @@ describe('FleetList context usage rendering', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: { tokens: null, contextWindow: 200000, percent: null },
       },
     ]
@@ -1805,6 +1924,8 @@ describe('FleetList context usage rendering', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
       },
     ]
     const fleetList = createFleetList(entries)
@@ -1830,6 +1951,8 @@ describe('FleetList context usage rendering', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: { tokens: 1000, contextWindow: 0, percent: 10.0 },
       },
     ]
@@ -1855,6 +1978,8 @@ describe('FleetList context usage rendering', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: { tokens: 190000, contextWindow: 200000, percent: 95.0 },
       },
     ]
@@ -1881,6 +2006,8 @@ describe('FleetList context usage rendering', () => {
         startedAt: now,
         followUpCount: 0,
         role: 'worker',
+        cwd: '/tmp/demo',
+        sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: { tokens: 160000, contextWindow: 200000, percent: 80.0 },
       },
     ]

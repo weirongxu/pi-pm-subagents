@@ -1,19 +1,69 @@
+import type * as Fs from 'node:fs'
+
+import type * as PiCodingAgent from '@earendil-works/pi-coding-agent'
 import type {
   AgentSession,
   ContextUsage,
 } from '@earendil-works/pi-coding-agent'
 import { describe, expect, it, vi } from 'vitest'
 
+import type { PmSubagentState } from '../types.js'
+import { createState } from '../utils/state.js'
+import type { SubagentManagerOptions } from './manager.js'
+import { SubagentManager } from './manager.js'
 import {
   formatSubagentSummary,
   type LiveSubagent,
   MAX_REUSE_FOLLOWUPS,
-  SubagentManager,
 } from './manager.js'
+
+const openMock = vi.hoisted(() => vi.fn())
+const createAgentSessionMock = vi.hoisted(() => vi.fn())
+const mkdirMock = vi.hoisted(() => vi.fn())
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof Fs>()
+  return { ...actual, mkdirSync: mkdirMock }
+})
+
+vi.mock('@earendil-works/pi-coding-agent', async (importOriginal) => {
+  const actual = await importOriginal<typeof PiCodingAgent>()
+  return {
+    ...actual,
+    SessionManager: Object.assign(Object(actual.SessionManager), {
+      open: openMock,
+    }),
+    createAgentSession: createAgentSessionMock,
+    DefaultResourceLoader: class {
+      async reload(): Promise<void> {}
+    },
+  }
+})
+
+function makeManager(
+  state: PmSubagentState = createState(),
+  options: Omit<SubagentManagerOptions, 'state'> = {},
+): SubagentManager {
+  return new SubagentManager({ state, ...options })
+}
+
+function mockOpenSession(): void {
+  openMock.mockImplementation(() => ({}))
+  createAgentSessionMock.mockResolvedValue({
+    session: makeStubSession().session,
+  })
+  mkdirMock.mockImplementation(() => undefined)
+}
 
 type StubSession = Pick<
   AgentSession,
-  'dispose' | 'abort' | 'steer' | 'subscribe' | 'prompt' | 'getContextUsage'
+  | 'dispose'
+  | 'abort'
+  | 'steer'
+  | 'subscribe'
+  | 'prompt'
+  | 'getContextUsage'
+  | 'sessionFile'
 > & { messages: AgentSession['messages'] }
 
 function makeStubSession(contextUsage?: ContextUsage): {
@@ -34,6 +84,7 @@ function makeStubSession(contextUsage?: ContextUsage): {
     subscribe: () => () => {},
     prompt: promptMock,
     getContextUsage: vi.fn().mockReturnValue(contextUsage),
+    sessionFile: '/tmp/proj/sessions/x.jsonl',
   }
 
   return { session, steerMock, promptMock, abortMock }
@@ -64,6 +115,8 @@ function registerSubagent(
       followUpCount,
       activeTools: [],
       role: 'worker',
+      cwd: '/tmp/proj',
+      sessionFile: '/tmp/proj/sessions/x.jsonl',
     },
     session: session as unknown as AgentSession,
   }
@@ -77,7 +130,7 @@ function registerSubagent(
 describe('formatSubagentSummary', () => {
   it('renders context usage between title and follow symbol', () => {
     const { session } = makeStubSession()
-    const manager = new SubagentManager()
+    const manager = makeManager()
     const subagent = registerSubagent(manager, session, {
       id: 1,
       status: 'done',
@@ -96,7 +149,7 @@ describe('formatSubagentSummary', () => {
 
   it('renders ? when tokens is null', () => {
     const { session } = makeStubSession()
-    const manager = new SubagentManager()
+    const manager = makeManager()
     const subagent = registerSubagent(manager, session, { id: 1 })
     subagent.record.contextUsage = {
       tokens: null,
@@ -109,7 +162,7 @@ describe('formatSubagentSummary', () => {
 
   it('renders ? when contextUsage is undefined', () => {
     const { session } = makeStubSession()
-    const manager = new SubagentManager()
+    const manager = makeManager()
     const subagent = registerSubagent(manager, session, { id: 1 })
 
     expect(formatSubagentSummary(subagent, 80)).toContain(' Task 1 ? ')
@@ -119,7 +172,7 @@ describe('formatSubagentSummary', () => {
 describe('SubagentManager.followup', () => {
   describe('subagent not found', () => {
     it('throws when subagent id does not exist', async () => {
-      const manager = new SubagentManager()
+      const manager = makeManager()
       await expect(manager.followup(99, 'title', 'task')).rejects.toThrow(
         'Subagent #99 not found',
       )
@@ -131,7 +184,7 @@ describe('SubagentManager.followup', () => {
       const { session, promptMock } = makeStubSession()
       const onStartMock = vi.fn()
       const onStatusChangeMock = vi.fn()
-      const manager = new SubagentManager({
+      const manager = makeManager(undefined, {
         onEachStart: onStartMock,
         onStatusChange: onStatusChangeMock,
       })
@@ -159,7 +212,7 @@ describe('SubagentManager.followup', () => {
 
     it(`throws when followUpCount reaches MAX_REUSE_FOLLOWUPS (${MAX_REUSE_FOLLOWUPS})`, async () => {
       const { session } = makeStubSession()
-      const manager = new SubagentManager()
+      const manager = makeManager()
       registerSubagent(manager, session, {
         id: 1,
         status: 'done',
@@ -179,7 +232,7 @@ describe('SubagentManager.followup', () => {
       const { session, steerMock, promptMock } = makeStubSession()
       const onStartMock = vi.fn()
       const onStatusChangeMock = vi.fn()
-      const manager = new SubagentManager({
+      const manager = makeManager(undefined, {
         onEachStart: onStartMock,
         onStatusChange: onStatusChangeMock,
       })
@@ -205,7 +258,7 @@ describe('SubagentManager.followup', () => {
 
     it('does not reset startedAt / completedAt / message', async () => {
       const { session, steerMock } = makeStubSession()
-      const manager = new SubagentManager()
+      const manager = makeManager()
       const subagent = registerSubagent(manager, session, {
         id: 1,
         status: 'running',
@@ -223,7 +276,7 @@ describe('SubagentManager.followup', () => {
 
     it('increments followUpCount each time', async () => {
       const { session, steerMock } = makeStubSession()
-      const manager = new SubagentManager()
+      const manager = makeManager()
       registerSubagent(manager, session, {
         id: 1,
         status: 'running',
@@ -244,7 +297,7 @@ describe('SubagentManager.followup', () => {
 
     it(`throws when followUpCount reaches MAX_REUSE_FOLLOWUPS (${MAX_REUSE_FOLLOWUPS})`, async () => {
       const { session, steerMock } = makeStubSession()
-      const manager = new SubagentManager()
+      const manager = makeManager()
       registerSubagent(manager, session, {
         id: 1,
         status: 'running',
@@ -260,7 +313,7 @@ describe('SubagentManager.followup', () => {
 
     it('saves previousEntry.status as done (not running)', async () => {
       const { session, steerMock } = makeStubSession()
-      const manager = new SubagentManager()
+      const manager = makeManager()
       const subagent = registerSubagent(manager, session, {
         id: 1,
         status: 'running',
@@ -282,7 +335,7 @@ describe('SubagentManager.followup', () => {
   describe('previousEntries accumulation', () => {
     it('accumulates previous titles with full metadata on each followup', async () => {
       const { session } = makeStubSession()
-      const manager = new SubagentManager()
+      const manager = makeManager()
       const subagent = registerSubagent(manager, session, {
         id: 1,
         status: 'done',
@@ -314,7 +367,7 @@ describe('SubagentManager.followup', () => {
 
     it('does not modify previousEntries when followup budget exhausted', async () => {
       const { session } = makeStubSession()
-      const manager = new SubagentManager()
+      const manager = makeManager()
       const subagent = registerSubagent(manager, session, {
         id: 1,
         status: 'done',
@@ -334,7 +387,7 @@ describe('SubagentManager.followup', () => {
         percent: 25.0,
       }
       const { session } = makeStubSession()
-      const manager = new SubagentManager()
+      const manager = makeManager()
       const subagent = registerSubagent(manager, session, {
         id: 1,
         status: 'done',
@@ -357,7 +410,7 @@ describe('SubagentManager.followup', () => {
         percent: 40.0,
       }
       const { session, steerMock } = makeStubSession()
-      const manager = new SubagentManager()
+      const manager = makeManager()
       const subagent = registerSubagent(manager, session, {
         id: 1,
         status: 'running',
@@ -384,7 +437,7 @@ describe('SubagentManager subscribe contextUsage', () => {
       percent: 25.0,
     }
     const { session } = makeStubSession(contextUsage)
-    const manager = new SubagentManager()
+    const manager = makeManager()
     const subagent = registerSubagent(manager, session, { id: 1 })
 
     expect(subagent.record.contextUsage).toBeUndefined()
@@ -420,7 +473,7 @@ describe('SubagentManager subscribe contextUsage', () => {
       getContextUsage: getContextUsageMock,
     } as unknown as StubSession
 
-    const manager = new SubagentManager()
+    const manager = makeManager()
     const subagent = registerSubagent(manager, session, { id: 1 })
     ;(manager as unknown as { subscribe: (s: LiveSubagent) => void }).subscribe(
       subagent,
@@ -437,5 +490,292 @@ describe('SubagentManager subscribe contextUsage', () => {
     }
 
     expect(subagent.record.contextUsage).toEqual(updatedUsage)
+  })
+})
+
+describe('SubagentManager.restore', () => {
+  it('restores a record and marks running as killed', async () => {
+    mockOpenSession()
+    const manager = makeManager()
+    const onComplete = vi.fn().mockResolvedValue(undefined)
+
+    const ok = await manager.restore(
+      {
+        id: 7,
+        title: 'Restored',
+        prompt: 'Do it',
+        status: 'running',
+        startedAt: Date.now() - 1000,
+        followUpCount: 1,
+        activeTools: ['read'],
+        role: 'worker',
+        cwd: '/tmp/proj',
+        sessionFile: '/tmp/proj/sessions/x.jsonl',
+        previousEntries: [],
+      },
+      { onComplete },
+    )
+
+    expect(ok).toBe('restored')
+    const restored = manager.get(7)
+    expect(restored).toBeDefined()
+    expect(restored?.record.status).toBe('killed')
+    expect(restored?.record.completedAt).toBeGreaterThan(0)
+    expect(restored?.record.id).toBe(7)
+    expect(openMock).toHaveBeenCalledWith(
+      '/tmp/proj/sessions/x.jsonl',
+      undefined,
+      '/tmp/proj',
+    )
+
+    // No job-start side effects: onComplete is only stored, not invoked.
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+
+  it("returns 'already-live' when the id is already live", async () => {
+    mockOpenSession()
+    const { session } = makeStubSession()
+    const manager = makeManager()
+    registerSubagent(manager, session, { id: 1 })
+
+    await expect(
+      manager.restore({
+        id: 1,
+        title: 'T',
+        prompt: 'p',
+        status: 'done',
+        startedAt: Date.now(),
+        followUpCount: 0,
+        activeTools: [],
+        role: 'worker',
+        cwd: '/tmp/proj',
+        sessionFile: '/tmp/proj/sessions/x.jsonl',
+        previousEntries: [],
+      }),
+    ).resolves.toBe('already-live')
+    expect(manager.list()).toHaveLength(1)
+    expect(manager.get(1)?.record.title).toBe('Task 1')
+  })
+
+  it("returns 'failed' when the id is occupied by a different subagent", async () => {
+    mockOpenSession()
+    const { session } = makeStubSession()
+    const manager = makeManager()
+    registerSubagent(manager, session, { id: 1 })
+
+    await expect(
+      manager.restore({
+        id: 1,
+        title: 'Other session',
+        prompt: 'p',
+        status: 'done',
+        startedAt: Date.now(),
+        followUpCount: 0,
+        activeTools: [],
+        role: 'worker',
+        cwd: '/tmp/proj',
+        sessionFile: '/tmp/proj/sessions/other.jsonl',
+        previousEntries: [],
+      }),
+    ).resolves.toBe('failed')
+    expect(manager.list()).toHaveLength(1)
+    expect(manager.get(1)?.record.title).toBe('Task 1')
+  })
+
+  it("returns 'failed' when sessionFile is missing", async () => {
+    const manager = makeManager()
+
+    await expect(
+      manager.restore({
+        id: 2,
+        title: 'T',
+        prompt: 'p',
+        status: 'done',
+        startedAt: Date.now(),
+        followUpCount: 0,
+        activeTools: [],
+        role: 'worker',
+        cwd: '/tmp/proj',
+        sessionFile: '',
+        previousEntries: [],
+      }),
+    ).resolves.toBe('failed')
+  })
+
+  it("returns 'failed' when reopening the session file fails", async () => {
+    openMock.mockImplementation(() => {
+      throw new Error('no such file')
+    })
+    const manager = makeManager()
+
+    await expect(
+      manager.restore({
+        id: 3,
+        title: 'T',
+        prompt: 'p',
+        status: 'done',
+        startedAt: Date.now(),
+        followUpCount: 0,
+        activeTools: [],
+        role: 'worker',
+        cwd: '/tmp/proj',
+        sessionFile: '/missing/session.jsonl',
+        previousEntries: [],
+      }),
+    ).resolves.toBe('failed')
+    expect(manager.get(3)).toBeUndefined()
+  })
+})
+
+describe('SubagentManager.disposeAll', () => {
+  it('kills running records, fires onEachEnd, leaves done records untouched', async () => {
+    const { session } = makeStubSession()
+    const onEachEnd = vi.fn()
+    const manager = makeManager(undefined, { onEachEnd })
+    const running = registerSubagent(manager, session, {
+      id: 1,
+      status: 'running',
+    })
+    const done = registerSubagent(manager, session, { id: 2, status: 'done' })
+
+    manager.disposeAll()
+
+    expect(running.record.status).toBe('killed')
+    expect(running.record.completedAt).toBeGreaterThan(0)
+    expect(done.record.status).toBe('done')
+    expect(onEachEnd).toHaveBeenCalledOnce()
+    expect(onEachEnd).toHaveBeenCalledWith(running)
+    // Records are cleared and sessions disposed.
+    expect(manager.list()).toHaveLength(0)
+    await expect(
+      manager.restore({
+        id: 9,
+        title: 'T',
+        prompt: 'p',
+        status: 'done',
+        startedAt: Date.now(),
+        followUpCount: 0,
+        activeTools: [],
+        role: 'worker',
+        cwd: '/tmp/proj',
+        sessionFile: '/tmp/proj/sessions/x.jsonl',
+        previousEntries: [],
+      }),
+    ).resolves.toBe('failed')
+  })
+})
+
+describe('SubagentManager.restore after dispose', () => {
+  it("returns 'failed' and does not insert once disposed", async () => {
+    mockOpenSession()
+    const manager = makeManager()
+    manager.disposeAll()
+
+    const ok = await manager.restore({
+      id: 4,
+      title: 'T',
+      prompt: 'p',
+      status: 'done',
+      startedAt: Date.now(),
+      followUpCount: 0,
+      activeTools: [],
+      role: 'worker',
+      cwd: '/tmp/proj',
+      sessionFile: '/tmp/proj/sessions/x.jsonl',
+      previousEntries: [],
+    })
+
+    expect(ok).toBe('failed')
+    expect(manager.get(4)).toBeUndefined()
+  })
+})
+
+describe('SubagentManager.restore disposed during await', () => {
+  it("returns 'failed' and disposes the freshly opened session", async () => {
+    let resolveCreate: (value: { session: AgentSession }) => void = () => {}
+    const disposeSpy = vi.fn()
+    const deferredSession = {
+      messages: [],
+      dispose: disposeSpy,
+      abort: vi.fn().mockResolvedValue(undefined),
+      steer: vi.fn().mockResolvedValue(undefined),
+      subscribe: vi.fn().mockReturnValue(() => {}),
+      prompt: vi.fn().mockResolvedValue(undefined),
+      getContextUsage: vi.fn().mockReturnValue(undefined),
+    } as unknown as AgentSession
+    openMock.mockImplementation(() => ({}))
+    createAgentSessionMock.mockReturnValue(
+      new Promise<{ session: AgentSession }>((resolve) => {
+        resolveCreate = resolve
+      }),
+    )
+    const manager = makeManager()
+
+    const pending = manager.restore({
+      id: 8,
+      title: 'T',
+      prompt: 'p',
+      status: 'done',
+      startedAt: Date.now(),
+      followUpCount: 0,
+      activeTools: [],
+      role: 'worker',
+      cwd: '/tmp/proj',
+      sessionFile: '/tmp/proj/sessions/x.jsonl',
+      previousEntries: [],
+    })
+
+    manager.disposeAll()
+    resolveCreate({ session: deferredSession })
+
+    await expect(pending).resolves.toBe('failed')
+    expect(disposeSpy).toHaveBeenCalledOnce()
+    expect(manager.get(8)).toBeUndefined()
+  })
+})
+
+function restoredRecord(id: number, status: 'done' | 'running' = 'done') {
+  return {
+    id,
+    title: `Restored ${id}`,
+    prompt: 'Do it',
+    status,
+    startedAt: Date.now() - 1000,
+    followUpCount: 0,
+    activeTools: [],
+    role: 'worker' as const,
+    cwd: '/tmp/proj',
+    sessionFile: '/tmp/proj/sessions/x.jsonl',
+    previousEntries: [],
+  }
+}
+
+describe('SubagentManager id sequencing', () => {
+  it('allocates from state.maxSubagentId and bumps it', async () => {
+    mockOpenSession()
+    const state: PmSubagentState = { ...createState(), maxSubagentId: 5 }
+    const manager = makeManager(state)
+
+    const created = await manager.createNewSubagent('T', 'p', {
+      cwd: '/tmp/proj',
+    })
+
+    expect(created.record.id).toBe(6)
+    expect(state.maxSubagentId).toBe(6)
+  })
+
+  it('restore leaves the id counter untouched', async () => {
+    mockOpenSession()
+    const state: PmSubagentState = createState()
+    const manager = makeManager(state)
+
+    const ok = await manager.restore(restoredRecord(5))
+    expect(ok).toBe('restored')
+    expect(state.maxSubagentId).toBe(0)
+
+    const created = await manager.createNewSubagent('T', 'p', {
+      cwd: '/tmp/proj',
+    })
+    expect(created.record.id).toBe(1)
   })
 })

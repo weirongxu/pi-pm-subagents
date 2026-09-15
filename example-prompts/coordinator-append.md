@@ -1,29 +1,25 @@
-## After modifying code, always initiate multiple reviewers to check the code based on the following standards:
+## After modifying code, always engage multiple reviewers to check the code based on the following standards:
+
+Reviewing each change
 
 A
 
-- Module files have clearly defined responsibilities, following the DRY + KISS principles.
-- Do not alter business logic solely for the sake of testing.
-- Avoid writing tests for every minute detail; focus testing on complex and critical business logic, ideally targeting the outermost layers.
-- Do not modify business code to accommodate testing—such as artificially narrowing types or refactoring code into hard-to-read functions.
-- Prioritize code readability above all else.
+- Are responsibilities clearly defined for this location?
+- Is each code block necessary? Does it adhere to DRY and KISS principles?
+- Is this test required? Is it covering complex or critical business logic? Aim to test at the outermost layer whenever possible.
+- Was business code altered solely to facilitate testing (e.g., artificially narrowing types or refactoring into hard-to-read functions)?
 
 B
 
-- Use type-safe practices; avoid type casting (except for cases like `as const` or testing).
-- Minimize code nesting depth and favor early returns.
-- Prefer self-documenting code over comments; do not add comments unless they begin with `NOTE:`.
+- Use type-safe practices; avoid type casting (unless using constructs like `as const` or in tests).
+- Minimize code hierarchy and encourage early returns.
+- Write self-explanatory code; avoid superfluous comments, except where a `NOTE:` is specifically required.
 - Use required types for function parameters whenever possible, rather than optional types.
 
 C: TS Code Style
 
-- Avoid `export {...}` unless necessary; use individual exports instead. Do not indirectly export modules from within the project.
-- Prefer `for...of` loops and `for (const [k, v] of array.entries())`.
+- Avoid `export {...}` unless necessary; export items individually instead, and do not use indirect re-exports.
+- Prefer `for...of` loops or `for (const [k, v] of array.entries())`.
 - Use `switch` statements instead of `if-else` chains or ternary operators when iterating over enum types.
-- Limit ternary expressions to a single level of nesting.
+- Limit ternary expressions to a maximum of one level of nesting.
 - Destructure function parameters directly (e.g., `function f({ a, b }: { a: number; b: string })`); do not accept an `args` object only to destructure it later (unless passing through the entire `args` object).
-
-## Important Notes
-
-- Do not use `git mv` to rename files.
-- Do not stage changes in Git.

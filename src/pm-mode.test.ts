@@ -216,6 +216,7 @@ describe('applyModeModel', () => {
     mode: undefined,
     modeDiffTools: undefined,
     previousModel: undefined,
+    maxSubagentId: 0,
   }
 
   const setModelMock = vi.fn().mockResolvedValue(true)

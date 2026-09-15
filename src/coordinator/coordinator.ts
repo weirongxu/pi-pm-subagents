@@ -11,12 +11,10 @@ import { applyModeFor, assertModeIdle, exitModeFor } from '../pm-mode.js'
 import { loadRoles } from '../prompts/roles.js'
 import { ActivityReporter } from '../subagent/activity.js'
 import { MessageBatcher } from '../subagent/batcher.js'
-import {
-  registerSubagentDemoCommand,
-  type SubagentManagerDemo,
-} from '../subagent/demo.js'
+import { registerSubagentDemoCommand } from '../subagent/demo.js'
 import { FleetList } from '../subagent/fleet.js'
 import { SubagentManager } from '../subagent/manager.js'
+import { restoreSubagents } from '../subagent/restore.js'
 import { registerSubagentTools, SUBAGENT_TOOLS } from '../subagent/tools.js'
 import { openSubagentViewer } from '../subagent/viewer.js'
 import type { PmSubagentState } from '../types.js'
@@ -25,29 +23,14 @@ import {
   type PromptDefinition,
 } from '../utils/markdown.js'
 import { notifyAgentMessage } from '../utils/messages.ts'
+import { persistSnapshot } from '../utils/state.js'
+import { requiredRuntime, setRuntime } from './runtime.js'
 
 const COORDINATOR_MODE_WIDGET_KEY = 'pi-pm-subagents:coordinator-mode'
 
 /** job event for pi-notify */
 const JOB_START_EVENT = 'pi-notify:job:start'
 const JOB_END_EVENT = 'pi-notify:job:end'
-
-interface CoordinatorRuntime {
-  manager: SubagentManager
-  activityReporter: ActivityReporter
-  demoSubagentManager: SubagentManagerDemo | undefined
-  fleet: FleetList
-  batcher: MessageBatcher
-}
-
-let runtime: CoordinatorRuntime | undefined
-
-function requiredRuntime(): CoordinatorRuntime {
-  if (!runtime) {
-    throw new Error('Coordinator mode is not initialized.')
-  }
-  return runtime
-}
 
 export async function enterCoordinatorMode(
   pi: ExtensionAPI,
@@ -97,6 +80,7 @@ export async function applyCoordinatorMode(
   })
 
   renderCoordinatorModeWidget(ctx, state)
+  await restoreSubagents(pi, state, ctx, state.subagents)
 
   fleet.update()
   activityReporter.start()
@@ -110,10 +94,11 @@ export async function exitCoordinatorMode(
   const { manager, fleet, batcher, activityReporter } = requiredRuntime()
   batcher.clear()
   activityReporter.stop()
-  state.mode = undefined
   fleet.dispose()
   manager.disposeAll()
   ctx.ui.setWidget(COORDINATOR_MODE_WIDGET_KEY, undefined)
+  state.mode = undefined
+  state.subagents = undefined
   await exitModeFor(pi, state, ctx, 'coordinator')
 }
 
@@ -134,7 +119,11 @@ export async function setupCoordinator(
     notifyAgentMessage(pi, messages.join('\n\n'))
   })
   const manager = new SubagentManager({
-    onStatusChange: () => runtime?.fleet.update(),
+    state,
+    onStatusChange: () => {
+      persistSnapshot(pi, state, manager)
+      fleet.update()
+    },
     onEachStart: (subagent) => {
       pi.events.emit(JOB_START_EVENT, {
         id: `pi-pm-subagents:session:${subagent.record.id}`,
@@ -163,11 +152,14 @@ export async function setupCoordinator(
 
   const fleet = new FleetList({
     list: () => {
-      const items = runtime?.demoSubagentManager?.list() ?? manager.list()
+      const runtime = requiredRuntime()
+      const items =
+        runtime.demoSubagentManager?.list() ?? runtime.manager.list()
       return items.map(({ record }) => record)
     },
     onOpen: async (ctx, id) => {
-      const activeManager = runtime?.demoSubagentManager ?? manager
+      const runtime = requiredRuntime()
+      const activeManager = runtime.demoSubagentManager ?? runtime.manager
       return openSubagentViewer(ctx, activeManager, id)
     },
   })
@@ -176,15 +168,15 @@ export async function setupCoordinator(
     skipPluginAgents: getPmSubagentsConfig().skipPluginAgents,
   })
 
-  runtime = {
+  setRuntime({
     manager,
     activityReporter,
     demoSubagentManager: undefined,
     fleet,
     batcher,
-  }
+  })
 
-  registerSubagentTools(pi, state, manager, fleet, batcher)
+  registerSubagentTools(pi, state)
 
   const coordinatorPrompt = coordinatorDefinition.systemPrompt
 

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { BASH_READONLY_TOOL_NAME } from '../bash-readonly.js'
+import type { PromptDefinition } from '../utils/markdown.js'
 import {
   clearRoles,
   listRoles,
@@ -14,6 +15,11 @@ import {
 } from './roles.js'
 
 const MOCK_AGENT_DIR_VAR = 'PI_CODING_AGENT_DIR'
+
+function must(role: PromptDefinition | null): PromptDefinition {
+  if (!role) throw new Error('role unexpectedly missing')
+  return role
+}
 
 // Roles bundled with the plugin in the repo-root agents/ directory.
 // Tests run inside the repo, so these are always loaded (unless skipped).
@@ -36,7 +42,7 @@ describe('roles', () => {
     describe('built-in roles', () => {
       it('includes worker with empty systemPrompt', async () => {
         await loadRoles('/fake/cwd')
-        const worker = resolveRole('worker')
+        const worker = must(resolveRole('worker'))
         expect(worker.systemPrompt).toBe('')
         expect(worker.fm.tools).toBeUndefined()
         expect(worker.fm.removeTools).toBeUndefined()
@@ -46,7 +52,7 @@ describe('roles', () => {
 
       it('includes planner role with reviewOnEnd enabled', async () => {
         await loadRoles('/fake/cwd')
-        const planner = resolveRole('planner')
+        const planner = must(resolveRole('planner'))
         expect(planner.systemPrompt).toContain('You are PLANNER (read-only)')
         expect(planner.systemPrompt).toContain('## Plan structure')
         expect(planner.fm.reviewOnEnd).toBe(true)
@@ -74,14 +80,14 @@ describe('roles', () => {
 
       it('resolves plugin roles from the bundled agents directory', async () => {
         await loadRoles('/fake/cwd')
-        const planner = resolveRole('planner')
+        const planner = must(resolveRole('planner'))
         expect(planner.systemPrompt).toContain('You are PLANNER (read-only)')
         expect(planner.fm.removeTools).toEqual(['write', 'edit', 'bash'])
         expect(planner.fm.extraTools).toEqual([BASH_READONLY_TOOL_NAME])
         expect(planner.fm.reviewOnEnd).toBe(true)
-        expect(() => resolveRole('explorer')).not.toThrow()
-        expect(() => resolveRole('researcher')).not.toThrow()
-        expect(() => resolveRole('reviewer')).not.toThrow()
+        expect(resolveRole('explorer')).not.toBeNull()
+        expect(resolveRole('researcher')).not.toBeNull()
+        expect(resolveRole('reviewer')).not.toBeNull()
       })
     })
 
@@ -106,7 +112,7 @@ describe('roles', () => {
         )
 
         await loadRoles(tempDir)
-        const planner = resolveRole('planner')
+        const planner = must(resolveRole('planner'))
         expect(planner.systemPrompt).toContain('You are PLANNER (read-only)')
         expect(planner.systemPrompt).toContain('- plan markdown 使用中文')
         expect(planner.fm.reviewOnEnd).toBe(true)
@@ -117,7 +123,7 @@ describe('roles', () => {
         await writeFile(join(agentsDir, 'planner-append.md'), 'Extra.')
 
         await loadRoles(tempDir)
-        expect(() => resolveRole('planner-append')).toThrow()
+        expect(resolveRole('planner-append')).toBeNull()
         expect(listRoles()).not.toContain('planner-append')
       })
 
@@ -132,7 +138,7 @@ Extra prompt.`,
         )
 
         await loadRoles(tempDir)
-        const planner = resolveRole('planner')
+        const planner = must(resolveRole('planner'))
         expect(planner.fm.description).toBe('Chinese planner.')
         expect(new Set(planner.fm.extraTools)).toEqual(
           new Set([BASH_READONLY_TOOL_NAME, 'grep']),
@@ -145,8 +151,8 @@ Extra prompt.`,
         await writeFile(join(agentsDir, 'ghost-append.md'), 'Ghost extra.')
 
         await loadRoles(tempDir)
-        expect(() => resolveRole('ghost')).toThrow()
-        expect(() => resolveRole('ghost-append')).toThrow()
+        expect(resolveRole('ghost')).toBeNull()
+        expect(resolveRole('ghost-append')).toBeNull()
       })
 
       it('applies global appends before project appends', async () => {
@@ -162,7 +168,7 @@ Extra prompt.`,
           await writeFile(join(agentsDir, 'worker-append.md'), 'PROJECT')
 
           await loadRoles(tempDir)
-          const worker = resolveRole('worker')
+          const worker = must(resolveRole('worker'))
           const prompt = worker.systemPrompt ?? ''
           expect(prompt).toContain('GLOBAL')
           expect(prompt).toContain('PROJECT')
@@ -212,10 +218,10 @@ You are a tester.`,
         await loadRoles(tempDir)
         // worker + bundled plugin roles + 2 project roles
         expect(listRoles()).toHaveLength(1 + BUNDLED_ROLES.length + 2)
-        expect(() => resolveRole('worker')).not.toThrow()
-        expect(() => resolveRole('planner')).not.toThrow()
-        expect(() => resolveRole('code-improver')).not.toThrow()
-        expect(() => resolveRole('tester')).not.toThrow()
+        expect(resolveRole('worker')).not.toBeNull()
+        expect(resolveRole('planner')).not.toBeNull()
+        expect(resolveRole('code-improver')).not.toBeNull()
+        expect(resolveRole('tester')).not.toBeNull()
       })
 
       it('parses role frontmatter correctly (tools as array)', async () => {
@@ -231,7 +237,7 @@ You are a code improver.`,
         )
 
         await loadRoles(tempDir)
-        const role = resolveRole('code-improver')
+        const role = must(resolveRole('code-improver'))
         expect(role.fm.description).toBe(
           'Scans files and suggests improvements.',
         )
@@ -251,7 +257,7 @@ No tools needed.`,
         )
 
         await loadRoles(tempDir)
-        expect(resolveRole('no-tools').fm.tools).toEqual([])
+        expect(resolveRole('no-tools')?.fm.tools).toEqual([])
       })
 
       it('parses extraTools as array in frontmatter', async () => {
@@ -265,7 +271,7 @@ You have extra tools.`,
         )
 
         await loadRoles(tempDir)
-        const role = resolveRole('extra-array')
+        const role = must(resolveRole('extra-array'))
         expect(role.fm.extraTools).toEqual([BASH_READONLY_TOOL_NAME, 'grep'])
       })
 
@@ -280,7 +286,7 @@ No extra tools needed.`,
         )
 
         await loadRoles(tempDir)
-        expect(resolveRole('no-extra').fm.extraTools).toEqual([])
+        expect(resolveRole('no-extra')?.fm.extraTools).toEqual([])
       })
 
       it('parses removeTools as array in frontmatter', async () => {
@@ -294,7 +300,7 @@ You have removed tools.`,
         )
 
         await loadRoles(tempDir)
-        const role = resolveRole('remove-array')
+        const role = must(resolveRole('remove-array'))
         expect(role.fm.removeTools).toEqual(['write', 'bash'])
       })
 
@@ -309,7 +315,7 @@ No tools to remove.`,
         )
 
         await loadRoles(tempDir)
-        expect(resolveRole('no-remove').fm.removeTools).toEqual([])
+        expect(resolveRole('no-remove')?.fm.removeTools).toEqual([])
       })
 
       it('tools field is not affected by extraTools', async () => {
@@ -324,7 +330,7 @@ You have both tools.`,
         )
 
         await loadRoles(tempDir)
-        const role = resolveRole('both-tools')
+        const role = must(resolveRole('both-tools'))
         expect(role.fm.tools).toEqual(['read', 'write'])
         expect(role.fm.extraTools).toEqual(['grep', 'glob'])
       })
@@ -339,8 +345,8 @@ You have both tools.`,
         await loadRoles(tempDir)
         // worker + bundled plugin roles + 1 valid project role
         expect(listRoles()).toHaveLength(1 + BUNDLED_ROLES.length + 1)
-        expect(() => resolveRole('valid')).not.toThrow()
-        expect(() => resolveRole('not-a-role')).toThrow()
+        expect(resolveRole('valid')).not.toBeNull()
+        expect(resolveRole('not-a-role')).toBeNull()
       })
     })
 
@@ -377,7 +383,7 @@ Global role content.`,
         )
 
         await loadRoles(tempDir)
-        const role = resolveRole('global-role')
+        const role = must(resolveRole('global-role'))
         expect(role.fm.description).toBe('A global role.')
         expect(role.systemPrompt).toBe('Global role content.')
       })
@@ -401,10 +407,10 @@ Second global content.`,
         await loadRoles(tempDir)
         // worker + bundled plugin roles + 2 global roles
         expect(listRoles()).toHaveLength(1 + BUNDLED_ROLES.length + 2)
-        expect(() => resolveRole('worker')).not.toThrow()
-        expect(() => resolveRole('planner')).not.toThrow()
-        expect(() => resolveRole('global-role')).not.toThrow()
-        expect(() => resolveRole('another-global')).not.toThrow()
+        expect(resolveRole('worker')).not.toBeNull()
+        expect(resolveRole('planner')).not.toBeNull()
+        expect(resolveRole('global-role')).not.toBeNull()
+        expect(resolveRole('another-global')).not.toBeNull()
       })
     })
 
@@ -453,7 +459,7 @@ Project content.`,
         )
 
         await loadRoles(tempDir)
-        const role = resolveRole('override-me')
+        const role = must(resolveRole('override-me'))
         expect(role.fm.description).toBe('Project version.')
         expect(role.systemPrompt).toBe('Project content.')
       })
@@ -468,7 +474,7 @@ Custom worker prompt.`,
         )
 
         await loadRoles(tempDir)
-        const worker = resolveRole('worker')
+        const worker = must(resolveRole('worker'))
         expect(worker.fm.description).toBe('Custom worker.')
         expect(worker.systemPrompt).toBe('Custom worker prompt.')
       })
@@ -484,7 +490,7 @@ Only global content.`,
         )
 
         await loadRoles(tempDir)
-        const role = resolveRole('global-only')
+        const role = must(resolveRole('global-only'))
         expect(role.fm.description).toBe('Only global.')
         expect(role.systemPrompt).toBe('Only global content.')
       })
@@ -502,8 +508,8 @@ Only global content.`,
         await loadRoles(tempDir)
         // worker + bundled plugin roles + 2 user roles
         expect(listRoles()).toHaveLength(1 + BUNDLED_ROLES.length + 2)
-        expect(resolveRole('global-only').systemPrompt).toBe('Global content.')
-        expect(resolveRole('project-only').systemPrompt).toBe(
+        expect(resolveRole('global-only')?.systemPrompt).toBe('Global content.')
+        expect(resolveRole('project-only')?.systemPrompt).toBe(
           'Project content.',
         )
       })
@@ -518,15 +524,15 @@ Global reviewer prompt.`,
         )
 
         await loadRoles(tempDir)
-        const reviewer = resolveRole('reviewer')
+        const reviewer = must(resolveRole('reviewer'))
         expect(reviewer.fm.description).toBe('Global reviewer.')
         expect(reviewer.systemPrompt).toBe('Global reviewer prompt.')
       })
 
       it('skips plugin roles when skipPluginAgents is true', async () => {
         await loadRoles(tempDir, { skipPluginAgents: true })
-        expect(() => resolveRole('explorer')).toThrow()
-        expect(() => resolveRole('planner')).toThrow()
+        expect(resolveRole('explorer')).toBeNull()
+        expect(resolveRole('planner')).toBeNull()
         expect(listRoles()).toEqual(['worker'])
       })
 
@@ -535,7 +541,7 @@ Global reviewer prompt.`,
 
         await loadRoles(tempDir, { skipPluginAgents: true })
         expect(new Set(listRoles())).toEqual(new Set(['worker', 'gamma']))
-        expect(resolveRole('gamma').systemPrompt).toBe('Gamma content.')
+        expect(resolveRole('gamma')?.systemPrompt).toBe('Gamma content.')
       })
 
       it('still loads project roles when skipPluginAgents is true', async () => {
@@ -548,7 +554,7 @@ Global reviewer prompt.`,
         expect(new Set(listRoles())).toEqual(
           new Set(['worker', 'project-role']),
         )
-        expect(resolveRole('project-role').systemPrompt).toBe(
+        expect(resolveRole('project-role')?.systemPrompt).toBe(
           'Project content.',
         )
       })
@@ -558,7 +564,7 @@ Global reviewer prompt.`,
   describe('resolveRole', () => {
     it('returns the correct definition for a built-in role', async () => {
       await loadRoles('/fake/cwd')
-      const worker = resolveRole('worker')
+      const worker = must(resolveRole('worker'))
       expect(worker.systemPrompt).toBe('')
     })
 
@@ -578,7 +584,7 @@ Custom prompt.`,
         )
 
         await loadRoles(tempDir)
-        const role = resolveRole('custom')
+        const role = must(resolveRole('custom'))
         expect(role.fm.description).toBe('Custom role.')
         expect(role.systemPrompt).toBe('Custom prompt.')
       } finally {
@@ -586,23 +592,14 @@ Custom prompt.`,
       }
     })
 
-    it('throws for unknown role name', async () => {
+    it('returns null for unknown role name', async () => {
       await loadRoles('/fake/cwd')
-      expect(() => resolveRole('unknown-role')).toThrow(
-        'Role "unknown-role" not found.',
-      )
+      expect(resolveRole('unknown-role')).toBeNull()
     })
 
-    it('throws error message includes available roles', async () => {
-      await loadRoles('/fake/cwd')
-      expect(() => resolveRole('unknown')).toThrow(/Available roles/)
-    })
-
-    it('throws when roles not loaded', async () => {
+    it('returns null when roles not loaded', async () => {
       clearRoles()
-      expect(() => resolveRole('worker')).toThrow(
-        'Roles not loaded. Call loadRoles() first.',
-      )
+      expect(resolveRole('worker')).toBeNull()
     })
   })
 

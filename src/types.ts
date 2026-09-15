@@ -16,6 +16,8 @@ export interface SubagentRecord extends SubagentBaseRecord {
   prompt: string
   activeTools: string[]
   role: string
+  cwd: string
+  sessionFile: string
   previousEntries: SubagentBaseRecord[]
 }
 
@@ -34,4 +36,5 @@ export interface PmSubagentState {
   /** Session-scoped subagent model. Source of truth for spawn. */
   sessionSubagentModel?: string
   subagents?: SubagentRecord[]
+  maxSubagentId: number
 }

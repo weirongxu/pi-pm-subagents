@@ -34,6 +34,11 @@ Then the agent will delegate some subagents to work and supervise them.
 
 **/plan <request>** delegates a planner subagent (in coordinator mode) that explores the code and produces a plan.
 
+### Session persistence
+
+- Coordinator mode and the subagent roster survive session resume (`pi -c` / `/resume`), fork/clone, and extension `/reload`.
+- Subagents that were still running when the session ended are marked as killed on exit; you can continue them with `subagent_followup`.
+
 ## Configuration
 
 ### Prompts

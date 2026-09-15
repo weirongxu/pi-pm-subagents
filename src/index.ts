@@ -9,7 +9,7 @@ import {
 } from './models-config/models-config.js'
 import { setupSubagentModelCycle } from './models-config/subagent-model-cycle.js'
 import { readModePrompt } from './prompts/mode.js'
-import { setupSessionStore } from './session-store.js'
+import { setupSessionLifecycle } from './session-lifecycle.js'
 import { isSubagentSpawnContext } from './subagent/identity.js'
 import { createState } from './utils/state.js'
 
@@ -35,6 +35,5 @@ export default async function pmSubagentsExtension(
   })
   setupPmSubagentsConfig(pi, state, coordinatorDefinition)
   setupSubagentModelCycle(pi, state)
-
-  setupSessionStore(pi, state, coordinatorDefinition)
+  setupSessionLifecycle(pi, state, coordinatorDefinition)
 }

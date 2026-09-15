@@ -11,7 +11,7 @@ import {
   SessionManager,
 } from '@earendil-works/pi-coding-agent'
 
-import type { SubagentRecord } from '../types.js'
+import type { PmSubagentState, SubagentRecord } from '../types.js'
 import { formatContextUsage, formatElapsed } from '../utils/format.js'
 import { lastMessageText } from '../utils/messages.js'
 import { FOLLOW_SYMBOL } from './consts.ts'
@@ -46,7 +46,15 @@ export interface LiveSubagent {
   onComplete?: (subagent: LiveSubagent, lastMessage: string) => Promise<void>
 }
 
+export type RestoreResult = 'restored' | 'already-live' | 'failed'
+
+export interface RestoreOptions {
+  systemPrompt?: string
+  onComplete?: (subagent: LiveSubagent, lastMessage: string) => Promise<void>
+}
+
 export interface SubagentManagerOptions {
+  state: PmSubagentState
   onStatusChange?: () => void
   onEachStart?: (subagent: LiveSubagent) => void
   onEachEnd?: (subagent: LiveSubagent) => void
@@ -68,9 +76,13 @@ export function formatSubagentSummary(
 
 export class SubagentManager {
   private subagents = new Map<number, LiveSubagent>()
-  private seq = 0
+  private disposed = false
 
-  constructor(private options: SubagentManagerOptions = {}) {}
+  private isDisposed(): boolean {
+    return this.disposed
+  }
+
+  constructor(private options: SubagentManagerOptions) {}
 
   private countRunning(): number {
     return [...this.subagents.values()].filter(
@@ -84,14 +96,6 @@ export class SubagentManager {
 
   get(id: number): LiveSubagent | undefined {
     return this.subagents.get(id)
-  }
-
-  latest(): LiveSubagent | undefined {
-    let latest: LiveSubagent | undefined
-    for (const subagent of this.subagents.values()) {
-      if (!latest || subagent.record.id > latest.record.id) latest = subagent
-    }
-    return latest
   }
 
   private async createLoader(
@@ -116,8 +120,7 @@ export class SubagentManager {
         `Subagent concurrency limit reached (${MAX_CONCURRENCY_SUBAGENT}). Wait for an existing subagent to finish, or abort one.`,
       )
     }
-    this.seq += 1
-    const id = this.seq
+    const id = ++this.options.state.maxSubagentId
     const subagentSessionDir = subagentDirFor(options.cwd, getAgentDir())
     mkdirSync(subagentSessionDir, { recursive: true })
     const created = await runInSubagentSpawnContext(id, async () => {
@@ -134,6 +137,9 @@ export class SubagentManager {
       })
     })
 
+    const sessionFile = created.session.sessionFile
+    if (!sessionFile) throw new Error('Subagent session file is missing.')
+
     const record: SubagentRecord = {
       id,
       title,
@@ -144,6 +150,8 @@ export class SubagentManager {
       followUpCount: 0,
       activeTools: options.tools ? [...options.tools] : [],
       role: options.role ?? 'worker',
+      cwd: options.cwd,
+      sessionFile,
     }
     const subagent: LiveSubagent = {
       record,
@@ -157,6 +165,61 @@ export class SubagentManager {
     this.options.onStatusChange?.()
     void this.run(subagent, prompt)
     return subagent
+  }
+
+  async restore(
+    record: SubagentRecord,
+    options: RestoreOptions = {},
+  ): Promise<RestoreResult> {
+    if (this.isDisposed()) return 'failed'
+    const live = this.subagents.get(record.id)
+    if (live) {
+      return live.record.sessionFile === record.sessionFile
+        ? 'already-live'
+        : 'failed'
+    }
+    if (!record.sessionFile) return 'failed'
+
+    if (record.status === 'running') {
+      record.status = 'killed'
+      record.completedAt ??= Date.now()
+    }
+
+    let created: { session: AgentSession }
+    try {
+      created = await runInSubagentSpawnContext(record.id, async () => {
+        const loader = await this.createLoader({
+          cwd: record.cwd,
+          systemPrompt: options.systemPrompt,
+        })
+        return createAgentSession({
+          cwd: record.cwd,
+          tools: [...record.activeTools],
+          resourceLoader: loader,
+          sessionManager: SessionManager.open(
+            record.sessionFile,
+            undefined,
+            record.cwd,
+          ),
+        })
+      })
+      if (this.isDisposed()) {
+        created.session.dispose()
+        return 'failed'
+      }
+    } catch {
+      return 'failed'
+    }
+
+    const subagent: LiveSubagent = {
+      record,
+      session: created.session,
+      onComplete: options.onComplete,
+    }
+    this.subagents.set(record.id, subagent)
+    this.subscribe(subagent)
+    this.options.onStatusChange?.()
+    return 'restored'
   }
 
   async followup(
@@ -218,10 +281,12 @@ export class SubagentManager {
   }
 
   disposeAll(): void {
+    this.disposed = true
     const disposedSessions = new Set<AgentSession>()
     for (const subagent of this.subagents.values()) {
       if (subagent.record.status === 'running') {
         subagent.record.status = 'killed'
+        subagent.record.completedAt ??= Date.now()
         this.options.onEachEnd?.(subagent)
       }
       if (!disposedSessions.has(subagent.session)) {
@@ -257,10 +322,12 @@ export class SubagentManager {
         subagent.record.status = 'failed'
       }
     } finally {
-      subagent.record.completedAt = Date.now()
-      this.options.onStatusChange?.()
-      await subagent.onComplete?.(subagent, lastMessage ?? '')
-      this.options.onEachEnd?.(subagent)
+      if (subagent.record.completedAt === undefined) {
+        subagent.record.completedAt = Date.now()
+        this.options.onStatusChange?.()
+        await subagent.onComplete?.(subagent, lastMessage ?? '')
+        this.options.onEachEnd?.(subagent)
+      }
     }
   }
 }
