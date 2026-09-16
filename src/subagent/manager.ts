@@ -59,7 +59,7 @@ export interface SteerOptions {
 
 export interface SubagentManagerOptions {
   state: PmSubagentState
-  onStatusChange?: () => void
+  onChanged?: () => void
   onEachStart?: (subagent: LiveSubagent) => void
   onEachEnd?: (subagent: LiveSubagent) => void
 }
@@ -166,7 +166,7 @@ export class SubagentManager {
     this.subagents.set(id, subagent)
     this.subscribe(subagent)
     this.options.onEachStart?.(subagent)
-    this.options.onStatusChange?.()
+    this.options.onChanged?.()
     void this.run(subagent, prompt)
     return subagent
   }
@@ -222,7 +222,7 @@ export class SubagentManager {
     }
     this.subagents.set(record.id, subagent)
     this.subscribe(subagent)
-    this.options.onStatusChange?.()
+    this.options.onChanged?.()
     return 'restored'
   }
 
@@ -262,14 +262,14 @@ export class SubagentManager {
 
     if (record.status === 'running') {
       await subagent.session.steer(prompt)
-      this.options.onStatusChange?.()
+      this.options.onChanged?.()
       return subagent
     }
 
     record.status = 'running'
     record.startedAt = Date.now()
     record.completedAt = undefined
-    this.options.onStatusChange?.()
+    this.options.onChanged?.()
     this.options.onEachStart?.(subagent)
     void this.run(subagent, prompt)
     return subagent
@@ -279,7 +279,7 @@ export class SubagentManager {
     const subagent = this.subagents.get(id)
     if (!subagent || subagent.record.status !== 'running') return false
     subagent.record.status = 'killed'
-    this.options.onStatusChange?.()
+    this.options.onChanged?.()
     await subagent.session.abort()
     return true
   }
@@ -328,7 +328,7 @@ export class SubagentManager {
     } finally {
       if (subagent.record.completedAt === undefined) {
         subagent.record.completedAt = Date.now()
-        this.options.onStatusChange?.()
+        this.options.onChanged?.()
         await subagent.onComplete?.(subagent, lastMessage ?? '')
         this.options.onEachEnd?.(subagent)
       }

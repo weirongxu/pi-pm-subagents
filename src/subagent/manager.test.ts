@@ -286,10 +286,10 @@ describe('SubagentManager.steer', () => {
   it('restarts an idle subagent via run + onEachStart', async () => {
     const { session, promptMock } = makeStubSession()
     const onStartMock = vi.fn()
-    const onStatusChangeMock = vi.fn()
+    const onChangedMock = vi.fn()
     const manager = makeManager(undefined, {
       onEachStart: onStartMock,
-      onStatusChange: onStatusChangeMock,
+      onChanged: onChangedMock,
     })
     registerSubagent(manager, session, {
       id: 1,
@@ -307,7 +307,7 @@ describe('SubagentManager.steer', () => {
     expect(result.record.completedAt).toBeUndefined()
     expect(promptMock).toHaveBeenCalledWith('New Task')
     expect(onStartMock).toHaveBeenCalledOnce()
-    expect(onStatusChangeMock).toHaveBeenCalled()
+    expect(onChangedMock).toHaveBeenCalled()
   })
 })
 

@@ -120,7 +120,7 @@ export async function setupCoordinator(
   })
   const manager = new SubagentManager({
     state,
-    onStatusChange: () => {
+    onChanged: () => {
       persistSnapshot(pi, state, manager)
       fleet.update()
     },
