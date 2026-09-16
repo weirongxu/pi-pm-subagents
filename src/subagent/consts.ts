@@ -1,1 +1,1 @@
-export const FOLLOW_SYMBOL = '⟳'
+export const STEER_SYMBOL = '⟳'

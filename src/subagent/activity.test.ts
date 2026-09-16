@@ -11,7 +11,7 @@ const makeSubagent = (id: number, messages: unknown[]): LiveSubagent =>
       text: `task-${id}`,
       status: 'running',
       startedAt: Date.now() - 1000,
-      followUpCount: 0,
+      steerCount: 0,
       activeTools: [],
     },
     session: { messages: messages as never },

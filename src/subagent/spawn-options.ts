@@ -56,12 +56,7 @@ export function buildSpawnOptions(
         return
       }
       if (!reviewName || !ctx.hasUI) {
-        batcher.add(
-          subagent,
-          'done',
-          lastMessage,
-          manager.drainFeedback(subagent.record.id),
-        )
+        batcher.add(subagent, 'done', lastMessage)
         return
       }
 
@@ -71,20 +66,13 @@ export function buildSpawnOptions(
           content: lastMessage,
           name: reviewName,
           send: (message) => {
-            batcher.add(
-              subagent,
-              'reviewed',
-              message,
-              manager.drainFeedback(subagent.record.id),
-            )
+            batcher.add(subagent, 'reviewed', message)
           },
-          revise: (fullPrompt) => {
-            manager.appendFeedback(subagent.record.id, fullPrompt)
-            return manager.steerWithTitle(
-              subagent.record.id,
-              nextRevisedTitle(subagent.record.title),
-              fullPrompt,
-            )
+          revise: async (fullPrompt) => {
+            await manager.steer(subagent.record.id, fullPrompt, {
+              title: nextRevisedTitle(subagent.record.title),
+            })
+            batcher.add(subagent, 'steer', fullPrompt)
           },
         }),
       )

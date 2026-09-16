@@ -160,7 +160,11 @@ export async function setupCoordinator(
     onOpen: async (ctx, id) => {
       const runtime = requiredRuntime()
       const activeManager = runtime.demoSubagentManager ?? runtime.manager
-      return openSubagentViewer(ctx, activeManager, id)
+      return openSubagentViewer(ctx, activeManager, id, {
+        onSteer: (subagent, text) => {
+          batcher.add(subagent, 'steer', text)
+        },
+      })
     },
   })
 

@@ -14,7 +14,7 @@ import { SubagentManager } from './manager.js'
 import {
   formatSubagentSummary,
   type LiveSubagent,
-  MAX_REUSE_FOLLOWUPS,
+  MAX_REUSE_STEERS,
 } from './manager.js'
 
 const openMock = vi.hoisted(() => vi.fn())
@@ -96,12 +96,12 @@ function registerSubagent(
   overrides: Partial<{
     id: number
     status: 'running' | 'done' | 'failed' | 'killed'
-    followUpCount: number
+    steerCount: number
   }> = {},
 ): LiveSubagent {
   const id = overrides.id ?? 1
   const status = overrides.status ?? 'done'
-  const followUpCount = overrides.followUpCount ?? 0
+  const steerCount = overrides.steerCount ?? 0
 
   const subagent: LiveSubagent = {
     record: {
@@ -112,13 +112,12 @@ function registerSubagent(
       status,
       startedAt: Date.now() - 1000,
       completedAt: status !== 'running' ? Date.now() : undefined,
-      followUpCount,
+      steerCount,
       activeTools: [],
       role: 'worker',
       cwd: '/tmp/proj',
       sessionFile: '/tmp/proj/sessions/x.jsonl',
     },
-    feedback: [],
     session: session as unknown as AgentSession,
   }
 
@@ -135,7 +134,7 @@ describe('formatSubagentSummary', () => {
     const subagent = registerSubagent(manager, session, {
       id: 1,
       status: 'done',
-      followUpCount: 2,
+      steerCount: 2,
     })
     subagent.record.contextUsage = {
       tokens: 60000,
@@ -170,296 +169,231 @@ describe('formatSubagentSummary', () => {
   })
 })
 
-describe('SubagentManager feedback', () => {
-  it('appendFeedback then drainFeedback returns and clears', () => {
-    const { session } = makeStubSession()
+describe('SubagentManager.steer', () => {
+  it('throws when subagent id does not exist', async () => {
     const manager = makeManager()
-    registerSubagent(manager, session, { id: 1 })
-
-    manager.appendFeedback(1, 'first')
-    manager.appendFeedback(1, 'second')
-
-    expect([...manager.drainFeedback(1)]).toEqual(['first', 'second'])
-    expect(manager.drainFeedback(1)).toEqual([])
+    await expect(manager.steer(99, 'task')).rejects.toThrow(
+      'Subagent #99 not found',
+    )
   })
 
-  it('appendFeedback is a no-op for unknown id', () => {
+  it(`throws without archiving or renaming when budget is exhausted`, async () => {
+    const { session, steerMock, promptMock } = makeStubSession()
     const manager = makeManager()
+    const subagent = registerSubagent(manager, session, {
+      id: 1,
+      status: 'done',
+      steerCount: MAX_REUSE_STEERS,
+    })
 
-    expect(() => {
-      manager.appendFeedback(99, 'note')
-    }).not.toThrow()
-    expect(manager.drainFeedback(99)).toEqual([])
+    await expect(
+      manager.steer(1, 'task', { title: 'New Title' }),
+    ).rejects.toThrow(
+      `Subagent #1 steer budget exhausted (${MAX_REUSE_STEERS}/${MAX_REUSE_STEERS}). Start a fresh subagent instead.`,
+    )
+
+    expect(subagent.record.previousEntries).toEqual([])
+    expect(subagent.record.title).toBe('Task 1')
+    expect(steerMock).not.toHaveBeenCalled()
+    expect(promptMock).not.toHaveBeenCalled()
   })
 
-  it('drainFeedback returns empty for id with no feedback', () => {
-    const { session } = makeStubSession()
+  it('archives the old title and renames when a title is given (running)', async () => {
+    const { session, steerMock } = makeStubSession()
     const manager = makeManager()
-    registerSubagent(manager, session, { id: 2 })
+    const subagent = registerSubagent(manager, session, {
+      id: 1,
+      status: 'running',
+      steerCount: 2,
+    })
+    const startedAt = Date.now() - 5000
+    subagent.record.startedAt = startedAt
 
-    expect(manager.drainFeedback(2)).toEqual([])
+    await manager.steer(1, 'New Task', { title: 'New Title' })
+
+    expect(subagent.record.title).toBe('New Title')
+    expect(subagent.record.prompt).toBe('New Task')
+    expect(subagent.record.steerCount).toBe(3)
+    expect(subagent.record.previousEntries).toHaveLength(1)
+    expect(subagent.record.previousEntries[0]).toMatchObject({
+      title: 'Task 1',
+      status: 'done',
+      steerCount: 2,
+      startedAt,
+    })
+    expect(subagent.record.previousEntries[0]?.completedAt).toBeGreaterThan(0)
+    expect(steerMock).toHaveBeenCalledWith('New Task')
+  })
+
+  it('archives idle status and keeps completedAt when a title is given', async () => {
+    const { session, promptMock } = makeStubSession()
+    const manager = makeManager()
+    const subagent = registerSubagent(manager, session, {
+      id: 1,
+      status: 'failed',
+    })
+    const completedAt = Date.now() - 1000
+    subagent.record.completedAt = completedAt
+    promptMock.mockResolvedValue(undefined)
+
+    await manager.steer(1, 'task', { title: 'New Title' })
+
+    expect(subagent.record.previousEntries[0]).toMatchObject({
+      status: 'failed',
+      completedAt,
+    })
+  })
+
+  it('does not archive or rename when no title is given', async () => {
+    const { session, steerMock } = makeStubSession()
+    const manager = makeManager()
+    const subagent = registerSubagent(manager, session, {
+      id: 1,
+      status: 'running',
+      steerCount: 3,
+    })
+
+    await manager.steer(1, 'New Task')
+
+    expect(subagent.record.title).toBe('Task 1')
+    expect(subagent.record.previousEntries).toEqual([])
+    expect(subagent.record.prompt).toBe('New Task')
+    expect(subagent.record.steerCount).toBe(4)
+    expect(steerMock).toHaveBeenCalledWith('New Task')
+  })
+
+  it('steers a running subagent without restarting', async () => {
+    const { session, steerMock, promptMock } = makeStubSession()
+    const onStartMock = vi.fn()
+    const manager = makeManager(undefined, { onEachStart: onStartMock })
+    registerSubagent(manager, session, {
+      id: 1,
+      status: 'running',
+      steerCount: 0,
+    })
+
+    const result = await manager.steer(1, 'New Task')
+
+    expect(result.record.id).toBe(1)
+    expect(result.record.status).toBe('running')
+    expect(result.record.prompt).toBe('New Task')
+    expect(result.record.steerCount).toBe(1)
+    expect(steerMock).toHaveBeenCalledWith('New Task')
+    expect(promptMock).not.toHaveBeenCalled()
+    expect(onStartMock).not.toHaveBeenCalled()
+  })
+
+  it('restarts an idle subagent via run + onEachStart', async () => {
+    const { session, promptMock } = makeStubSession()
+    const onStartMock = vi.fn()
+    const onStatusChangeMock = vi.fn()
+    const manager = makeManager(undefined, {
+      onEachStart: onStartMock,
+      onStatusChange: onStatusChangeMock,
+    })
+    registerSubagent(manager, session, {
+      id: 1,
+      status: 'done',
+      steerCount: 0,
+    })
+    promptMock.mockReturnValue(new Promise(() => {}))
+
+    const result = await manager.steer(1, 'New Task')
+
+    expect(result.record.status).toBe('running')
+    expect(result.record.prompt).toBe('New Task')
+    expect(result.record.steerCount).toBe(1)
+    expect(result.record.startedAt).toBeGreaterThan(0)
+    expect(result.record.completedAt).toBeUndefined()
+    expect(promptMock).toHaveBeenCalledWith('New Task')
+    expect(onStartMock).toHaveBeenCalledOnce()
+    expect(onStatusChangeMock).toHaveBeenCalled()
   })
 })
 
-describe('SubagentManager.steerWithTitle', () => {
-  describe('subagent not found', () => {
-    it('throws when subagent id does not exist', async () => {
-      const manager = makeManager()
-      await expect(manager.steerWithTitle(99, 'title', 'task')).rejects.toThrow(
-        'Subagent #99 not found',
-      )
+describe('SubagentManager.steer composition', () => {
+  it('accumulates previous titles with full metadata on each steer', async () => {
+    const { session, promptMock } = makeStubSession()
+    const manager = makeManager()
+    const subagent = registerSubagent(manager, session, {
+      id: 1,
+      status: 'done',
+      steerCount: 0,
+    })
+    promptMock.mockResolvedValue(undefined)
+
+    for (const [title, task] of [
+      ['Title 1', 'task 1'],
+      ['Title 2', 'task 2'],
+      ['Title 3', 'task 3'],
+    ] as const) {
+      await manager.steer(1, task, { title })
+    }
+
+    expect(subagent.record.previousEntries).toHaveLength(3)
+    expect(subagent.record.previousEntries[0]).toMatchObject({
+      title: 'Title 2',
+      status: 'done',
+      steerCount: 2,
+    })
+    expect(subagent.record.previousEntries[1]).toMatchObject({
+      title: 'Title 1',
+      status: 'done',
+      steerCount: 1,
+    })
+    expect(subagent.record.previousEntries[2]).toMatchObject({
+      title: 'Task 1',
+      status: 'done',
+      steerCount: 0,
+    })
+    expect(subagent.record.title).toBe('Title 3')
+  })
+
+  it('records contextUsage in the previous entry on steer', async () => {
+    const contextUsage: ContextUsage = {
+      tokens: 50000,
+      contextWindow: 200000,
+      percent: 25.0,
+    }
+    const { session } = makeStubSession()
+    const manager = makeManager()
+    const subagent = registerSubagent(manager, session, {
+      id: 1,
+      status: 'done',
+      steerCount: 0,
+    })
+    subagent.record.contextUsage = contextUsage
+
+    await manager.steer(1, 'task 2', { title: 'Title 2' })
+
+    expect(subagent.record.previousEntries[0]).toMatchObject({
+      title: 'Task 1',
+      contextUsage,
     })
   })
 
-  describe('done subagent followup (regression)', () => {
-    it('calls run, onStart, resets fields, increments followUpCount', async () => {
-      const { session, promptMock } = makeStubSession()
-      const onStartMock = vi.fn()
-      const onStatusChangeMock = vi.fn()
-      const manager = makeManager(undefined, {
-        onEachStart: onStartMock,
-        onStatusChange: onStatusChangeMock,
-      })
-
-      registerSubagent(manager, session, {
-        id: 1,
-        status: 'done',
-        followUpCount: 0,
-      })
-      promptMock.mockReturnValue(new Promise(() => {}))
-
-      const result = await manager.steerWithTitle(1, 'New Title', 'New Task')
-
-      expect(result.record.id).toBe(1)
-      expect(result.record.status).toBe('running')
-      expect(result.record.title).toBe('New Title')
-      expect(result.record.prompt).toBe('New Task')
-      expect(result.record.followUpCount).toBe(1)
-      expect(result.record.startedAt).toBeGreaterThan(0)
-      expect(result.record.completedAt).toBeUndefined()
-      expect(onStartMock).toHaveBeenCalledOnce()
-      expect(onStatusChangeMock).toHaveBeenCalled()
-      expect(promptMock).toHaveBeenCalledOnce()
+  it('records contextUsage in the previous entry when steering a running subagent', async () => {
+    const contextUsage: ContextUsage = {
+      tokens: 80000,
+      contextWindow: 200000,
+      percent: 40.0,
+    }
+    const { session, steerMock } = makeStubSession()
+    const manager = makeManager()
+    const subagent = registerSubagent(manager, session, {
+      id: 1,
+      status: 'running',
+      steerCount: 0,
     })
+    subagent.record.contextUsage = contextUsage
 
-    it(`throws when followUpCount reaches MAX_REUSE_FOLLOWUPS (${MAX_REUSE_FOLLOWUPS})`, async () => {
-      const { session } = makeStubSession()
-      const manager = makeManager()
-      registerSubagent(manager, session, {
-        id: 1,
-        status: 'done',
-        followUpCount: MAX_REUSE_FOLLOWUPS,
-      })
+    await manager.steer(1, 'more work', { title: 'New Title' })
 
-      await expect(manager.steerWithTitle(1, 'title', 'task')).rejects.toThrow(
-        `Subagent #1 steer budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
-      )
-
-      expect(session.prompt).not.toHaveBeenCalled()
+    expect(subagent.record.previousEntries[0]).toMatchObject({
+      status: 'done',
+      contextUsage,
     })
-  })
-
-  describe('running subagent followup (steer)', () => {
-    it('calls session.steer with prefixed task text', async () => {
-      const { session, steerMock, promptMock } = makeStubSession()
-      const onStartMock = vi.fn()
-      const onStatusChangeMock = vi.fn()
-      const manager = makeManager(undefined, {
-        onEachStart: onStartMock,
-        onStatusChange: onStatusChangeMock,
-      })
-
-      registerSubagent(manager, session, {
-        id: 1,
-        status: 'running',
-        followUpCount: 0,
-      })
-
-      const result = await manager.steerWithTitle(1, 'New Title', 'New Task')
-
-      expect(result.record.id).toBe(1)
-      expect(result.record.status).toBe('running')
-      expect(result.record.title).toBe('New Title')
-      expect(result.record.prompt).toBe('New Task')
-      expect(result.record.followUpCount).toBe(1)
-      expect(steerMock).toHaveBeenCalledOnce()
-      expect(steerMock).toHaveBeenCalledWith('New Task')
-      expect(promptMock).not.toHaveBeenCalled()
-      expect(onStartMock).not.toHaveBeenCalled()
-    })
-
-    it('does not reset startedAt / completedAt / message', async () => {
-      const { session, steerMock } = makeStubSession()
-      const manager = makeManager()
-      const subagent = registerSubagent(manager, session, {
-        id: 1,
-        status: 'running',
-        followUpCount: 0,
-      })
-      const originalStartedAt = Date.now() - 5000
-      subagent.record.startedAt = originalStartedAt
-
-      await manager.steerWithTitle(1, 'title', 'task')
-
-      expect(steerMock).toHaveBeenCalled()
-      expect(subagent.record.startedAt).toBe(originalStartedAt)
-      expect(subagent.record.completedAt).toBeUndefined()
-    })
-
-    it('increments followUpCount each time', async () => {
-      const { session, steerMock } = makeStubSession()
-      const manager = makeManager()
-      registerSubagent(manager, session, {
-        id: 1,
-        status: 'running',
-        followUpCount: 3,
-      })
-
-      await manager.steerWithTitle(1, 't1', 'task 1')
-      expect(steerMock).toHaveBeenCalledTimes(1)
-
-      await manager.steerWithTitle(1, 't2', 'task 2')
-      expect(steerMock).toHaveBeenCalledTimes(2)
-
-      const subagent = (
-        manager as unknown as { subagents: Map<number, LiveSubagent> }
-      ).subagents.get(1)
-      expect(subagent?.record.followUpCount).toBe(5)
-    })
-
-    it(`throws when followUpCount reaches MAX_REUSE_FOLLOWUPS (${MAX_REUSE_FOLLOWUPS})`, async () => {
-      const { session, steerMock } = makeStubSession()
-      const manager = makeManager()
-      registerSubagent(manager, session, {
-        id: 1,
-        status: 'running',
-        followUpCount: MAX_REUSE_FOLLOWUPS,
-      })
-
-      await expect(manager.steerWithTitle(1, 'title', 'task')).rejects.toThrow(
-        `Subagent #1 steer budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
-      )
-
-      expect(steerMock).not.toHaveBeenCalled()
-    })
-
-    it('saves previousEntry.status as done (not running)', async () => {
-      const { session, steerMock } = makeStubSession()
-      const manager = makeManager()
-      const subagent = registerSubagent(manager, session, {
-        id: 1,
-        status: 'running',
-        followUpCount: 0,
-      })
-
-      await manager.steerWithTitle(1, 'New Title', 'task')
-
-      expect(steerMock).toHaveBeenCalled()
-      expect(subagent.record.previousEntries).toHaveLength(1)
-      expect(subagent.record.previousEntries[0]).toMatchObject({
-        title: 'Task 1',
-        status: 'done',
-        followUpCount: 0,
-      })
-    })
-  })
-
-  describe('previousEntries accumulation', () => {
-    it('accumulates previous titles with full metadata on each followup', async () => {
-      const { session } = makeStubSession()
-      const manager = makeManager()
-      const subagent = registerSubagent(manager, session, {
-        id: 1,
-        status: 'done',
-        followUpCount: 0,
-      })
-
-      await manager.steerWithTitle(1, 'Title 1', 'task 1')
-      await manager.steerWithTitle(1, 'Title 2', 'task 2')
-      await manager.steerWithTitle(1, 'Title 3', 'task 3')
-
-      expect(subagent.record.previousEntries).toHaveLength(3)
-      expect(subagent.record.previousEntries[0]).toMatchObject({
-        title: 'Title 2',
-        status: 'done',
-        followUpCount: 2,
-      })
-      expect(subagent.record.previousEntries[1]).toMatchObject({
-        title: 'Title 1',
-        status: 'done',
-        followUpCount: 1,
-      })
-      expect(subagent.record.previousEntries[2]).toMatchObject({
-        title: 'Task 1',
-        status: 'done',
-        followUpCount: 0,
-      })
-      expect(subagent.record.title).toBe('Title 3')
-    })
-
-    it('does not modify previousEntries when followup budget exhausted', async () => {
-      const { session } = makeStubSession()
-      const manager = makeManager()
-      const subagent = registerSubagent(manager, session, {
-        id: 1,
-        status: 'done',
-        followUpCount: MAX_REUSE_FOLLOWUPS,
-      })
-
-      await expect(
-        manager.steerWithTitle(1, 'New Title', 'task'),
-      ).rejects.toThrow()
-
-      expect(subagent.record.previousEntries).toEqual([])
-      expect(subagent.record.title).toBe('Task 1')
-    })
-
-    it('records contextUsage in the previous entry on followup', async () => {
-      const contextUsage: ContextUsage = {
-        tokens: 50000,
-        contextWindow: 200000,
-        percent: 25.0,
-      }
-      const { session } = makeStubSession()
-      const manager = makeManager()
-      const subagent = registerSubagent(manager, session, {
-        id: 1,
-        status: 'done',
-        followUpCount: 0,
-      })
-      subagent.record.contextUsage = contextUsage
-
-      await manager.steerWithTitle(1, 'Title 2', 'task 2')
-
-      expect(subagent.record.previousEntries[0]).toMatchObject({
-        title: 'Task 1',
-        contextUsage,
-      })
-    })
-
-    it('records contextUsage in the previous entry when steering a running subagent', async () => {
-      const contextUsage: ContextUsage = {
-        tokens: 80000,
-        contextWindow: 200000,
-        percent: 40.0,
-      }
-      const { session, steerMock } = makeStubSession()
-      const manager = makeManager()
-      const subagent = registerSubagent(manager, session, {
-        id: 1,
-        status: 'running',
-        followUpCount: 0,
-      })
-      subagent.record.contextUsage = contextUsage
-
-      await manager.steerWithTitle(1, 'New Title', 'more work')
-
-      expect(subagent.record.previousEntries[0]).toMatchObject({
-        status: 'done',
-        contextUsage,
-      })
-      expect(steerMock).toHaveBeenCalled()
-    })
+    expect(steerMock).toHaveBeenCalled()
   })
 })
 
@@ -540,7 +474,7 @@ describe('SubagentManager.restore', () => {
         prompt: 'Do it',
         status: 'running',
         startedAt: Date.now() - 1000,
-        followUpCount: 1,
+        steerCount: 1,
         activeTools: ['read'],
         role: 'worker',
         cwd: '/tmp/proj',
@@ -579,7 +513,7 @@ describe('SubagentManager.restore', () => {
         prompt: 'p',
         status: 'done',
         startedAt: Date.now(),
-        followUpCount: 0,
+        steerCount: 0,
         activeTools: [],
         role: 'worker',
         cwd: '/tmp/proj',
@@ -604,7 +538,7 @@ describe('SubagentManager.restore', () => {
         prompt: 'p',
         status: 'done',
         startedAt: Date.now(),
-        followUpCount: 0,
+        steerCount: 0,
         activeTools: [],
         role: 'worker',
         cwd: '/tmp/proj',
@@ -626,7 +560,7 @@ describe('SubagentManager.restore', () => {
         prompt: 'p',
         status: 'done',
         startedAt: Date.now(),
-        followUpCount: 0,
+        steerCount: 0,
         activeTools: [],
         role: 'worker',
         cwd: '/tmp/proj',
@@ -649,7 +583,7 @@ describe('SubagentManager.restore', () => {
         prompt: 'p',
         status: 'done',
         startedAt: Date.now(),
-        followUpCount: 0,
+        steerCount: 0,
         activeTools: [],
         role: 'worker',
         cwd: '/tmp/proj',
@@ -688,7 +622,7 @@ describe('SubagentManager.disposeAll', () => {
         prompt: 'p',
         status: 'done',
         startedAt: Date.now(),
-        followUpCount: 0,
+        steerCount: 0,
         activeTools: [],
         role: 'worker',
         cwd: '/tmp/proj',
@@ -711,7 +645,7 @@ describe('SubagentManager.restore after dispose', () => {
       prompt: 'p',
       status: 'done',
       startedAt: Date.now(),
-      followUpCount: 0,
+      steerCount: 0,
       activeTools: [],
       role: 'worker',
       cwd: '/tmp/proj',
@@ -751,7 +685,7 @@ describe('SubagentManager.restore disposed during await', () => {
       prompt: 'p',
       status: 'done',
       startedAt: Date.now(),
-      followUpCount: 0,
+      steerCount: 0,
       activeTools: [],
       role: 'worker',
       cwd: '/tmp/proj',
@@ -775,7 +709,7 @@ function restoredRecord(id: number, status: 'done' | 'running' = 'done') {
     prompt: 'Do it',
     status,
     startedAt: Date.now() - 1000,
-    followUpCount: 0,
+    steerCount: 0,
     activeTools: [],
     role: 'worker' as const,
     cwd: '/tmp/proj',

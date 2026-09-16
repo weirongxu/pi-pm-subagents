@@ -51,6 +51,11 @@ type Mode = 'view' | 'edit'
 
 export type ViewerResult = undefined
 
+export interface SubagentViewerOptions {
+  onSteer: (subagent: LiveSubagent, text: string) => void
+  notify?: (message: string, level: 'info' | 'warning') => void
+}
+
 export class SubagentViewer implements Component {
   #stopArmed = false
   #mode: Mode = 'view'
@@ -65,10 +70,7 @@ export class SubagentViewer implements Component {
     private subagent: LiveSubagent,
     private manager: SubagentManager,
     private done: (result: ViewerResult) => void,
-    private notify: (
-      message: string,
-      level: 'info' | 'warning',
-    ) => void = () => {},
+    private options: SubagentViewerOptions,
   ) {
     this.#scroll = new ScrollView(tui, theme, {
       child: {
@@ -123,10 +125,7 @@ export class SubagentViewer implements Component {
     }
     if (this.#stopArmed) this.#stopArmed = false
 
-    if (
-      matchesKey(data, Key.enter) &&
-      this.subagent.record.status === 'running'
-    ) {
+    if (matchesKey(data, Key.enter)) {
       this.#mode = 'edit'
       this.#editor.focused = true
       this.#editor.setText('')
@@ -174,13 +173,14 @@ export class SubagentViewer implements Component {
     this.#submitting = true
     const id = this.subagent.record.id
     try {
-      const ok = await this.manager.steer(id, trimmed)
-      if (ok) this.manager.appendFeedback(id, trimmed)
-      this.notify(
-        ok
-          ? `Steered subagent #${id}.`
-          : `Subagent #${id} is no longer running.`,
-        ok ? 'info' : 'warning',
+      const subagent = await this.manager.steer(id, trimmed)
+      this.options.onSteer(subagent, trimmed)
+      this.options.notify?.(`Steered subagent #${id}.`, 'info')
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      this.options.notify?.(
+        `Failed to steer subagent #${id}: ${detail}`,
+        'warning',
       )
     } finally {
       this.#submitting = false
@@ -255,15 +255,12 @@ export class SubagentViewer implements Component {
       ]
       return renderFooterKeys(th, keys, width)
     }
-    const running = this.subagent.record.status === 'running'
     const keys: [string, string][] = []
-    if (running) {
-      keys.push(this.#stopArmed ? ['x', 'again to STOP'] : ['x', 'stop'], [
-        'enter',
-        'steer',
-      ])
+    if (this.subagent.record.status === 'running') {
+      keys.push(this.#stopArmed ? ['x', 'again to STOP'] : ['x', 'stop'])
     }
     keys.push(
+      ['enter', 'steer'],
       ['j/k ↑↓', 'line up/down'],
       ['u/e/d ␣ PgUp/PgDn', '½page'],
       ['g/G', 'start/end'],
@@ -355,6 +352,7 @@ export async function openSubagentViewer(
   ctx: ExtensionContext,
   manager: SubagentManager,
   id: number,
+  { onSteer }: SubagentViewerOptions,
 ): Promise<void> {
   const subagent = manager.get(id)
   if (!subagent) {
@@ -367,16 +365,12 @@ export async function openSubagentViewer(
     await ctx.ui.custom<ViewerResult>(
       (tui, theme, _keybindings, done) =>
         new BorderView(theme, {
-          child: new SubagentViewer(
-            tui,
-            theme,
-            subagent,
-            manager,
-            done,
-            (message, level) => {
+          child: new SubagentViewer(tui, theme, subagent, manager, done, {
+            onSteer,
+            notify: (message, level) => {
               ctx.ui.notify(message, level)
             },
-          ),
+          }),
         }),
       {
         overlay: true,

@@ -23,7 +23,7 @@ import {
   strInline,
 } from '../utils/format.js'
 import { truncateText } from '../utils/truncate.js'
-import { FOLLOW_SYMBOL } from './consts.ts'
+import { STEER_SYMBOL } from './consts.ts'
 
 const FLEET_KEY = 'pi-pm-subagents:fleet'
 const TICK_MS = 200
@@ -349,7 +349,7 @@ export class FleetList {
     const statusCol = theme.fg('accent', entry.status.padStart(7, ' '))
     const followCol = theme.fg(
       'border',
-      ` ${FOLLOW_SYMBOL} ${entry.followUpCount}`.padStart(3, ' '),
+      ` ${STEER_SYMBOL} ${entry.steerCount}`.padStart(3, ' '),
     )
     const elapsedCol = theme.fg('muted', formatElapsed(entry).padStart(8, ' '))
     const contextCol = this.renderContextCol(entry, theme)

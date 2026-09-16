@@ -23,7 +23,7 @@ export function buildReviewOptions({
   content: string
   name: string
   send: (message: string) => void
-  revise: (updatePrompt: string) => unknown
+  revise: (updatePrompt: string) => Promise<void>
 }): ReviewPagerOptions {
   return {
     title: reviewTitle(name),

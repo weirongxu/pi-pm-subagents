@@ -14,7 +14,7 @@ import {
 import type { PmSubagentState, SubagentRecord } from '../types.js'
 import { formatContextUsage, formatElapsed } from '../utils/format.js'
 import { lastMessageText } from '../utils/messages.js'
-import { FOLLOW_SYMBOL } from './consts.ts'
+import { STEER_SYMBOL } from './consts.ts'
 import {
   runInSubagentSpawnContext,
   SUBAGENT_SESSION_ID_PREFIX,
@@ -27,7 +27,7 @@ const subagentDirFor = (cwd: string, agentDir: string): string => {
 
 const MAX_SUBAGENT_OUTPUT_BYTES = 50 * 1024
 
-export const MAX_REUSE_FOLLOWUPS = 50
+export const MAX_REUSE_STEERS = 50
 export const MAX_CONCURRENCY_SUBAGENT = 5
 
 export interface SpawnOptions {
@@ -44,7 +44,6 @@ export interface LiveSubagent {
   record: SubagentRecord
   session: AgentSession
   onComplete?: (subagent: LiveSubagent, lastMessage: string) => Promise<void>
-  feedback: string[]
 }
 
 export type RestoreResult = 'restored' | 'already-live' | 'failed'
@@ -52,6 +51,10 @@ export type RestoreResult = 'restored' | 'already-live' | 'failed'
 export interface RestoreOptions {
   systemPrompt?: string
   onComplete?: (subagent: LiveSubagent, lastMessage: string) => Promise<void>
+}
+
+export interface SteerOptions {
+  title?: string
 }
 
 export interface SubagentManagerOptions {
@@ -70,7 +73,7 @@ export function formatSubagentSummary(
     `#${subagent.record.id}`,
     subagent.record.title.slice(0, titleWidth),
     formatContextUsage(subagent.record.contextUsage),
-    `${FOLLOW_SYMBOL} ${subagent.record.followUpCount}`,
+    `${STEER_SYMBOL} ${subagent.record.steerCount}`,
     formatElapsed(subagent.record),
   ].join(' ')
 }
@@ -148,7 +151,7 @@ export class SubagentManager {
       prompt,
       status: 'running',
       startedAt: Date.now(),
-      followUpCount: 0,
+      steerCount: 0,
       activeTools: options.tools ? [...options.tools] : [],
       role: options.role ?? 'worker',
       cwd: options.cwd,
@@ -158,7 +161,6 @@ export class SubagentManager {
       record,
       session: created.session,
       onComplete: options.onComplete,
-      feedback: [],
     }
 
     this.subagents.set(id, subagent)
@@ -217,7 +219,6 @@ export class SubagentManager {
       record,
       session: created.session,
       onComplete: options.onComplete,
-      feedback: [],
     }
     this.subagents.set(record.id, subagent)
     this.subscribe(subagent)
@@ -225,61 +226,53 @@ export class SubagentManager {
     return 'restored'
   }
 
-  async steerWithTitle(
-    id: number,
-    title: string,
-    prompt: string,
-  ): Promise<LiveSubagent> {
-    const steerTarget = this.subagents.get(id)
-    if (!steerTarget) throw new Error(`Subagent #${id} not found`)
-    if (steerTarget.record.followUpCount >= MAX_REUSE_FOLLOWUPS)
+  private assertSteerCapacity(subagent: LiveSubagent): void {
+    if (subagent.record.steerCount >= MAX_REUSE_STEERS)
       throw new Error(
-        `Subagent #${id} steer budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
+        `Subagent #${subagent.record.id} steer budget exhausted (${MAX_REUSE_STEERS}/${MAX_REUSE_STEERS}). Start a fresh subagent instead.`,
       )
+  }
 
-    const record = steerTarget.record
-    const wasRunning = record.status === 'running'
-    const prevStartedAt = record.startedAt
-    record.previousEntries.unshift({
-      title: record.title,
-      status: wasRunning ? 'done' : record.status,
-      followUpCount: record.followUpCount,
-      contextUsage: record.contextUsage,
-      startedAt: prevStartedAt,
-      completedAt: wasRunning ? Date.now() : (record.completedAt ?? Date.now()),
-    })
-    record.title = title
+  async steer(
+    id: number,
+    prompt: string,
+    { title }: SteerOptions = {},
+  ): Promise<LiveSubagent> {
+    const subagent = this.subagents.get(id)
+    if (!subagent) throw new Error(`Subagent #${id} not found`)
+    this.assertSteerCapacity(subagent)
+
+    const record = subagent.record
+    if (title !== undefined) {
+      const wasRunning = record.status === 'running'
+      record.previousEntries.unshift({
+        title: record.title,
+        status: wasRunning ? 'done' : record.status,
+        steerCount: record.steerCount,
+        contextUsage: record.contextUsage,
+        startedAt: record.startedAt,
+        completedAt: wasRunning
+          ? Date.now()
+          : (record.completedAt ?? Date.now()),
+      })
+      record.title = title
+    }
     record.prompt = prompt
-    record.followUpCount += 1
+    record.steerCount += 1
 
     if (record.status === 'running') {
-      await steerTarget.session.steer(prompt)
+      await subagent.session.steer(prompt)
       this.options.onStatusChange?.()
-      return steerTarget
+      return subagent
     }
 
     record.status = 'running'
     record.startedAt = Date.now()
     record.completedAt = undefined
     this.options.onStatusChange?.()
-    this.options.onEachStart?.(steerTarget)
-    void this.run(steerTarget, prompt)
-    return steerTarget
-  }
-
-  appendFeedback(id: number, text: string): void {
-    this.subagents.get(id)?.feedback.push(text)
-  }
-
-  drainFeedback(id: number): readonly string[] {
-    return this.subagents.get(id)?.feedback.splice(0) ?? []
-  }
-
-  async steer(id: number, text: string): Promise<boolean> {
-    const subagent = this.subagents.get(id)
-    if (!subagent || subagent.record.status !== 'running') return false
-    await subagent.session.steer(text)
-    return true
+    this.options.onEachStart?.(subagent)
+    void this.run(subagent, prompt)
+    return subagent
   }
 
   async abort(id: number): Promise<boolean> {

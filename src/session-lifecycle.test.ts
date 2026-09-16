@@ -94,9 +94,15 @@ describe('setupSessionLifecycle session_start', () => {
       {
         id: 1,
         title: 'Task 1',
+        prompt: 'p',
         status: 'done',
+        startedAt: 1,
+        steerCount: 0,
+        activeTools: [],
+        role: 'worker',
         cwd: '/tmp/p',
         sessionFile: '/tmp/p/s.jsonl',
+        previousEntries: [],
       },
     ]
     applyCoordinatorModeMock.mockClear()
@@ -106,10 +112,12 @@ describe('setupSessionLifecycle session_start', () => {
         mode: 'coordinator',
         sessionSubagentModel: 'anthropic:claude-x',
         subagents,
+        maxSubagentId: 1,
       }),
     )
 
     expect(state.mode).toBe('coordinator')
+    // Disk records pass through unchanged (steerCount is stored directly).
     expect(state.subagents).toEqual(subagents)
     expect(applyCoordinatorModeMock).toHaveBeenCalledOnce()
   })
@@ -119,7 +127,9 @@ describe('setupSessionLifecycle session_start', () => {
     state.subagents = [{ id: 1 } as never]
     applyCoordinatorModeMock.mockClear()
 
-    await runSessionStart(makeCustomEntry({ mode: undefined, subagents: [] }))
+    await runSessionStart(
+      makeCustomEntry({ mode: undefined, subagents: [], maxSubagentId: 0 }),
+    )
 
     expect(state.mode).toBeUndefined()
     expect(state.subagents).toBeUndefined()

@@ -46,7 +46,7 @@ describe('buildReviewOptions', () => {
       content: 'content',
       name: 'plan',
       send: vi.fn(),
-      revise: vi.fn(),
+      revise: vi.fn(async () => {}),
     })
     expect(options.title).toBe('📋 Plan Review')
     expect(options.plan).toBe('content')
@@ -66,7 +66,7 @@ describe('buildReviewOptions', () => {
       content: 'content',
       name: 'research',
       send: vi.fn(),
-      revise: vi.fn(),
+      revise: vi.fn(async () => {}),
     })
     expect(options.title).toBe('📋 Research Review')
     expect(options.choices[0]?.label).toBe('Send research to coordinator')
@@ -79,7 +79,7 @@ describe('buildReviewOptions', () => {
       content: 'the content',
       name: 'research',
       send,
-      revise: vi.fn(),
+      revise: vi.fn(async () => {}),
     })
 
     await options.choices[0]?.action?.()
@@ -88,7 +88,7 @@ describe('buildReviewOptions', () => {
   })
 
   it('revise action delegates raw trimmed input', async () => {
-    const revise = vi.fn()
+    const revise = vi.fn(async () => {})
     const options = buildReviewOptions({
       content: 'content',
       name: 'plan',
@@ -102,7 +102,7 @@ describe('buildReviewOptions', () => {
   })
 
   it('revise action does nothing for blank input', async () => {
-    const revise = vi.fn()
+    const revise = vi.fn(async () => {})
     const options = buildReviewOptions({
       content: 'content',
       name: 'plan',

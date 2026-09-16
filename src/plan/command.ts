@@ -3,6 +3,7 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
 
+import type { PmMode } from '../types.js'
 import { notifyAgentMessage } from '../utils/messages.js'
 import { escapeXml } from '../utils/xml.js'
 
@@ -17,7 +18,7 @@ export function buildPlanRequestMessage(prompt: string): string {
 
 export async function runPlanCommand(
   pi: ExtensionAPI,
-  state: { mode: 'coordinator' | undefined },
+  state: { mode?: PmMode },
   args: string,
   ctx: ExtensionContext,
   enterCoordinator: () => Promise<void>,

@@ -19,8 +19,8 @@ export function registerPlanDemoCommand(pi: ExtensionAPI): void {
           send: () => {
             ctx.ui.notify('Demo: sent to coordinator', 'info')
           },
-          revise: (updatePrompt: string) => {
-            ctx.ui.notify(`Demo: followup with: ${updatePrompt}`, 'info')
+          revise: async (updatePrompt: string) => {
+            ctx.ui.notify(`Demo: steer with: ${updatePrompt}`, 'info')
           },
         }),
       )

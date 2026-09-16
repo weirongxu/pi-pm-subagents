@@ -5,7 +5,11 @@ import type { TUI } from '@earendil-works/pi-tui'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { LiveSubagent, SubagentManager } from './manager.js'
-import { openSubagentViewer, SubagentViewer } from './viewer.js'
+import {
+  openSubagentViewer,
+  SubagentViewer,
+  type SubagentViewerOptions,
+} from './viewer.js'
 
 const ENTER = '\r'
 const ESC = '\x1b'
@@ -46,15 +50,12 @@ function makeSubagent(
 }
 
 function makeManager(
-  overrides: Partial<
-    Pick<SubagentManager, 'steer' | 'abort' | 'appendFeedback'>
-  > = {},
+  overrides: Partial<Pick<SubagentManager, 'steer' | 'abort'>> = {},
 ): SubagentManager {
   return {
     get: () => undefined,
-    steer: async () => true,
+    steer: async () => makeSubagent(),
     abort: async () => true,
-    appendFeedback: () => {},
     ...overrides,
   } as unknown as SubagentManager
 }
@@ -63,16 +64,12 @@ function makeViewer(
   subagent = makeSubagent(),
   manager = makeManager(),
   done: (result: undefined) => void = () => {},
-  notify: (message: string, level: 'info' | 'warning') => void = () => {},
+  options: Partial<SubagentViewerOptions> = {},
 ) {
-  return new SubagentViewer(
-    makeTui(),
-    makeTheme(),
-    subagent,
-    manager,
-    done,
-    notify,
-  )
+  return new SubagentViewer(makeTui(), makeTheme(), subagent, manager, done, {
+    onSteer: options.onSteer ?? (() => {}),
+    notify: options.notify,
+  })
 }
 
 describe('SubagentViewer', () => {
@@ -95,30 +92,16 @@ describe('SubagentViewer', () => {
     expect(lines).not.toContain('enter steer')
   })
 
-  it('submits the steer message via enter in edit mode', async () => {
-    const steer = vi.fn(async () => true)
+  it('submits trimmed text via enter, fires onSteer and notifies info', async () => {
+    const steered = makeSubagent()
+    const steer = vi.fn(async () => steered)
+    const onSteer = vi.fn()
     const notify = vi.fn()
     const component = makeViewer(
       makeSubagent(),
       makeManager({ steer }),
       () => {},
-      notify,
-    )
-    component.handleInput(ENTER)
-    component.handleInput('hello world')
-    component.handleInput(ENTER)
-    await vi.waitFor(() => {
-      expect(steer).toHaveBeenCalledWith(3, 'hello world')
-    })
-    expect(notify).toHaveBeenCalledWith('Steered subagent #3.', 'info')
-  })
-
-  it('records feedback with trimmed text after successful steer', async () => {
-    const steer = vi.fn(async () => true)
-    const appendFeedback = vi.fn()
-    const component = makeViewer(
-      makeSubagent(),
-      makeManager({ steer, appendFeedback }),
+      { onSteer, notify },
     )
     component.handleInput(ENTER)
     component.handleInput('  hello world  ')
@@ -126,52 +109,112 @@ describe('SubagentViewer', () => {
     await vi.waitFor(() => {
       expect(steer).toHaveBeenCalledWith(3, 'hello world')
     })
-    expect(appendFeedback).toHaveBeenCalledWith(3, 'hello world')
-  })
-
-  it('does not record feedback when steer fails', async () => {
-    const steer = vi.fn(async () => false)
-    const appendFeedback = vi.fn()
-    const component = makeViewer(
-      makeSubagent(),
-      makeManager({ steer, appendFeedback }),
-    )
-    component.handleInput(ENTER)
-    component.handleInput('hello')
-    component.handleInput(ENTER)
-    await vi.waitFor(() => {
-      expect(steer).toHaveBeenCalled()
-    })
-    expect(appendFeedback).not.toHaveBeenCalled()
+    expect(onSteer).toHaveBeenCalledWith(steered, 'hello world')
+    expect(notify).toHaveBeenCalledWith('Steered subagent #3.', 'info')
   })
 
   it('returns to view mode on escape without steering', () => {
-    const steer = vi.fn(async () => true)
-    const component = makeViewer(makeSubagent(), makeManager({ steer }))
+    const steer = vi.fn(async () => makeSubagent())
+    const onSteer = vi.fn()
+    const component = makeViewer(
+      makeSubagent(),
+      makeManager({ steer }),
+      () => {},
+      {
+        onSteer,
+      },
+    )
     component.handleInput(ENTER)
     component.handleInput(ESC)
     const lines = component.render(120).join('\n')
     expect(lines).toContain('enter steer')
     expect(lines).not.toContain('shift+enter')
     expect(steer).not.toHaveBeenCalled()
+    expect(onSteer).not.toHaveBeenCalled()
   })
 
   it('ignores whitespace-only input and returns to view mode', () => {
-    const steer = vi.fn(async () => true)
-    const component = makeViewer(makeSubagent(), makeManager({ steer }))
+    const steer = vi.fn(async () => makeSubagent())
+    const onSteer = vi.fn()
+    const component = makeViewer(
+      makeSubagent(),
+      makeManager({ steer }),
+      () => {},
+      {
+        onSteer,
+      },
+    )
     component.handleInput(ENTER)
     component.handleInput('   ')
     component.handleInput(ENTER)
     expect(steer).not.toHaveBeenCalled()
+    expect(onSteer).not.toHaveBeenCalled()
     expect(component.render(120).join('\n')).toContain('enter steer')
   })
 
-  it('does not enter edit mode when the subagent is not running', () => {
-    const component = makeViewer(makeSubagent({ status: 'killed' }))
+  it('enters edit mode and steers a done subagent', async () => {
+    const steer = vi.fn(async () => makeSubagent({ status: 'done' }))
+    const onSteer = vi.fn()
+    const component = makeViewer(
+      makeSubagent({ status: 'done' }),
+      makeManager({ steer }),
+      () => {},
+      { onSteer },
+    )
     component.handleInput(ENTER)
-    expect(component.render(120).join('\n')).not.toContain('shift+enter')
+    expect(component.render(120).join('\n')).toContain('shift+enter')
+    component.handleInput('revisit edge cases')
+    component.handleInput(ENTER)
+    await vi.waitFor(() => {
+      expect(steer).toHaveBeenCalledWith(3, 'revisit edge cases')
+    })
+    expect(onSteer).toHaveBeenCalledOnce()
   })
 
+  it('shows the steer hint in the footer for finished subagents', () => {
+    const component = makeViewer(makeSubagent({ status: 'done' }))
+    expect(component.render(120).join('\n')).toContain('enter steer')
+  })
+
+  it('steers a failed subagent like a done one', async () => {
+    const steer = vi.fn(async () => makeSubagent({ status: 'failed' }))
+    const onSteer = vi.fn()
+    const component = makeViewer(
+      makeSubagent({ status: 'failed' }),
+      makeManager({ steer }),
+      () => {},
+      { onSteer },
+    )
+    component.handleInput(ENTER)
+    expect(component.render(120).join('\n')).toContain('shift+enter')
+    component.handleInput('retry with fewer tools')
+    component.handleInput(ENTER)
+    await vi.waitFor(() => {
+      expect(steer).toHaveBeenCalledWith(3, 'retry with fewer tools')
+    })
+    expect(onSteer).toHaveBeenCalledOnce()
+  })
+
+  it('steers a killed subagent via the restart path', async () => {
+    const steer = vi.fn(async () => makeSubagent({ status: 'running' }))
+    const onSteer = vi.fn()
+    const notify = vi.fn()
+    const component = makeViewer(
+      makeSubagent({ status: 'killed' }),
+      makeManager({ steer }),
+      () => {},
+      { onSteer, notify },
+    )
+    component.handleInput(ENTER)
+    expect(component.render(120).join('\n')).toContain('shift+enter')
+    component.handleInput('pick this back up')
+    component.handleInput(ENTER)
+    await vi.waitFor(() => {
+      expect(steer).toHaveBeenCalledWith(3, 'pick this back up')
+    })
+    expect(onSteer).toHaveBeenCalledOnce()
+    expect(notify).toHaveBeenCalledWith('Steered subagent #3.', 'info')
+  })
   it('aborts via x x in view mode', () => {
     const abort = vi.fn(async () => true)
     const component = makeViewer(makeSubagent(), makeManager({ abort }))
@@ -190,8 +233,11 @@ describe('SubagentViewer', () => {
     expect(result).toBeUndefined()
   })
 
-  it('notifies warning when steer fails and stays open', async () => {
-    const steer = vi.fn(async () => false)
+  it('notifies warning without firing onSteer when steer throws and stays open', async () => {
+    const steer = vi.fn(async () => {
+      throw new Error('steer budget exhausted')
+    })
+    const onSteer = vi.fn()
     const notify = vi.fn()
     let done = false
     const component = makeViewer(
@@ -200,17 +246,18 @@ describe('SubagentViewer', () => {
       () => {
         done = true
       },
-      notify,
+      { onSteer, notify },
     )
     component.handleInput(ENTER)
     component.handleInput('ping')
     component.handleInput(ENTER)
     await vi.waitFor(() => {
       expect(notify).toHaveBeenCalledWith(
-        'Subagent #3 is no longer running.',
+        'Failed to steer subagent #3: steer budget exhausted',
         'warning',
       )
     })
+    expect(onSteer).not.toHaveBeenCalled()
     expect(done).toBe(false)
     expect(component.render(120).join('\n')).toContain('enter steer')
   })
@@ -266,7 +313,7 @@ describe('openSubagentViewer', () => {
       ui: { notify, custom },
     } as unknown as ExtensionContext
     const manager = makeManager()
-    await openSubagentViewer(ctx, manager, 99)
+    await openSubagentViewer(ctx, manager, 99, { onSteer: () => {} })
     expect(notify).toHaveBeenCalledWith('Subagent #99 not found.', 'warning')
     expect(custom).not.toHaveBeenCalled()
   })

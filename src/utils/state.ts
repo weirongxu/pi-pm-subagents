@@ -2,9 +2,11 @@ import type {
   ExtensionAPI,
   SessionEntry,
 } from '@earendil-works/pi-coding-agent'
+import { Parse } from 'typebox/value'
 
 import type { SubagentManager } from '../subagent/manager.js'
-import type { PmMode, PmSubagentState, SubagentRecord } from '../types.js'
+import type { PmSubagentState } from '../types.js'
+import { PmSubagentStateSchema } from '../types.js'
 
 export const PLUGIN_KEY = 'pm-subagents'
 
@@ -13,14 +15,15 @@ export function createState(): PmSubagentState {
 }
 
 export function persist(pi: ExtensionAPI, state: PmSubagentState): void {
-  pi.appendEntry(PLUGIN_KEY, {
+  const payload: PmSubagentState = {
     mode: state.mode,
     modeDiffTools: state.modeDiffTools,
     previousModel: state.previousModel,
     sessionSubagentModel: state.sessionSubagentModel,
     subagents: state.subagents,
     maxSubagentId: state.maxSubagentId,
-  })
+  }
+  pi.appendEntry(PLUGIN_KEY, structuredClone(payload))
 }
 
 export function persistSnapshot(
@@ -39,30 +42,11 @@ export function getLastPmSubagentState(
     const entry = entries[i]
     if (!entry || entry.type !== 'custom' || entry.customType !== PLUGIN_KEY)
       continue
-    const data = entry.data as
-      (Partial<PmSubagentState> & { mode?: string }) | undefined
-    if (!data) return undefined
-    return {
-      mode: sanitizeMode(data.mode),
-      modeDiffTools: data.modeDiffTools,
-      previousModel: data.previousModel,
-      sessionSubagentModel: data.sessionSubagentModel,
-      subagents: sanitizeSubagents(data.subagents),
-      maxSubagentId:
-        typeof data.maxSubagentId === 'number' ? data.maxSubagentId : 0,
+    try {
+      return Parse(PmSubagentStateSchema, entry.data)
+    } catch {
+      return undefined
     }
   }
   return undefined
-}
-
-function sanitizeMode(mode: string | undefined): PmMode | undefined {
-  return mode === 'coordinator' ? 'coordinator' : undefined
-}
-
-/** Drop legacy records that predate cwd/sessionFile — they cannot be restored. */
-function sanitizeSubagents(
-  subagents: SubagentRecord[] | undefined,
-): SubagentRecord[] | undefined {
-  if (!subagents) return undefined
-  return subagents.filter((record) => record.cwd && record.sessionFile)
 }

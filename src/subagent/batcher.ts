@@ -5,18 +5,10 @@ const TAG_NAMES = {
   activity: 'subagent-activity',
   done: 'subagent-done',
   reviewed: 'subagent-reviewed',
+  steer: 'subagent-steer',
 } as const
 
 export type SubagentMessageType = keyof typeof TAG_NAMES
-
-export function formatFeedback(feedback: readonly string[]): string[] {
-  const lines = ['<feedback>']
-  for (const item of feedback) {
-    lines.push(`<item>${escapeXml(item)}</item>`)
-  }
-  lines.push('</feedback>')
-  return lines
-}
 
 export class MessageBatcher {
   private buffer: string[] = []
@@ -35,18 +27,14 @@ export class MessageBatcher {
     subagent: LiveSubagent,
     type: SubagentMessageType,
     message: string,
-    feedback?: readonly string[],
   ): void {
     const tagName = TAG_NAMES[type]
     const lines = [
       `<${tagName}>`,
       `<type>${type}</type>`,
       `<job>${escapeXml(formatSubagentSummary(subagent))}</job>`,
+      `<message>${escapeXml(message)}</message>`,
     ]
-    if (feedback && feedback.length > 0) {
-      lines.push(...formatFeedback(feedback))
-    }
-    lines.push(`<message>${escapeXml(message)}</message>`)
     lines.push(`</${tagName}>`)
     const item = lines.join('\n')
     this.buffer.push(item)

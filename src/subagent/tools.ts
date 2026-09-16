@@ -16,7 +16,7 @@ import type { SubagentManager } from './manager.js'
 import {
   formatSubagentSummary,
   MAX_CONCURRENCY_SUBAGENT,
-  MAX_REUSE_FOLLOWUPS,
+  MAX_REUSE_STEERS,
 } from './manager.js'
 import { buildSpawnOptions } from './spawn-options.js'
 
@@ -59,7 +59,7 @@ export function registerSubagentTools(
       defineTool({
         name: SUBAGENT_TOOLS.list,
         label: 'List Subagents',
-        description: `List all background subagents. For inspection only (user asks, or you suspect a stall) — never to wait for completion. After delegating, just end your turn; completions arrive automatically.`,
+        description: `List all background subagents. For inspection only (user asks, or you suspect a stall) — never to wait for completion.`,
         parameters: Type.Object({}),
         async execute() {
           if (Date.now() - lastListAt < LIST_COOL_DOWN_MS)
@@ -89,15 +89,6 @@ export function registerSubagentTools(
           for (const subagent of sorted) {
             lines.push(formatSubagentSummary(subagent))
           }
-
-          const hasRunning = sorted.some(
-            (subagent) => subagent.record.status === 'running',
-          )
-          if (hasRunning)
-            lines.push(
-              '',
-              `Don't poll after this — end your turn; you'll be notified when subagents finish.`,
-            )
           return {
             content: [
               {
@@ -113,7 +104,7 @@ export function registerSubagentTools(
       defineTool({
         name: SUBAGENT_TOOLS.delegate,
         label: 'Delegate Subagent',
-        description: `Delegate task to background with full tool access. Returns immediately with a subagent id; end your turn after delegating — the subagent's final message is delivered automatically. Never poll subagent_list or send status-check followups. Max concurrency ${MAX_CONCURRENCY_SUBAGENT} running subagents\n\nAvailable roles:\n${rolesDescription(baseToolsOf(pi, state))}`,
+        description: `Delegate task to background. Returns immediately with a subagent id; — the subagent's final message is delivered automatically. Max concurrency ${MAX_CONCURRENCY_SUBAGENT} running subagents\n\nAvailable roles:\n${rolesDescription(baseToolsOf(pi, state))}`,
         promptGuidelines: [
           'Call subagent_delegate alone in a single tool batch, as the last action of your turn — its result ends the turn and subagent results are delivered automatically.',
         ],
@@ -159,7 +150,7 @@ export function registerSubagentTools(
             content: [
               {
                 type: 'text',
-                text: `Subagent id #${subagent.record.id} is running in background. End your turn now; its final message will arrive automatically. Do not poll.`,
+                text: `Subagent id #${subagent.record.id} is running in background.`,
               },
             ],
             details: {
@@ -174,7 +165,7 @@ export function registerSubagentTools(
       defineTool({
         name: SUBAGENT_TOOLS.steer,
         label: 'Steer Subagent',
-        description: `Continue working with an existing subagent (new instructions or feedback only — never status checks). Max reuse ${MAX_REUSE_FOLLOWUPS} times.`,
+        description: `Continue working with an existing subagent (new instructions or feedback only — never status checks). Max reuse ${MAX_REUSE_STEERS} times.`,
         promptGuidelines: [
           "Call subagent_steer alone in a single tool batch, as the last action of your turn — its result ends the turn and the subagent's final message is delivered automatically.",
         ],
@@ -192,11 +183,9 @@ export function registerSubagentTools(
         ): Promise<AgentToolResult<unknown>> {
           let subagent: LiveSubagent
           try {
-            subagent = await manager.steerWithTitle(
-              params.id,
-              params.title,
-              params.prompt,
-            )
+            subagent = await manager.steer(params.id, params.prompt, {
+              title: params.title,
+            })
           } catch (error) {
             return toolResultFromError(error)
           }
@@ -207,7 +196,7 @@ export function registerSubagentTools(
             content: [
               {
                 type: 'text',
-                text: `Subagent #${subagent.record.id} continued. End your turn now; its final message will arrive automatically. Do not poll.`,
+                text: `Subagent #${subagent.record.id} continued.`,
               },
             ],
             details: {

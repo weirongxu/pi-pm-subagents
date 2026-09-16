@@ -113,7 +113,7 @@ function makeRecord(overrides: Partial<SubagentRecord>): SubagentRecord {
     prompt: 'Do task 1',
     status: 'done',
     startedAt: Date.now() - 1000,
-    followUpCount: 0,
+    steerCount: 0,
     activeTools: [],
     role: 'worker',
     cwd: '/tmp/proj',
@@ -129,7 +129,6 @@ function seedRecord(manager: SubagentManager, record: SubagentRecord): void {
   ).subagents
   subagents.set(record.id, {
     record,
-    feedback: [],
     session: { dispose: () => {} } as unknown as LiveSubagent['session'],
   })
 }

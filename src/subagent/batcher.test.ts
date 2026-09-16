@@ -15,7 +15,7 @@ const makeSubagent = (
       text: title,
       status: status as never,
       startedAt: Date.now() - 5000,
-      followUpCount: 0,
+      steerCount: 0,
       activeTools: [],
     },
     session: { messages: [] as never },
@@ -169,7 +169,7 @@ describe('MessageBatcher', () => {
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
     const subagent = makeSubagent(1, 'plan-1', 'done')
 
-    batcher.add(subagent, 'reviewed', 'The implementation plan', [])
+    batcher.add(subagent, 'reviewed', 'The implementation plan')
     batcher.flushNow()
 
     expect(flushed).toHaveLength(1)
@@ -182,68 +182,38 @@ describe('MessageBatcher', () => {
     expect(item).toContain('<message>The implementation plan</message>')
   })
 
-  it('omits feedback block for reviewed items with empty feedback', () => {
+  it('omits revisions for reviewed items', () => {
     vi.useFakeTimers()
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
     const subagent = makeSubagent(1, 'plan-1', 'done')
 
-    batcher.add(subagent, 'reviewed', 'The updated plan', [])
+    batcher.add(subagent, 'reviewed', 'The updated plan')
     batcher.flushNow()
 
     const item = flushed[0]?.[0] ?? ''
     expect(item).toContain('<message>The updated plan</message>')
     expect(item).not.toContain('<revisions>')
-    expect(item).not.toContain('<feedback>')
   })
 
-  it('omits feedback block on done items when omitted', () => {
+  it('uses steer tag for steer type with xml-escaped message', () => {
     vi.useFakeTimers()
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
-    const subagent = makeSubagent(1, 'task-1', 'done')
+    const subagent = makeSubagent(1, 'task-1', 'running')
 
-    batcher.add(subagent, 'done', 'Task completed')
+    batcher.add(subagent, 'steer', 'focus on <auth> & "cases"')
     batcher.flushNow()
 
-    const item = flushed[0]?.[0] ?? ''
-    expect(item).not.toContain('<feedback>')
-  })
-
-  it('includes feedback block on done items when provided', () => {
-    vi.useFakeTimers()
-    const flushed: string[][] = []
-    const batcher = new MessageBatcher((items) => flushed.push(items), 100)
-    const subagent = makeSubagent(1, 'task-1', 'done')
-
-    batcher.add(subagent, 'done', 'Task completed', ['cover edge cases'])
-    batcher.flushNow()
-
-    const item = flushed[0]?.[0] ?? ''
-    expect(item).toContain('<feedback>')
-    expect(item).toContain('<item>cover edge cases</item>')
-    expect(item).toContain('</feedback>')
-    expect(item.indexOf('<feedback>')).toBeLessThan(item.indexOf('<message>'))
-  })
-
-  it('includes feedback in reviewed items when provided', () => {
-    vi.useFakeTimers()
-    const flushed: string[][] = []
-    const batcher = new MessageBatcher((items) => flushed.push(items), 100)
-    const subagent = makeSubagent(1, 'plan-1', 'done')
-
-    batcher.add(subagent, 'reviewed', 'The updated plan', [
-      'focus on <auth>',
-      'drop the caching layer',
-    ])
-    batcher.flushNow()
-
-    const item = flushed[0]?.[0] ?? ''
-    expect(item).toContain('<feedback>')
-    expect(item).toContain('<item>focus on &lt;auth&gt;</item>')
-    expect(item).toContain('<item>drop the caching layer</item>')
-    expect(item).toContain('</feedback>')
-    expect(item.indexOf('<feedback>')).toBeLessThan(item.indexOf('<message>'))
+    expect(flushed).toHaveLength(1)
+    const item = flushed[0]?.[0]
+    expect(item).toContain('<subagent-steer>')
+    expect(item).toContain('</subagent-steer>')
+    expect(item).toContain('<type>steer</type>')
+    expect(item).toContain(
+      '<message>focus on &lt;auth&gt; &amp; "cases"</message>',
+    )
+    expect(item).toContain('running #1')
   })
 
   it('uses done tag for done type', () => {

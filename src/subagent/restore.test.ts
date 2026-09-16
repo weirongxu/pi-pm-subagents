@@ -52,7 +52,7 @@ function makeRecord(overrides: Partial<SubagentRecord> = {}): SubagentRecord {
     status: 'done',
     startedAt: Date.now() - 1000,
     completedAt: Date.now(),
-    followUpCount: 0,
+    steerCount: 0,
     activeTools: [],
     role: 'unknown-role',
     cwd: '/tmp/proj',
