@@ -13,7 +13,6 @@ import { composeTools } from '../utils/tools.js'
 import type { SpawnOptions } from './manager.js'
 import {
   buildReviewOptions,
-  createReviewedActions,
   nextRevisedTitle,
   resolveReviewName,
 } from './review-utils.js'
@@ -56,29 +55,37 @@ export function buildSpawnOptions(
         batcher.add(subagent, 'done', lastMessage)
         return
       }
-      if (!reviewOnEnd || !ctx.hasUI) {
-        batcher.add(subagent, 'done', lastMessage)
+      if (!reviewName || !ctx.hasUI) {
+        batcher.add(
+          subagent,
+          'done',
+          lastMessage,
+          manager.drainFeedback(subagent.record.id),
+        )
         return
       }
 
-      const actions = createReviewedActions({
-        send: (message, corrections) => {
-          batcher.addReviewed(subagent, message, corrections)
-        },
-        revise: (fullPrompt) =>
-          manager.followup(
-            subagent.record.id,
-            nextRevisedTitle(subagent.record.title),
-            fullPrompt,
-          ),
-      })
       await askHowToProceed(
-        pi,
         ctx,
         buildReviewOptions({
           content: lastMessage,
           name: reviewName,
-          actions,
+          send: (message) => {
+            batcher.add(
+              subagent,
+              'reviewed',
+              message,
+              manager.drainFeedback(subagent.record.id),
+            )
+          },
+          revise: (fullPrompt) => {
+            manager.appendFeedback(subagent.record.id, fullPrompt)
+            return manager.steerWithTitle(
+              subagent.record.id,
+              nextRevisedTitle(subagent.record.title),
+              fullPrompt,
+            )
+          },
         }),
       )
     },

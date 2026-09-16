@@ -175,6 +175,7 @@ export class SubagentViewer implements Component {
     const id = this.subagent.record.id
     try {
       const ok = await this.manager.steer(id, trimmed)
+      if (ok) this.manager.appendFeedback(id, trimmed)
       this.notify(
         ok
           ? `Steered subagent #${id}.`

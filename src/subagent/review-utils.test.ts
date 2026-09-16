@@ -2,56 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   buildReviewOptions,
-  createReviewedActions,
   nextRevisedTitle,
   resolveReviewName,
 } from './review-utils.js'
-
-describe('createReviewedActions', () => {
-  it('accumulates corrections across revise rounds and delivers them on send', async () => {
-    const sent: Array<{
-      message: string
-      corrections: readonly string[]
-    }>[] = []
-    const revisions: string[] = []
-    const actions = createReviewedActions({
-      send(message, corrections) {
-        sent.push([{ message, corrections }])
-      },
-      async revise(fullPrompt) {
-        revisions.push(fullPrompt)
-      },
-    })
-
-    await actions.revise('add retry logic')
-    await actions.revise('drop the caching layer')
-    await actions.send('The final plan')
-
-    expect(sent).toEqual([
-      [
-        {
-          message: 'The final plan',
-          corrections: ['add retry logic', 'drop the caching layer'],
-        },
-      ],
-    ])
-    expect(revisions).toEqual(['add retry logic', 'drop the caching layer'])
-  })
-
-  it('delivers empty corrections when sending without revise rounds', async () => {
-    let delivered: readonly string[] = []
-    const actions = createReviewedActions({
-      send(_message, corrections) {
-        delivered = corrections
-      },
-      async revise() {},
-    })
-
-    await actions.send('The approved plan')
-
-    expect(delivered).toEqual([])
-  })
-})
 
 describe('nextRevisedTitle', () => {
   it('appends "r1" when there is no suffix', () => {
@@ -77,13 +30,13 @@ describe('resolveReviewName', () => {
     expect(resolveReviewName('plan')).toBe('plan')
   })
 
-  it('returns plan for boolean values', () => {
+  it("returns 'plan' for true and null for false", () => {
     expect(resolveReviewName(true)).toBe('plan')
-    expect(resolveReviewName(false)).toBe('plan')
+    expect(resolveReviewName(false)).toBe(null)
   })
 
-  it('returns plan for undefined', () => {
-    expect(resolveReviewName(undefined)).toBe('plan')
+  it('returns null for undefined', () => {
+    expect(resolveReviewName(undefined)).toBe(null)
   })
 })
 
@@ -92,7 +45,8 @@ describe('buildReviewOptions', () => {
     const options = buildReviewOptions({
       content: 'content',
       name: 'plan',
-      actions: { send: vi.fn(), revise: vi.fn() },
+      send: vi.fn(),
+      revise: vi.fn(),
     })
     expect(options.title).toBe('📋 Plan Review')
     expect(options.plan).toBe('content')
@@ -111,7 +65,8 @@ describe('buildReviewOptions', () => {
     const options = buildReviewOptions({
       content: 'content',
       name: 'research',
-      actions: { send: vi.fn(), revise: vi.fn() },
+      send: vi.fn(),
+      revise: vi.fn(),
     })
     expect(options.title).toBe('📋 Research Review')
     expect(options.choices[0]?.label).toBe('Send research to coordinator')
@@ -123,7 +78,8 @@ describe('buildReviewOptions', () => {
     const options = buildReviewOptions({
       content: 'the content',
       name: 'research',
-      actions: { send, revise: vi.fn() },
+      send,
+      revise: vi.fn(),
     })
 
     await options.choices[0]?.action?.()
@@ -136,7 +92,8 @@ describe('buildReviewOptions', () => {
     const options = buildReviewOptions({
       content: 'content',
       name: 'plan',
-      actions: { send: vi.fn(), revise },
+      send: vi.fn(),
+      revise,
     })
 
     await options.choices[1]?.action?.('  fix it  ')
@@ -149,7 +106,8 @@ describe('buildReviewOptions', () => {
     const options = buildReviewOptions({
       content: 'content',
       name: 'plan',
-      actions: { send: vi.fn(), revise },
+      send: vi.fn(),
+      revise,
     })
 
     await options.choices[1]?.action?.('   ')

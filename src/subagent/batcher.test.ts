@@ -169,7 +169,7 @@ describe('MessageBatcher', () => {
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
     const subagent = makeSubagent(1, 'plan-1', 'done')
 
-    batcher.addReviewed(subagent, 'The implementation plan', [])
+    batcher.add(subagent, 'reviewed', 'The implementation plan', [])
     batcher.flushNow()
 
     expect(flushed).toHaveLength(1)
@@ -182,41 +182,68 @@ describe('MessageBatcher', () => {
     expect(item).toContain('<message>The implementation plan</message>')
   })
 
-  it('omits corrections block for reviewed items with empty corrections', () => {
+  it('omits feedback block for reviewed items with empty feedback', () => {
     vi.useFakeTimers()
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
     const subagent = makeSubagent(1, 'plan-1', 'done')
 
-    batcher.addReviewed(subagent, 'The updated plan', [])
+    batcher.add(subagent, 'reviewed', 'The updated plan', [])
     batcher.flushNow()
 
     const item = flushed[0]?.[0] ?? ''
     expect(item).toContain('<message>The updated plan</message>')
     expect(item).not.toContain('<revisions>')
-    expect(item).not.toContain('<corrections>')
+    expect(item).not.toContain('<feedback>')
   })
 
-  it('includes corrections in reviewed items when provided', () => {
+  it('omits feedback block on done items when omitted', () => {
+    vi.useFakeTimers()
+    const flushed: string[][] = []
+    const batcher = new MessageBatcher((items) => flushed.push(items), 100)
+    const subagent = makeSubagent(1, 'task-1', 'done')
+
+    batcher.add(subagent, 'done', 'Task completed')
+    batcher.flushNow()
+
+    const item = flushed[0]?.[0] ?? ''
+    expect(item).not.toContain('<feedback>')
+  })
+
+  it('includes feedback block on done items when provided', () => {
+    vi.useFakeTimers()
+    const flushed: string[][] = []
+    const batcher = new MessageBatcher((items) => flushed.push(items), 100)
+    const subagent = makeSubagent(1, 'task-1', 'done')
+
+    batcher.add(subagent, 'done', 'Task completed', ['cover edge cases'])
+    batcher.flushNow()
+
+    const item = flushed[0]?.[0] ?? ''
+    expect(item).toContain('<feedback>')
+    expect(item).toContain('<item>cover edge cases</item>')
+    expect(item).toContain('</feedback>')
+    expect(item.indexOf('<feedback>')).toBeLessThan(item.indexOf('<message>'))
+  })
+
+  it('includes feedback in reviewed items when provided', () => {
     vi.useFakeTimers()
     const flushed: string[][] = []
     const batcher = new MessageBatcher((items) => flushed.push(items), 100)
     const subagent = makeSubagent(1, 'plan-1', 'done')
 
-    batcher.addReviewed(subagent, 'The updated plan', [
+    batcher.add(subagent, 'reviewed', 'The updated plan', [
       'focus on <auth>',
       'drop the caching layer',
     ])
     batcher.flushNow()
 
     const item = flushed[0]?.[0] ?? ''
-    expect(item).toContain('<corrections>')
-    expect(item).toContain('<r>focus on &lt;auth&gt;</r>')
-    expect(item).toContain('<r>drop the caching layer</r>')
-    expect(item).toContain('</corrections>')
-    expect(item.indexOf('<corrections>')).toBeLessThan(
-      item.indexOf('<message>'),
-    )
+    expect(item).toContain('<feedback>')
+    expect(item).toContain('<item>focus on &lt;auth&gt;</item>')
+    expect(item).toContain('<item>drop the caching layer</item>')
+    expect(item).toContain('</feedback>')
+    expect(item.indexOf('<feedback>')).toBeLessThan(item.indexOf('<message>'))
   })
 
   it('uses done tag for done type', () => {

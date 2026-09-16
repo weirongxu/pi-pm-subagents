@@ -118,6 +118,7 @@ function registerSubagent(
       cwd: '/tmp/proj',
       sessionFile: '/tmp/proj/sessions/x.jsonl',
     },
+    feedback: [],
     session: session as unknown as AgentSession,
   }
 
@@ -169,11 +170,42 @@ describe('formatSubagentSummary', () => {
   })
 })
 
-describe('SubagentManager.followup', () => {
+describe('SubagentManager feedback', () => {
+  it('appendFeedback then drainFeedback returns and clears', () => {
+    const { session } = makeStubSession()
+    const manager = makeManager()
+    registerSubagent(manager, session, { id: 1 })
+
+    manager.appendFeedback(1, 'first')
+    manager.appendFeedback(1, 'second')
+
+    expect([...manager.drainFeedback(1)]).toEqual(['first', 'second'])
+    expect(manager.drainFeedback(1)).toEqual([])
+  })
+
+  it('appendFeedback is a no-op for unknown id', () => {
+    const manager = makeManager()
+
+    expect(() => {
+      manager.appendFeedback(99, 'note')
+    }).not.toThrow()
+    expect(manager.drainFeedback(99)).toEqual([])
+  })
+
+  it('drainFeedback returns empty for id with no feedback', () => {
+    const { session } = makeStubSession()
+    const manager = makeManager()
+    registerSubagent(manager, session, { id: 2 })
+
+    expect(manager.drainFeedback(2)).toEqual([])
+  })
+})
+
+describe('SubagentManager.steerWithTitle', () => {
   describe('subagent not found', () => {
     it('throws when subagent id does not exist', async () => {
       const manager = makeManager()
-      await expect(manager.followup(99, 'title', 'task')).rejects.toThrow(
+      await expect(manager.steerWithTitle(99, 'title', 'task')).rejects.toThrow(
         'Subagent #99 not found',
       )
     })
@@ -196,7 +228,7 @@ describe('SubagentManager.followup', () => {
       })
       promptMock.mockReturnValue(new Promise(() => {}))
 
-      const result = await manager.followup(1, 'New Title', 'New Task')
+      const result = await manager.steerWithTitle(1, 'New Title', 'New Task')
 
       expect(result.record.id).toBe(1)
       expect(result.record.status).toBe('running')
@@ -219,8 +251,8 @@ describe('SubagentManager.followup', () => {
         followUpCount: MAX_REUSE_FOLLOWUPS,
       })
 
-      await expect(manager.followup(1, 'title', 'task')).rejects.toThrow(
-        `Subagent #1 follow-up budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
+      await expect(manager.steerWithTitle(1, 'title', 'task')).rejects.toThrow(
+        `Subagent #1 steer budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
       )
 
       expect(session.prompt).not.toHaveBeenCalled()
@@ -243,7 +275,7 @@ describe('SubagentManager.followup', () => {
         followUpCount: 0,
       })
 
-      const result = await manager.followup(1, 'New Title', 'New Task')
+      const result = await manager.steerWithTitle(1, 'New Title', 'New Task')
 
       expect(result.record.id).toBe(1)
       expect(result.record.status).toBe('running')
@@ -267,7 +299,7 @@ describe('SubagentManager.followup', () => {
       const originalStartedAt = Date.now() - 5000
       subagent.record.startedAt = originalStartedAt
 
-      await manager.followup(1, 'title', 'task')
+      await manager.steerWithTitle(1, 'title', 'task')
 
       expect(steerMock).toHaveBeenCalled()
       expect(subagent.record.startedAt).toBe(originalStartedAt)
@@ -283,10 +315,10 @@ describe('SubagentManager.followup', () => {
         followUpCount: 3,
       })
 
-      await manager.followup(1, 't1', 'task 1')
+      await manager.steerWithTitle(1, 't1', 'task 1')
       expect(steerMock).toHaveBeenCalledTimes(1)
 
-      await manager.followup(1, 't2', 'task 2')
+      await manager.steerWithTitle(1, 't2', 'task 2')
       expect(steerMock).toHaveBeenCalledTimes(2)
 
       const subagent = (
@@ -304,8 +336,8 @@ describe('SubagentManager.followup', () => {
         followUpCount: MAX_REUSE_FOLLOWUPS,
       })
 
-      await expect(manager.followup(1, 'title', 'task')).rejects.toThrow(
-        `Subagent #1 follow-up budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
+      await expect(manager.steerWithTitle(1, 'title', 'task')).rejects.toThrow(
+        `Subagent #1 steer budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
       )
 
       expect(steerMock).not.toHaveBeenCalled()
@@ -320,7 +352,7 @@ describe('SubagentManager.followup', () => {
         followUpCount: 0,
       })
 
-      await manager.followup(1, 'New Title', 'task')
+      await manager.steerWithTitle(1, 'New Title', 'task')
 
       expect(steerMock).toHaveBeenCalled()
       expect(subagent.record.previousEntries).toHaveLength(1)
@@ -342,9 +374,9 @@ describe('SubagentManager.followup', () => {
         followUpCount: 0,
       })
 
-      await manager.followup(1, 'Title 1', 'task 1')
-      await manager.followup(1, 'Title 2', 'task 2')
-      await manager.followup(1, 'Title 3', 'task 3')
+      await manager.steerWithTitle(1, 'Title 1', 'task 1')
+      await manager.steerWithTitle(1, 'Title 2', 'task 2')
+      await manager.steerWithTitle(1, 'Title 3', 'task 3')
 
       expect(subagent.record.previousEntries).toHaveLength(3)
       expect(subagent.record.previousEntries[0]).toMatchObject({
@@ -374,7 +406,9 @@ describe('SubagentManager.followup', () => {
         followUpCount: MAX_REUSE_FOLLOWUPS,
       })
 
-      await expect(manager.followup(1, 'New Title', 'task')).rejects.toThrow()
+      await expect(
+        manager.steerWithTitle(1, 'New Title', 'task'),
+      ).rejects.toThrow()
 
       expect(subagent.record.previousEntries).toEqual([])
       expect(subagent.record.title).toBe('Task 1')
@@ -395,7 +429,7 @@ describe('SubagentManager.followup', () => {
       })
       subagent.record.contextUsage = contextUsage
 
-      await manager.followup(1, 'Title 2', 'task 2')
+      await manager.steerWithTitle(1, 'Title 2', 'task 2')
 
       expect(subagent.record.previousEntries[0]).toMatchObject({
         title: 'Task 1',
@@ -418,7 +452,7 @@ describe('SubagentManager.followup', () => {
       })
       subagent.record.contextUsage = contextUsage
 
-      await manager.followup(1, 'New Title', 'more work')
+      await manager.steerWithTitle(1, 'New Title', 'more work')
 
       expect(subagent.record.previousEntries[0]).toMatchObject({
         status: 'done',

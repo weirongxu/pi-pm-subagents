@@ -44,6 +44,7 @@ export interface LiveSubagent {
   record: SubagentRecord
   session: AgentSession
   onComplete?: (subagent: LiveSubagent, lastMessage: string) => Promise<void>
+  feedback: string[]
 }
 
 export type RestoreResult = 'restored' | 'already-live' | 'failed'
@@ -157,6 +158,7 @@ export class SubagentManager {
       record,
       session: created.session,
       onComplete: options.onComplete,
+      feedback: [],
     }
 
     this.subagents.set(id, subagent)
@@ -215,6 +217,7 @@ export class SubagentManager {
       record,
       session: created.session,
       onComplete: options.onComplete,
+      feedback: [],
     }
     this.subagents.set(record.id, subagent)
     this.subscribe(subagent)
@@ -222,19 +225,19 @@ export class SubagentManager {
     return 'restored'
   }
 
-  async followup(
+  async steerWithTitle(
     id: number,
     title: string,
     prompt: string,
   ): Promise<LiveSubagent> {
-    const followupSubagent = this.subagents.get(id)
-    if (!followupSubagent) throw new Error(`Subagent #${id} not found`)
-    if (followupSubagent.record.followUpCount >= MAX_REUSE_FOLLOWUPS)
+    const steerTarget = this.subagents.get(id)
+    if (!steerTarget) throw new Error(`Subagent #${id} not found`)
+    if (steerTarget.record.followUpCount >= MAX_REUSE_FOLLOWUPS)
       throw new Error(
-        `Subagent #${id} follow-up budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
+        `Subagent #${id} steer budget exhausted (${MAX_REUSE_FOLLOWUPS}/${MAX_REUSE_FOLLOWUPS}). Start a fresh subagent instead.`,
       )
 
-    const record = followupSubagent.record
+    const record = steerTarget.record
     const wasRunning = record.status === 'running'
     const prevStartedAt = record.startedAt
     record.previousEntries.unshift({
@@ -250,18 +253,26 @@ export class SubagentManager {
     record.followUpCount += 1
 
     if (record.status === 'running') {
-      await followupSubagent.session.steer(prompt)
+      await steerTarget.session.steer(prompt)
       this.options.onStatusChange?.()
-      return followupSubagent
+      return steerTarget
     }
 
     record.status = 'running'
     record.startedAt = Date.now()
     record.completedAt = undefined
     this.options.onStatusChange?.()
-    this.options.onEachStart?.(followupSubagent)
-    void this.run(followupSubagent, prompt)
-    return followupSubagent
+    this.options.onEachStart?.(steerTarget)
+    void this.run(steerTarget, prompt)
+    return steerTarget
+  }
+
+  appendFeedback(id: number, text: string): void {
+    this.subagents.get(id)?.feedback.push(text)
+  }
+
+  drainFeedback(id: number): readonly string[] {
+    return this.subagents.get(id)?.feedback.splice(0) ?? []
   }
 
   async steer(id: number, text: string): Promise<boolean> {

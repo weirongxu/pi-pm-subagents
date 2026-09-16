@@ -37,7 +37,7 @@ pi install @raidou/pi-pm-subagents
 ### 会话持久化
 
 - 协调者模式和子代理列表可以在会话恢复（`pi -c` / `/resume`）、fork/clone 以及扩展 `/reload` 后保留。
-- 会话结束时仍在运行的子代理会在退出时标记为 killed；可通过 `subagent_followup` 继续使用它们。
+- 会话结束时仍在运行的子代理会在退出时标记为 killed；可通过 `subagent_steer` 继续使用它们。
 
 ## 配置
 

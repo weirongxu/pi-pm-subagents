@@ -1,7 +1,4 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-} from '@earendil-works/pi-coding-agent'
+import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
 import type { Theme } from '@earendil-works/pi-coding-agent'
 import type { TUI } from '@earendil-works/pi-tui'
 import { describe, expect, it, vi } from 'vitest'
@@ -247,8 +244,7 @@ describe('createReviewPagerComponent', () => {
 })
 
 describe('askHowToProceed', () => {
-  it('emits a notify event before opening the pager', async () => {
-    const emit = vi.fn()
+  it('toggles working visibility around the pager', async () => {
     const setWorkingVisible = vi.fn()
     const options: ReviewPagerOptions = {
       ...makeOptions(),
@@ -260,12 +256,7 @@ describe('askHowToProceed', () => {
         custom: () => Promise.resolve<ReviewPagerResult>({ choiceId: 'send' }),
       },
     } as unknown as ExtensionContext
-    await askHowToProceed(
-      { events: { emit } } as unknown as ExtensionAPI,
-      ctx,
-      options,
-    )
-    expect(emit).toHaveBeenCalledWith('pi-notify:notify', options.title)
+    await askHowToProceed(ctx, options)
     expect(setWorkingVisible).toHaveBeenCalledTimes(2)
   })
 })

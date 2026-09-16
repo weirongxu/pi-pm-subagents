@@ -82,6 +82,7 @@ export class SubagentManagerDemo extends SubagentManager {
         sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: normalContextUsage(),
       },
+      feedback: [],
       session: mockSessionFor('2'),
     })
   }
@@ -121,6 +122,7 @@ function initialDemoSubagents(): LiveSubagent[] {
         sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: normalContextUsage(),
       },
+      feedback: [],
       session: mockSessionFor('1', 6),
     },
     {
@@ -139,6 +141,7 @@ function initialDemoSubagents(): LiveSubagent[] {
         sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: normalContextUsage(),
       },
+      feedback: [],
       session: mockSessionFor('2', 6),
     },
     {
@@ -174,6 +177,7 @@ function initialDemoSubagents(): LiveSubagent[] {
         sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: highContextUsage(),
       },
+      feedback: [],
       session: mockSessionFor('3', 6),
     },
     {
@@ -200,6 +204,7 @@ function initialDemoSubagents(): LiveSubagent[] {
         sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: unknownTokensContextUsage(),
       },
+      feedback: [],
       session: mockSessionFor('4', 6),
     },
     {
@@ -217,6 +222,7 @@ function initialDemoSubagents(): LiveSubagent[] {
         cwd: '/tmp/demo',
         sessionFile: '/tmp/demo/session.jsonl',
       },
+      feedback: [],
       session: mockSessionFor('5', 6),
     },
     {
@@ -235,6 +241,7 @@ function initialDemoSubagents(): LiveSubagent[] {
         sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: nearFullContextUsage(),
       },
+      feedback: [],
       session: mockSessionFor('6', 6),
     },
     {
@@ -270,6 +277,7 @@ function initialDemoSubagents(): LiveSubagent[] {
         sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: normalContextUsage(),
       },
+      feedback: [],
       session: mockSessionFor('7', 6),
     },
     {
@@ -310,6 +318,7 @@ function initialDemoSubagents(): LiveSubagent[] {
         sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: highContextUsage(),
       },
+      feedback: [],
       session: mockSessionFor('8', 6),
     },
     {
@@ -336,6 +345,7 @@ function initialDemoSubagents(): LiveSubagent[] {
         sessionFile: '/tmp/demo/session.jsonl',
         contextUsage: unknownTokensContextUsage(),
       },
+      feedback: [],
       session: mockSessionFor('9', 6),
     },
   ]

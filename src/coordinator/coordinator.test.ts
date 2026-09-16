@@ -36,7 +36,7 @@ vi.mock('../subagent/tools.js', () => ({
   registerSubagentTools: vi.fn(),
   SUBAGENT_TOOLS: {
     delegate: 'subagent_delegate',
-    followup: 'subagent_followup',
+    steer: 'subagent_steer',
     kill: 'subagent_kill',
     list: 'subagent_list',
   },
@@ -129,6 +129,7 @@ function seedRecord(manager: SubagentManager, record: SubagentRecord): void {
   ).subagents
   subagents.set(record.id, {
     record,
+    feedback: [],
     session: { dispose: () => {} } as unknown as LiveSubagent['session'],
   })
 }

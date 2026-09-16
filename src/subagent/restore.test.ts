@@ -76,7 +76,7 @@ function makeRuntime(manager: SubagentManager): void {
       update: () => {},
       dispose: () => {},
     } as never,
-    batcher: { add: () => {}, addReviewed: () => {} } as never,
+    batcher: { add: () => {} } as never,
   })
 }
 

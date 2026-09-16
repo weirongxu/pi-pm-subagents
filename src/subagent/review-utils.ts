@@ -4,30 +4,9 @@ import type { ReviewOnEnd } from '../utils/markdown.js'
 /** Deliverable name reviewed at end of a subagent run. */
 export function resolveReviewName(
   reviewOnEnd: ReviewOnEnd | undefined,
-): string {
+): string | null {
   if (typeof reviewOnEnd === 'string') return reviewOnEnd
-  return 'plan'
-}
-
-export interface ReviewActions {
-  send: (message: string) => Promise<void> | void
-  revise: (updatePrompt: string) => Promise<void> | void
-}
-
-export function createReviewedActions(input: {
-  send: (message: string, corrections: readonly string[]) => void
-  revise: (fullPrompt: string) => Promise<unknown>
-}): ReviewActions {
-  const corrections: string[] = []
-  return {
-    send(message) {
-      input.send(message, corrections)
-    },
-    async revise(updatePrompt) {
-      corrections.push(updatePrompt)
-      await input.revise(updatePrompt)
-    },
-  }
+  return reviewOnEnd ? 'plan' : null
 }
 
 function reviewTitle(name: string): string {
@@ -35,12 +14,17 @@ function reviewTitle(name: string): string {
   return `📋 ${capitalized} Review`
 }
 
-export function buildReviewOptions(input: {
+export function buildReviewOptions({
+  content,
+  name,
+  send,
+  revise,
+}: {
   content: string
   name: string
-  actions: ReviewActions
+  send: (message: string) => void
+  revise: (updatePrompt: string) => unknown
 }): ReviewPagerOptions {
-  const { content, name, actions } = input
   return {
     title: reviewTitle(name),
     plan: content,
@@ -49,7 +33,7 @@ export function buildReviewOptions(input: {
         id: 'send',
         label: `Send ${name} to coordinator`,
         action: () => {
-          void actions.send(content)
+          send(content)
         },
       },
       {
@@ -58,7 +42,7 @@ export function buildReviewOptions(input: {
         inlineEditor: true,
         action: (updatePrompt) => {
           if (updatePrompt?.trim()) {
-            return actions.revise(updatePrompt.trim())
+            void revise(updatePrompt.trim())
           }
         },
       },

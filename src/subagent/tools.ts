@@ -40,7 +40,7 @@ const stopSubagentOnAbort = (
 
 export const SUBAGENT_TOOLS = {
   delegate: 'subagent_delegate',
-  followup: 'subagent_followup',
+  steer: 'subagent_steer',
   kill: 'subagent_kill',
   list: 'subagent_list',
 } as const
@@ -172,11 +172,11 @@ export function registerSubagentTools(
       }),
 
       defineTool({
-        name: SUBAGENT_TOOLS.followup,
-        label: 'Follow Up Subagent',
-        description: `Continue working with an existing subagent (new instructions or corrections only — never status checks). Max reuse ${MAX_REUSE_FOLLOWUPS} times.`,
+        name: SUBAGENT_TOOLS.steer,
+        label: 'Steer Subagent',
+        description: `Continue working with an existing subagent (new instructions or feedback only — never status checks). Max reuse ${MAX_REUSE_FOLLOWUPS} times.`,
         promptGuidelines: [
-          "Call subagent_followup alone in a single tool batch, as the last action of your turn — its result ends the turn and the subagent's final message is delivered automatically.",
+          "Call subagent_steer alone in a single tool batch, as the last action of your turn — its result ends the turn and the subagent's final message is delivered automatically.",
         ],
         parameters: Type.Object({
           id: Type.Number(),
@@ -192,7 +192,7 @@ export function registerSubagentTools(
         ): Promise<AgentToolResult<unknown>> {
           let subagent: LiveSubagent
           try {
-            subagent = await manager.followup(
+            subagent = await manager.steerWithTitle(
               params.id,
               params.title,
               params.prompt,

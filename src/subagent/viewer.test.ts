@@ -46,12 +46,15 @@ function makeSubagent(
 }
 
 function makeManager(
-  overrides: Partial<Pick<SubagentManager, 'steer' | 'abort'>> = {},
+  overrides: Partial<
+    Pick<SubagentManager, 'steer' | 'abort' | 'appendFeedback'>
+  > = {},
 ): SubagentManager {
   return {
     get: () => undefined,
     steer: async () => true,
     abort: async () => true,
+    appendFeedback: () => {},
     ...overrides,
   } as unknown as SubagentManager
 }
@@ -108,6 +111,38 @@ describe('SubagentViewer', () => {
       expect(steer).toHaveBeenCalledWith(3, 'hello world')
     })
     expect(notify).toHaveBeenCalledWith('Steered subagent #3.', 'info')
+  })
+
+  it('records feedback with trimmed text after successful steer', async () => {
+    const steer = vi.fn(async () => true)
+    const appendFeedback = vi.fn()
+    const component = makeViewer(
+      makeSubagent(),
+      makeManager({ steer, appendFeedback }),
+    )
+    component.handleInput(ENTER)
+    component.handleInput('  hello world  ')
+    component.handleInput(ENTER)
+    await vi.waitFor(() => {
+      expect(steer).toHaveBeenCalledWith(3, 'hello world')
+    })
+    expect(appendFeedback).toHaveBeenCalledWith(3, 'hello world')
+  })
+
+  it('does not record feedback when steer fails', async () => {
+    const steer = vi.fn(async () => false)
+    const appendFeedback = vi.fn()
+    const component = makeViewer(
+      makeSubagent(),
+      makeManager({ steer, appendFeedback }),
+    )
+    component.handleInput(ENTER)
+    component.handleInput('hello')
+    component.handleInput(ENTER)
+    await vi.waitFor(() => {
+      expect(steer).toHaveBeenCalled()
+    })
+    expect(appendFeedback).not.toHaveBeenCalled()
   })
 
   it('returns to view mode on escape without steering', () => {

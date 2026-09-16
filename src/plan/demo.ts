@@ -12,18 +12,15 @@ export function registerPlanDemoCommand(pi: ExtensionAPI): void {
     handler: async (_args: string, ctx: ExtensionContext) => {
       if (!ctx.hasUI) return
       await askHowToProceed(
-        pi,
         ctx,
         buildReviewOptions({
           content: DEMO_PLAN,
           name: 'plan',
-          actions: {
-            send: () => {
-              ctx.ui.notify('Demo: sent to coordinator', 'info')
-            },
-            revise: (updatePrompt) => {
-              ctx.ui.notify(`Demo: followup with: ${updatePrompt}`, 'info')
-            },
+          send: () => {
+            ctx.ui.notify('Demo: sent to coordinator', 'info')
+          },
+          revise: (updatePrompt: string) => {
+            ctx.ui.notify(`Demo: followup with: ${updatePrompt}`, 'info')
           },
         }),
       )

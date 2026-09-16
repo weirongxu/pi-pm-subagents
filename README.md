@@ -37,7 +37,7 @@ Then the agent will delegate some subagents to work and supervise them.
 ### Session persistence
 
 - Coordinator mode and the subagent roster survive session resume (`pi -c` / `/resume`), fork/clone, and extension `/reload`.
-- Subagents that were still running when the session ended are marked as killed on exit; you can continue them with `subagent_followup`.
+- Subagents that were still running when the session ended are marked as killed on exit; you can continue them with `subagent_steer`.
 
 ## Configuration
 
