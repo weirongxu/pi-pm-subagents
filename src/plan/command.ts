@@ -39,5 +39,5 @@ export async function runPlanCommand(
       return
     }
   }
-  notifyAgentMessage(pi, buildPlanRequestMessage(prompt))
+  notifyAgentMessage(pi, buildPlanRequestMessage(prompt), { triggerTurn: true })
 }

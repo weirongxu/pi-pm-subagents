@@ -1,66 +1,77 @@
 import { escapeXml } from '../utils/xml.js'
 import { formatSubagentSummary, type LiveSubagent } from './manager.js'
 
-const TAG_NAMES = {
-  activity: 'subagent-activity',
-  done: 'subagent-done',
-  reviewed: 'subagent-reviewed',
-  steer: 'subagent-steer',
-} as const
+const MESSAGE_TYPES = {
+  activity: { tag: 'subagent-activity', queue: 'response' },
+  done: { tag: 'subagent-done', queue: 'response' },
+  reviewed: { tag: 'subagent-reviewed', queue: 'response' },
+  steer: { tag: 'subagent-steer', queue: 'silent' },
+} as const satisfies Record<
+  string,
+  { tag: string; queue: 'silent' | 'response' }
+>
 
-export type SubagentMessageType = keyof typeof TAG_NAMES
+export type SubagentMessageType = keyof typeof MESSAGE_TYPES
+
+interface Buffer {
+  silent: string[]
+  response: string[]
+  timer: ReturnType<typeof setTimeout> | undefined
+}
 
 export class MessageBatcher {
-  private buffer: string[] = []
-  private timer: ReturnType<typeof setTimeout> | undefined
+  private buffer: Buffer = { silent: [], response: [], timer: undefined }
 
   constructor(
-    private readonly flush: (buffer: string[]) => void,
+    private readonly flush: (
+      messages: readonly string[],
+      triggerTurn: boolean,
+    ) => void,
     private readonly windowMs = 3000,
   ) {}
-
-  get pending(): readonly string[] {
-    return [...this.buffer]
-  }
 
   add(
     subagent: LiveSubagent,
     type: SubagentMessageType,
     message: string,
   ): void {
-    const tagName = TAG_NAMES[type]
+    const { tag, queue } = MESSAGE_TYPES[type]
     const lines = [
-      `<${tagName}>`,
+      `<${tag}>`,
       `<type>${type}</type>`,
       `<job>${escapeXml(formatSubagentSummary(subagent))}</job>`,
       `<message>${escapeXml(message)}</message>`,
+      `</${tag}>`,
     ]
-    lines.push(`</${tagName}>`)
-    const item = lines.join('\n')
-    this.buffer.push(item)
-    if (this.timer !== undefined) clearTimeout(this.timer)
-    this.timer = setTimeout(() => {
+    this.buffer[queue].push(lines.join('\n'))
+    this.rescheduleTimer()
+  }
+
+  flushNow(): void {
+    this.clearTimer()
+    const { silent, response } = this.buffer
+    this.buffer.silent = []
+    this.buffer.response = []
+    if (silent.length) this.flush(silent, false)
+    if (response.length) this.flush(response, true)
+  }
+
+  clear(): void {
+    this.clearTimer()
+    this.buffer.silent = []
+    this.buffer.response = []
+  }
+
+  private rescheduleTimer(): void {
+    this.clearTimer()
+    this.buffer.timer = setTimeout(() => {
       this.flushNow()
     }, this.windowMs)
   }
 
-  flushNow(): void {
-    if (this.timer !== undefined) {
-      clearTimeout(this.timer)
-      this.timer = undefined
-    }
-    if (this.buffer.length === 0) return
-
-    const buffer = this.buffer
-    this.buffer = []
-    this.flush(buffer)
-  }
-
-  clear(): void {
-    if (this.timer !== undefined) {
-      clearTimeout(this.timer)
-      this.timer = undefined
-    }
-    this.buffer = []
+  private clearTimer(): void {
+    if (this.buffer.timer === undefined) return
+    clearTimeout(this.buffer.timer)
+    this.buffer.timer = undefined
   }
 }

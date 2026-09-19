@@ -82,6 +82,7 @@ vi.mock('../subagent/manager.js', async (importOriginal) => {
 })
 
 import { exitCoordinatorMode, setupCoordinator } from './coordinator.js'
+import { requiredRuntime } from './runtime.js'
 
 type AnyHandler = (event: never, ctx: ExtensionContext) => unknown
 
@@ -89,6 +90,7 @@ function makePi() {
   const handlers: Record<string, AnyHandler> = {}
   const appendEntry = vi.fn()
   const emit = vi.fn()
+  const sendMessage = vi.fn()
   const pi = {
     on: (event: string, handler: AnyHandler) => {
       handlers[event] = handler
@@ -96,8 +98,9 @@ function makePi() {
     registerCommand: () => {},
     appendEntry,
     events: { emit },
+    sendMessage,
   } as unknown as ExtensionAPI
-  return { handlers, appendEntry, emit, pi }
+  return { handlers, appendEntry, emit, sendMessage, pi }
 }
 
 function makeCtx(): ExtensionContext {
@@ -141,7 +144,7 @@ function lastPersistedData(appendEntry: ReturnType<typeof vi.fn>) {
 
 async function makeSetup() {
   managerInstances.length = 0
-  const { handlers, appendEntry, emit, pi } = makePi()
+  const { handlers, appendEntry, emit, sendMessage, pi } = makePi()
   const state: PmSubagentState = { ...createState(), mode: 'coordinator' }
   await setupCoordinator(pi, state, {
     demoEnabled: false,
@@ -149,7 +152,7 @@ async function makeSetup() {
   })
   const manager = managerInstances[0]
   if (!manager) throw new Error('SubagentManager was not constructed')
-  return { handlers, appendEntry, emit, pi, state, manager }
+  return { handlers, appendEntry, emit, sendMessage, pi, state, manager }
 }
 
 describe('exitCoordinatorMode', () => {
@@ -169,5 +172,63 @@ describe('exitCoordinatorMode', () => {
     const data = lastPersistedData(appendEntry)
     expect(data.mode).toBeUndefined()
     expect(data.subagents).toBeUndefined()
+  })
+})
+
+describe('message batcher delivery', () => {
+  function makeBatcherSubagent(
+    overrides: Partial<SubagentRecord>,
+  ): LiveSubagent {
+    return {
+      record: makeRecord({
+        status: 'done',
+        contextUsage: { tokens: 60000, contextWindow: 200000, percent: 30 },
+        ...overrides,
+      }),
+      session: { dispose: () => {} },
+    } as unknown as LiveSubagent
+  }
+
+  it('delivers steer-only batches without triggering a turn', async () => {
+    const { sendMessage } = await makeSetup()
+    const { batcher } = requiredRuntime()
+    batcher.add(
+      makeBatcherSubagent({ id: 1, status: 'running' }),
+      'steer',
+      'Focus on auth',
+    )
+
+    batcher.flushNow()
+
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+    const steerCall = sendMessage.mock.calls[0]
+    expect(steerCall).toBeDefined()
+    expect(steerCall?.[0]?.content).toContain('<subagent-steer>')
+    expect(steerCall?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: false })
+  })
+
+  it('splits steer and done items into separate deliveries on flushNow', async () => {
+    const { sendMessage } = await makeSetup()
+    const { batcher } = requiredRuntime()
+    batcher.add(
+      makeBatcherSubagent({ id: 1, status: 'running' }),
+      'steer',
+      'Focus on auth',
+    )
+    batcher.add(makeBatcherSubagent({ id: 2 }), 'done', 'Task completed')
+
+    batcher.flushNow()
+
+    expect(sendMessage).toHaveBeenCalledTimes(2)
+
+    const steerCall = sendMessage.mock.calls[0]
+    expect(steerCall).toBeDefined()
+    expect(steerCall?.[0]?.content).toContain('<subagent-steer>')
+    expect(steerCall?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: false })
+
+    const doneCall = sendMessage.mock.calls[1]
+    expect(doneCall).toBeDefined()
+    expect(doneCall?.[0]?.content).toContain('<subagent-done>')
+    expect(doneCall?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: true })
   })
 })

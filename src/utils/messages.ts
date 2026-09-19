@@ -99,13 +99,17 @@ export function lastMessageText(
   return undefined
 }
 
-export function notifyAgentMessage(pi: ExtensionAPI, content: string) {
+export function notifyAgentMessage(
+  pi: ExtensionAPI,
+  content: string,
+  { triggerTurn }: { triggerTurn: boolean },
+) {
   pi.sendMessage(
     {
       customType: PLUGIN_KEY,
       content,
       display: true,
     },
-    { deliverAs: 'steer', triggerTurn: true },
+    { deliverAs: 'steer', triggerTurn },
   )
 }

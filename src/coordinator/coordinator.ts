@@ -42,7 +42,7 @@ export async function enterCoordinatorMode(
   assertModeIdle(state, 'coordinator')
   state.mode = 'coordinator'
   await applyCoordinatorMode(pi, state, ctx, def)
-  if (prompt) notifyAgentMessage(pi, prompt)
+  if (prompt) notifyAgentMessage(pi, prompt, { triggerTurn: true })
 }
 
 export function renderCoordinatorModeWidget(
@@ -114,9 +114,11 @@ export async function setupCoordinator(
   },
 ): Promise<void> {
   let pendingUiPrompts = 0
-  const batcher = new MessageBatcher((messages: readonly string[]) => {
+  const batcher = new MessageBatcher((messages, triggerTurn) => {
     if (state.mode !== 'coordinator') return
-    notifyAgentMessage(pi, messages.join('\n\n'))
+    notifyAgentMessage(pi, messages.join('\n\n'), {
+      triggerTurn,
+    })
   })
   const manager = new SubagentManager({
     state,
@@ -197,7 +199,7 @@ export async function setupCoordinator(
       return
     }
     await enterCoordinatorMode(pi, state, undefined, ctx, coordinatorDefinition)
-    if (request) notifyAgentMessage(pi, request)
+    if (request) notifyAgentMessage(pi, request, { triggerTurn: true })
   }
 
   pi.registerCommand('coordinator', {
