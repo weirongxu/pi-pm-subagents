@@ -1,7 +1,7 @@
 import {
   type AgentToolResult,
-  defineTool,
   type ExtensionAPI,
+  defineTool,
 } from '@earendil-works/pi-coding-agent'
 import { orderBy } from 'lodash-es'
 import { Type } from 'typebox'
@@ -14,9 +14,9 @@ import { registerOptionalTools } from '../utils/tools.js'
 import type { LiveSubagent } from './manager.js'
 import type { SubagentManager } from './manager.js'
 import {
-  formatSubagentSummary,
   MAX_CONCURRENCY_SUBAGENT,
   MAX_REUSE_STEERS,
+  formatSubagentSummary,
 } from './manager.js'
 import { buildSpawnOptions } from './spawn-options.js'
 

@@ -9,7 +9,7 @@ import type { PmMode, PmSubagentState } from './types.js'
 import type { PromptDefinition } from './utils/markdown.js'
 import { modelRefOf, resolveModelRef } from './utils/model-ref.js'
 import { persist } from './utils/state.js'
-import { composeTools, type ToolConfig } from './utils/tools.js'
+import { type ToolConfig, composeTools } from './utils/tools.js'
 
 export type { ToolConfig } from './utils/tools.js'
 

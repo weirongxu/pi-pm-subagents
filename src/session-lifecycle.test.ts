@@ -6,7 +6,7 @@ import type {
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { PmSubagentState } from './types.js'
-import { createState, PLUGIN_KEY } from './utils/state.js'
+import { PLUGIN_KEY, createState } from './utils/state.js'
 
 const applyCoordinatorModeMock = vi.hoisted(() => vi.fn(async () => {}))
 

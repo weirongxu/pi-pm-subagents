@@ -11,8 +11,8 @@ import type {
   TUI,
 } from '@earendil-works/pi-tui'
 import {
-  isKeyRelease,
   Key,
+  isKeyRelease,
   matchesKey,
   visibleWidth,
   wrapTextWithAnsi,
@@ -22,9 +22,9 @@ import type { SubagentStatus } from '../types.js'
 import { BorderView } from '../ui/border-view.js'
 import { renderFooterKeys } from '../ui/footer.js'
 import {
+  EDITOR_MAX_LINES,
   capEditorLines,
   createInlineEditor,
-  EDITOR_MAX_LINES,
 } from '../ui/inline-editor.js'
 import { ScrollView } from '../ui/scroll-view.js'
 import { rightAlign, strInline } from '../utils/format.js'

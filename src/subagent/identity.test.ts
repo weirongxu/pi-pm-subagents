@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  SUBAGENT_SESSION_ID_PREFIX,
   isSubagentSpawnContext,
   runInSubagentSpawnContext,
-  SUBAGENT_SESSION_ID_PREFIX,
 } from './identity.js'
 
 describe('subagent spawn context', () => {

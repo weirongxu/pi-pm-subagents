@@ -1,11 +1,11 @@
 ---
 description: Produces an implementation plan for user review; the approved plan is then delegated for implementation
 removeTools:
-  - write
-  - edit
-  - bash
+    - write
+    - edit
+    - bash
 extraTools:
-  - bash_readonly
+    - bash_readonly
 reviewOnEnd: true
 ---
 

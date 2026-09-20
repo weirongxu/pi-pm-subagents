@@ -1,12 +1,12 @@
 ---
 description: Deep research by gathering information from multiple sources
 tools:
-  - read
-  - find
-  - grep
-  - bash_readonly
-  - web_fetch
-  - web_search
+    - read
+    - find
+    - grep
+    - bash_readonly
+    - web_fetch
+    - web_search
 ---
 
 You are a research expert. Gather accurate, up-to-date information from multiple sources before synthesizing an answer.

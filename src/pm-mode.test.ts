@@ -4,10 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BASH_READONLY_TOOL_NAME } from './bash-readonly.js'
 import {
-  applyModeModel,
-  calculateModeTools,
   type ToolConfig,
   WRITE_TOOLS,
+  applyModeModel,
+  calculateModeTools,
 } from './pm-mode.js'
 import { baseToolsOf, restoreTools } from './pm-mode.js'
 import type { PmSubagentState } from './types.js'

@@ -71,7 +71,7 @@ Set `"skipPluginAgents": true` in `pi-pm-subagents.json` to skip loading the bui
 
 - **`/pm-subagent-model`** — Change subagent model
 - **`/pm-subagent-scoped`** — Manage the subagent scoped model
-  - `Alt+N` Cycle pool of models. Can include `DEFAULT` (use pi default model) marker.
+    - `Alt+N` Cycle pool of models. Can include `DEFAULT` (use pi default model) marker.
 
 ## Note
 

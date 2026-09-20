@@ -6,9 +6,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { LiveSubagent, SubagentManager } from './manager.js'
 import {
-  openSubagentViewer,
   SubagentViewer,
   type SubagentViewerOptions,
+  openSubagentViewer,
 } from './viewer.js'
 
 const ENTER = '\r'

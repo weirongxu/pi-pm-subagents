@@ -15,12 +15,12 @@ import { registerSubagentDemoCommand } from '../subagent/demo.js'
 import { FleetList } from '../subagent/fleet.js'
 import { SubagentManager } from '../subagent/manager.js'
 import { restoreSubagents } from '../subagent/restore.js'
-import { registerSubagentTools, SUBAGENT_TOOLS } from '../subagent/tools.js'
+import { SUBAGENT_TOOLS, registerSubagentTools } from '../subagent/tools.js'
 import { openSubagentViewer } from '../subagent/viewer.js'
 import type { PmSubagentState } from '../types.js'
 import {
-  mergePromptDefinitions,
   type PromptDefinition,
+  mergePromptDefinitions,
 } from '../utils/markdown.js'
 import { notifyAgentMessage } from '../utils/messages.ts'
 import { persistSnapshot } from '../utils/state.js'

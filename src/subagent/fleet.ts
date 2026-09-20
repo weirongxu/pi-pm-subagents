@@ -2,8 +2,8 @@ import type { ExtensionContext, Theme } from '@earendil-works/pi-coding-agent'
 import type { TUI } from '@earendil-works/pi-tui'
 import { Editor } from '@earendil-works/pi-tui'
 import {
-  isKeyRelease,
   Key,
+  isKeyRelease,
   matchesKey,
   visibleWidth,
 } from '@earendil-works/pi-tui'

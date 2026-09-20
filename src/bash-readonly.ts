@@ -1,16 +1,17 @@
 import {
   type BashOperations,
+  type ExtensionAPI,
   createBashToolDefinition,
   createLocalBashOperations,
   defineTool,
-  type ExtensionAPI,
 } from '@earendil-works/pi-coding-agent'
 import { parse as parseShell } from 'shell-quote'
 
 import { registerOptionalTools } from './utils/tools.js'
 
 export type BashSafetyIssue =
-  { allowed: true } | { allowed: false; subCommand: string }
+  | { allowed: true }
+  | { allowed: false; subCommand: string }
 
 const FORWARD_PREFIX = ['rtk'] as const
 

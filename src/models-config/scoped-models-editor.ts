@@ -1,19 +1,19 @@
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
 import {
   DynamicBorder,
-  keyText,
   type Theme,
+  keyText,
 } from '@earendil-works/pi-coding-agent'
 import type { Focusable, TUI } from '@earendil-works/pi-tui'
 import {
   Container,
-  fuzzyFilter,
-  getKeybindings,
   Input,
   Key,
-  matchesKey,
   Spacer,
   Text,
+  fuzzyFilter,
+  getKeybindings,
+  matchesKey,
 } from '@earendil-works/pi-tui'
 
 export interface ScopedModelsItem {

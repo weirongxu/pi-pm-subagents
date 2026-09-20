@@ -8,7 +8,7 @@ import type * as PmModeModule from '../pm-mode.js'
 import type * as ManagerModule from '../subagent/manager.js'
 import type { LiveSubagent, SubagentManager } from '../subagent/manager.js'
 import type { PmSubagentState, SubagentRecord } from '../types.js'
-import { createState, PLUGIN_KEY } from '../utils/state.js'
+import { PLUGIN_KEY, createState } from '../utils/state.js'
 
 vi.mock('../models-config/models-config.js', () => ({
   getPmSubagentsConfig: () => ({}),

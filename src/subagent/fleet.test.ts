@@ -394,7 +394,8 @@ describe('FleetList focus gate (#123)', () => {
 
   let fakeTui: FakeTui
   let capturedOnTerminalInput:
-    ((data: string) => { consume?: boolean } | undefined) | undefined
+    | ((data: string) => { consume?: boolean } | undefined)
+    | undefined
   let capturedSetWidget: (
     key: string,
     factory: ((tui: unknown) => unknown) | undefined,

@@ -5,10 +5,10 @@ import type { ThinkingLevel } from '@earendil-works/pi-agent-core'
 import type { Api, Model } from '@earendil-works/pi-ai'
 import {
   type AgentSession,
-  createAgentSession,
   DefaultResourceLoader,
-  getAgentDir,
   SessionManager,
+  createAgentSession,
+  getAgentDir,
 } from '@earendil-works/pi-coding-agent'
 
 import type { PmSubagentState, SubagentRecord } from '../types.js'
@@ -16,8 +16,8 @@ import { formatContextUsage, formatElapsed } from '../utils/format.js'
 import { lastMessageText } from '../utils/messages.js'
 import { STEER_SYMBOL } from './consts.ts'
 import {
-  runInSubagentSpawnContext,
   SUBAGENT_SESSION_ID_PREFIX,
+  runInSubagentSpawnContext,
 } from './identity.js'
 
 const subagentDirFor = (cwd: string, agentDir: string): string => {

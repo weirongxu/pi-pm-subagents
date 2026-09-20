@@ -6,9 +6,9 @@ import { CONFIG_DIR_NAME, getAgentDir } from '@earendil-works/pi-coding-agent'
 
 import {
   APPEND_SUFFIX,
+  type PromptDefinition,
   loadMarkdown,
   mergePromptDefinitions,
-  type PromptDefinition,
 } from '../utils/markdown.js'
 import { composeTools } from '../utils/tools.js'
 

@@ -3,12 +3,12 @@ import { DynamicBorder } from '@earendil-works/pi-coding-agent'
 import type { Focusable, TUI } from '@earendil-works/pi-tui'
 import {
   Container,
-  fuzzyFilter,
   Input,
   Key,
-  matchesKey,
   Spacer,
   Text,
+  fuzzyFilter,
+  matchesKey,
 } from '@earendil-works/pi-tui'
 
 export interface CustomSelectItem {

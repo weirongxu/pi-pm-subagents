@@ -5,9 +5,9 @@ import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
 import {
   APPEND_SUFFIX,
+  type PromptDefinition,
   loadMarkdown,
   mergePromptDefinitions,
-  type PromptDefinition,
 } from '../utils/markdown.js'
 
 export async function readModePrompt(name: string): Promise<PromptDefinition> {

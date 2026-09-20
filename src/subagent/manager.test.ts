@@ -12,9 +12,9 @@ import { createState } from '../utils/state.js'
 import type { SubagentManagerOptions } from './manager.js'
 import { SubagentManager } from './manager.js'
 import {
-  formatSubagentSummary,
   type LiveSubagent,
   MAX_REUSE_STEERS,
+  formatSubagentSummary,
 } from './manager.js'
 
 const openMock = vi.hoisted(() => vi.fn())

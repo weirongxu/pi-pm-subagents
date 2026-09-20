@@ -71,7 +71,7 @@ pi install @raidou/pi-pm-subagents
 
 - **`/pm-subagent-model`** — 更改子代理模型
 - **`/pm-subagent-scoped`** — 管理子代理 scoped 模型
-  - `Alt+N` 在模型池中循环切换。池中可包含 `DEFAULT`（使用 pi 默认模型）标记。
+    - `Alt+N` 在模型池中循环切换。池中可包含 `DEFAULT`（使用 pi 默认模型）标记。
 
 ## 注意
 

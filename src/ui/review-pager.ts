@@ -1,22 +1,22 @@
 import {
   type ExtensionContext,
-  getMarkdownTheme,
   type Theme,
+  getMarkdownTheme,
 } from '@earendil-works/pi-coding-agent'
 import {
   type Focusable,
   Key,
   Markdown,
-  matchesKey,
   type TUI,
+  matchesKey,
 } from '@earendil-works/pi-tui'
 
 import { BorderView } from './border-view.js'
 import { renderFooterKeys } from './footer.js'
 import {
+  EDITOR_MAX_LINES,
   capEditorLines,
   createInlineEditor,
-  EDITOR_MAX_LINES,
 } from './inline-editor.js'
 import { ScrollView } from './scroll-view.js'
 
