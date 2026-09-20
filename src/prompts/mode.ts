@@ -1,14 +1,12 @@
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-import { getAgentDir } from '@earendil-works/pi-coding-agent'
-
 import {
   APPEND_SUFFIX,
   type PromptDefinition,
   loadMarkdown,
   mergePromptDefinitions,
 } from '../utils/markdown.js'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
 export async function readModePrompt(name: string): Promise<PromptDefinition> {
   const here = dirname(fileURLToPath(import.meta.url))

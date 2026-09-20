@@ -1,4 +1,3 @@
-import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type {
   AssistantMessage,
   TextContent,
@@ -8,8 +7,8 @@ import type {
   UserMessage,
 } from '@earendil-works/pi-ai'
 import { describe, expect, it } from 'vitest'
-
 import { lastMessageText, messageText } from './messages.js'
+import type { AgentMessage } from '@earendil-works/pi-agent-core'
 
 function user(text: string): UserMessage {
   return {

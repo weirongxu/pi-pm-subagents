@@ -1,11 +1,9 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-
 import { loadMarkdown, mergePromptDefinitions } from './markdown.js'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { composeTools } from './tools.js'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 describe('composeTools', () => {
   it('uses base tools when config has no tools', () => {

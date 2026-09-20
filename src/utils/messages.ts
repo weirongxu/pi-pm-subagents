@@ -1,4 +1,3 @@
-import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type {
   AssistantMessage,
   TextContent,
@@ -6,10 +5,10 @@ import type {
   ToolCall,
   ToolResultMessage,
 } from '@earendil-works/pi-ai'
+import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
-
-import { truncateToBytes } from './format.js'
 import { PLUGIN_KEY } from './state.ts'
+import { truncateToBytes } from './format.js'
 
 function isAssistantMessage(
   message: AgentMessage | undefined,

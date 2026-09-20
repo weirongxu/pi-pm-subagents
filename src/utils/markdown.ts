@@ -1,7 +1,7 @@
-import { parseFrontmatter } from '@earendil-works/pi-coding-agent'
+import { Parse } from 'typebox/value'
 import type { Static } from 'typebox'
 import { Type } from 'typebox'
-import { Parse } from 'typebox/value'
+import { parseFrontmatter } from '@earendil-works/pi-coding-agent'
 
 import { readOptional } from './fs.js'
 

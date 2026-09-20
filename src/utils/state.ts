@@ -3,10 +3,9 @@ import type {
   SessionEntry,
 } from '@earendil-works/pi-coding-agent'
 import { Parse } from 'typebox/value'
-
-import type { SubagentManager } from '../subagent/manager.js'
 import type { PmSubagentState } from '../types.js'
 import { PmSubagentStateSchema } from '../types.js'
+import type { SubagentManager } from '../subagent/manager.js'
 
 export const PLUGIN_KEY = 'pm-subagents'
 

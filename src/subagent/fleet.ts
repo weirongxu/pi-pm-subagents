@@ -1,20 +1,15 @@
 import type { ExtensionContext, Theme } from '@earendil-works/pi-coding-agent'
-import type { TUI } from '@earendil-works/pi-tui'
-import { Editor } from '@earendil-works/pi-tui'
 import {
   Key,
   isKeyRelease,
   matchesKey,
   visibleWidth,
 } from '@earendil-works/pi-tui'
-import { orderBy, sumBy } from 'lodash-es'
-
 import type {
   SubagentBaseRecord,
   SubagentRecord,
   SubagentStatus,
 } from '../types.js'
-import { countBy } from '../utils/collection.js'
 import {
   formatContextUsage,
   formatElapsed,
@@ -22,8 +17,12 @@ import {
   rightAlign,
   strInline,
 } from '../utils/format.js'
-import { truncateText } from '../utils/truncate.js'
+import { orderBy, sumBy } from 'lodash-es'
+import { Editor } from '@earendil-works/pi-tui'
 import { STEER_SYMBOL } from './consts.ts'
+import type { TUI } from '@earendil-works/pi-tui'
+import { countBy } from '../utils/collection.js'
+import { truncateText } from '../utils/truncate.js'
 
 const FLEET_KEY = 'pi-pm-subagents:fleet'
 const TICK_MS = 200

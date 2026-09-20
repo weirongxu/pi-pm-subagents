@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
-
+import { MODEL_DEFAULT } from './subagent-model-constants.js'
 import type { PmSubagentsConfig } from './models-config.js'
 import { sanitizeConfig } from './models-config.js'
-import { MODEL_DEFAULT } from './subagent-model-constants.js'
 
 describe('PmSubagentsConfig schema', () => {
   it('has subagentModelScope field', () => {

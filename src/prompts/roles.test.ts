@@ -1,11 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-
-import { BASH_READONLY_TOOL_NAME } from '../bash-readonly.js'
-import type { PromptDefinition } from '../utils/markdown.js'
 import {
   clearRoles,
   listRoles,
@@ -13,6 +6,11 @@ import {
   resolveRole,
   rolesDescription,
 } from './roles.js'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { BASH_READONLY_TOOL_NAME } from '../bash-readonly.js'
+import type { PromptDefinition } from '../utils/markdown.js'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 const MOCK_AGENT_DIR_VAR = 'PI_CODING_AGENT_DIR'
 

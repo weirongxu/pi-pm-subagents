@@ -1,10 +1,9 @@
-import { describe, expect, it } from 'vitest'
-
 import {
   SUBAGENT_SESSION_ID_PREFIX,
   isSubagentSpawnContext,
   runInSubagentSpawnContext,
 } from './identity.js'
+import { describe, expect, it } from 'vitest'
 
 describe('subagent spawn context', () => {
   it('is false outside of spawn windows', () => {

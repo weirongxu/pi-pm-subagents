@@ -2,9 +2,8 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-import { describe, expect, it, vi } from 'vitest'
-
 import { buildPlanRequestMessage, runPlanCommand } from './command.js'
+import { describe, expect, it, vi } from 'vitest'
 
 function fakePi(): ExtensionAPI & { sent: string[] } {
   const sent: string[] = []

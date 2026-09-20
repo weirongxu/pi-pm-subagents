@@ -2,9 +2,8 @@ import type {
   ExtensionAPI,
   ToolDefinition,
 } from '@earendil-works/pi-coding-agent'
-import type { TSchema } from 'typebox'
-
 import type { PromptFrontmatter } from './markdown.js'
+import type { TSchema } from 'typebox'
 
 export type ToolConfig = Pick<
   PromptFrontmatter,

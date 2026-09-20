@@ -1,10 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
-
 import {
   buildReviewOptions,
   nextRevisedTitle,
   resolveReviewName,
 } from './review-utils.js'
+import { describe, expect, it, vi } from 'vitest'
 
 describe('nextRevisedTitle', () => {
   it('appends "r1" when there is no suffix', () => {

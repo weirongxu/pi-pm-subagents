@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-
-import { MessageBatcher } from './batcher.js'
 import type { LiveSubagent } from './manager.js'
+import { MessageBatcher } from './batcher.js'
 
 const makeSubagent = (
   id: number,

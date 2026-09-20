@@ -2,14 +2,13 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-import { describe, expect, it, vi } from 'vitest'
-
-import { setRuntime } from '../coordinator/runtime.js'
-import type { PmSubagentState } from '../types.js'
-import { createState } from '../utils/state.js'
 import type { MessageBatcher, SubagentMessageType } from './batcher.js'
+import { describe, expect, it, vi } from 'vitest'
 import type { LiveSubagent } from './manager.js'
+import type { PmSubagentState } from '../types.js'
 import { buildSpawnOptions } from './spawn-options.js'
+import { createState } from '../utils/state.js'
+import { setRuntime } from '../coordinator/runtime.js'
 
 const askHowToProceedMock = vi.hoisted(() => vi.fn())
 

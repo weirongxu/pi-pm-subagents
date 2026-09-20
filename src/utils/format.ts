@@ -1,7 +1,6 @@
 import type { ContextUsage } from '@earendil-works/pi-coding-agent'
-import { visibleWidth } from '@earendil-works/pi-tui'
-
 import { truncateText } from './truncate.js'
+import { visibleWidth } from '@earendil-works/pi-tui'
 
 export function strInline(s: string): string {
   return s.split('\n').join('⮒ ')

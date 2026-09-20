@@ -1,8 +1,8 @@
 import type { ActivityReporter } from '../subagent/activity.js'
-import type { MessageBatcher } from '../subagent/batcher.js'
-import type { SubagentManagerDemo } from '../subagent/demo.js'
 import type { FleetList } from '../subagent/fleet.js'
+import type { MessageBatcher } from '../subagent/batcher.js'
 import type { SubagentManager } from '../subagent/manager.js'
+import type { SubagentManagerDemo } from '../subagent/demo.js'
 
 export interface CoordinatorRuntime {
   manager: SubagentManager

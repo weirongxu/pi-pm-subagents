@@ -1,8 +1,7 @@
-import type { Theme } from '@earendil-works/pi-coding-agent'
-import type { TUI } from '@earendil-works/pi-tui'
 import { describe, expect, it } from 'vitest'
-
 import { CustomSelectComponent } from './custom-select.js'
+import type { TUI } from '@earendil-works/pi-tui'
+import type { Theme } from '@earendil-works/pi-coding-agent'
 
 const DOWN = '\x1b[B'
 

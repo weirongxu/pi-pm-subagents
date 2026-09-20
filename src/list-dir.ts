@@ -1,13 +1,12 @@
-import { readdir } from 'node:fs/promises'
-import { resolve } from 'node:path'
-
 import type {
   AgentToolResult,
   ExtensionAPI,
 } from '@earendil-works/pi-coding-agent'
-import { defineTool } from '@earendil-works/pi-coding-agent'
-import { Text } from '@earendil-works/pi-tui'
 import { type Static, Type } from 'typebox'
+import { Text } from '@earendil-works/pi-tui'
+import { defineTool } from '@earendil-works/pi-coding-agent'
+import { readdir } from 'node:fs/promises'
+import { resolve } from 'node:path'
 
 export const LIST_DIR_TOOL_NAME = 'list_dir'
 

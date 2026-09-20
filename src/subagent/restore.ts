@@ -1,12 +1,11 @@
+import { EMPTY_ROLE, resolveRole } from '../prompts/roles.js'
 import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-
-import { requiredRuntime } from '../coordinator/runtime.js'
-import { EMPTY_ROLE, resolveRole } from '../prompts/roles.js'
 import type { PmSubagentState, SubagentRecord } from '../types.js'
 import { buildSpawnOptions } from './spawn-options.js'
+import { requiredRuntime } from '../coordinator/runtime.js'
 
 export async function restoreSubagents(
   pi: ExtensionAPI,

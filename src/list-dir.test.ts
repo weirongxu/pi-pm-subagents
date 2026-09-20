@@ -1,10 +1,8 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { describe, expect, it } from 'vitest'
-
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { formatDir } from './list-dir.js'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 describe('formatDir', () => {
   it('lists dirs first with "/" suffix, then files sorted', async () => {

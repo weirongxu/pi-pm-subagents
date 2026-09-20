@@ -1,11 +1,10 @@
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
-import { describe, expect, it } from 'vitest'
-
 import {
   BASH_READONLY_TOOL_NAME,
   checkBashSafety,
   isBashReadonlyCommand,
 } from './bash-readonly.js'
+import { describe, expect, it } from 'vitest'
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { calculateModeTools } from './pm-mode.js'
 import { createState } from './utils/state.js'
 

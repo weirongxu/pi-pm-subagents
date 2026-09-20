@@ -2,9 +2,8 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-
-import { buildReviewOptions } from '../subagent/review-utils.js'
 import { askHowToProceed } from '../ui/review-pager.js'
+import { buildReviewOptions } from '../subagent/review-utils.js'
 
 export function registerPlanDemoCommand(pi: ExtensionAPI): void {
   pi.registerCommand('plan-demo', {

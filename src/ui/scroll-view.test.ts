@@ -1,8 +1,7 @@
-import type { Theme } from '@earendil-works/pi-coding-agent'
-import type { TUI } from '@earendil-works/pi-tui'
 import { describe, expect, it } from 'vitest'
-
 import { ScrollView } from './scroll-view.js'
+import type { TUI } from '@earendil-works/pi-tui'
+import type { Theme } from '@earendil-works/pi-coding-agent'
 
 const UP = '\x1b[A'
 const DOWN = '\x1b[B'

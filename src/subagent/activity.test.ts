@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-
 import { ActivityReporter, MAX_ACTIVITY_BYTES } from './activity.js'
+import { describe, expect, it, vi } from 'vitest'
 import type { LiveSubagent } from './manager.js'
 
 const makeSubagent = (id: number, messages: unknown[]): LiveSubagent =>

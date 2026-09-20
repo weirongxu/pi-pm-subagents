@@ -1,4 +1,11 @@
 import type {
+  AgentSession,
+  AgentSessionEventListener,
+  ContextUsage,
+  ExtensionAPI,
+  PromptOptions,
+} from '@earendil-works/pi-coding-agent'
+import type {
   AssistantMessage,
   ImageContent,
   Message,
@@ -8,18 +15,10 @@ import type {
   Usage,
   UserMessage,
 } from '@earendil-works/pi-ai'
-import type {
-  AgentSession,
-  AgentSessionEventListener,
-  ContextUsage,
-  ExtensionAPI,
-  PromptOptions,
-} from '@earendil-works/pi-coding-agent'
-
-import type { PmSubagentState } from '../types.js'
-import { createState } from '../utils/state.js'
 import type { LiveSubagent, RestoreResult } from './manager.js'
+import type { PmSubagentState } from '../types.js'
 import { SubagentManager } from './manager.js'
+import { createState } from '../utils/state.js'
 
 type MockAgentSession = Pick<
   AgentSession,

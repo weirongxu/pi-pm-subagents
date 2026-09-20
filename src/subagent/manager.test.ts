@@ -1,21 +1,19 @@
 import type * as Fs from 'node:fs'
-
 import type * as PiCodingAgent from '@earendil-works/pi-coding-agent'
 import type {
   AgentSession,
   ContextUsage,
 } from '@earendil-works/pi-coding-agent'
-import { describe, expect, it, vi } from 'vitest'
-
-import type { PmSubagentState } from '../types.js'
-import { createState } from '../utils/state.js'
-import type { SubagentManagerOptions } from './manager.js'
-import { SubagentManager } from './manager.js'
 import {
   type LiveSubagent,
   MAX_REUSE_STEERS,
   formatSubagentSummary,
 } from './manager.js'
+import { describe, expect, it, vi } from 'vitest'
+import type { PmSubagentState } from '../types.js'
+import { SubagentManager } from './manager.js'
+import type { SubagentManagerOptions } from './manager.js'
+import { createState } from '../utils/state.js'
 
 const openMock = vi.hoisted(() => vi.fn())
 const createAgentSessionMock = vi.hoisted(() => vi.fn())

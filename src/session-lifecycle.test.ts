@@ -3,10 +3,9 @@ import type {
   ExtensionContext,
   SessionEntry,
 } from '@earendil-works/pi-coding-agent'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-import type { PmSubagentState } from './types.js'
 import { PLUGIN_KEY, createState } from './utils/state.js'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { PmSubagentState } from './types.js'
 
 const applyCoordinatorModeMock = vi.hoisted(() => vi.fn(async () => {}))
 

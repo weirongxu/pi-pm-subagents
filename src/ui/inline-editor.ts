@@ -1,5 +1,5 @@
-import type { Theme } from '@earendil-works/pi-coding-agent'
 import { Editor, type TUI } from '@earendil-works/pi-tui'
+import type { Theme } from '@earendil-works/pi-coding-agent'
 
 const CURSOR_SEQ = '\x1b[7m'
 

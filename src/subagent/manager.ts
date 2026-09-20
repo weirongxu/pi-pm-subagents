@@ -1,8 +1,3 @@
-import { mkdirSync } from 'node:fs'
-import { join } from 'node:path'
-
-import type { ThinkingLevel } from '@earendil-works/pi-agent-core'
-import type { Api, Model } from '@earendil-works/pi-ai'
 import {
   type AgentSession,
   DefaultResourceLoader,
@@ -10,15 +5,18 @@ import {
   createAgentSession,
   getAgentDir,
 } from '@earendil-works/pi-coding-agent'
-
+import type { Api, Model } from '@earendil-works/pi-ai'
 import type { PmSubagentState, SubagentRecord } from '../types.js'
-import { formatContextUsage, formatElapsed } from '../utils/format.js'
-import { lastMessageText } from '../utils/messages.js'
-import { STEER_SYMBOL } from './consts.ts'
 import {
   SUBAGENT_SESSION_ID_PREFIX,
   runInSubagentSpawnContext,
 } from './identity.js'
+import { formatContextUsage, formatElapsed } from '../utils/format.js'
+import { STEER_SYMBOL } from './consts.ts'
+import type { ThinkingLevel } from '@earendil-works/pi-agent-core'
+import { join } from 'node:path'
+import { lastMessageText } from '../utils/messages.js'
+import { mkdirSync } from 'node:fs'
 
 const subagentDirFor = (cwd: string, agentDir: string): string => {
   const safeCwd = cwd.replace(/^[/\\]/, '').replace(/[/\\:]/g, '-')

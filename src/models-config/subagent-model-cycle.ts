@@ -3,12 +3,11 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
 import { Key } from '@earendil-works/pi-tui'
-
-import { renderCoordinatorModeWidget } from '../coordinator/coordinator.js'
-import type { PmSubagentState } from '../types.js'
-import { getPmSubagentsConfig } from './models-config.js'
 import { MODEL_DEFAULT } from './subagent-model-constants.js'
+import type { PmSubagentState } from '../types.js'
 import { cycleSubagentModel } from './subagent-model-utils.js'
+import { getPmSubagentsConfig } from './models-config.js'
+import { renderCoordinatorModeWidget } from '../coordinator/coordinator.js'
 
 function cycleAndApply(
   ctx: ExtensionContext,

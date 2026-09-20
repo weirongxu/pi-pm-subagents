@@ -3,22 +3,21 @@ import {
   type ExtensionAPI,
   defineTool,
 } from '@earendil-works/pi-coding-agent'
-import { orderBy } from 'lodash-es'
-import { Type } from 'typebox'
-
-import { requiredRuntime } from '../coordinator/runtime.js'
-import { baseToolsOf } from '../pm-mode.js'
-import { listRoles, resolveRole, rolesDescription } from '../prompts/roles.js'
-import type { PmSubagentState } from '../types.js'
-import { registerOptionalTools } from '../utils/tools.js'
-import type { LiveSubagent } from './manager.js'
-import type { SubagentManager } from './manager.js'
 import {
   MAX_CONCURRENCY_SUBAGENT,
   MAX_REUSE_STEERS,
   formatSubagentSummary,
 } from './manager.js'
+import { listRoles, resolveRole, rolesDescription } from '../prompts/roles.js'
+import type { LiveSubagent } from './manager.js'
+import type { PmSubagentState } from '../types.js'
+import type { SubagentManager } from './manager.js'
+import { Type } from 'typebox'
+import { baseToolsOf } from '../pm-mode.js'
 import { buildSpawnOptions } from './spawn-options.js'
+import { orderBy } from 'lodash-es'
+import { registerOptionalTools } from '../utils/tools.js'
+import { requiredRuntime } from '../coordinator/runtime.js'
 
 function toolResultFromError(error: unknown): AgentToolResult<unknown> {
   const message = error instanceof Error ? error.message : String(error)

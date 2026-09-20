@@ -1,5 +1,5 @@
-import { escapeXml } from '../utils/xml.js'
 import { type LiveSubagent, formatSubagentSummary } from './manager.js'
+import { escapeXml } from '../utils/xml.js'
 
 const MESSAGE_TYPES = {
   activity: { tag: 'subagent-activity', queue: 'response' },

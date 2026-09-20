@@ -2,29 +2,28 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-
-import { getPmSubagentsConfig } from '../models-config/models-config.js'
-import { formatSubagentModelLabel } from '../models-config/subagent-model-utils.js'
-import { runPlanCommand } from '../plan/command.js'
-import { registerPlanDemoCommand } from '../plan/demo.js'
-import { applyModeFor, assertModeIdle, exitModeFor } from '../pm-mode.js'
-import { loadRoles } from '../prompts/roles.js'
-import { ActivityReporter } from '../subagent/activity.js'
-import { MessageBatcher } from '../subagent/batcher.js'
-import { registerSubagentDemoCommand } from '../subagent/demo.js'
-import { FleetList } from '../subagent/fleet.js'
-import { SubagentManager } from '../subagent/manager.js'
-import { restoreSubagents } from '../subagent/restore.js'
-import { SUBAGENT_TOOLS, registerSubagentTools } from '../subagent/tools.js'
-import { openSubagentViewer } from '../subagent/viewer.js'
-import type { PmSubagentState } from '../types.js'
 import {
   type PromptDefinition,
   mergePromptDefinitions,
 } from '../utils/markdown.js'
-import { notifyAgentMessage } from '../utils/messages.ts'
-import { persistSnapshot } from '../utils/state.js'
+import { SUBAGENT_TOOLS, registerSubagentTools } from '../subagent/tools.js'
+import { applyModeFor, assertModeIdle, exitModeFor } from '../pm-mode.js'
 import { requiredRuntime, setRuntime } from './runtime.js'
+import { ActivityReporter } from '../subagent/activity.js'
+import { FleetList } from '../subagent/fleet.js'
+import { MessageBatcher } from '../subagent/batcher.js'
+import type { PmSubagentState } from '../types.js'
+import { SubagentManager } from '../subagent/manager.js'
+import { formatSubagentModelLabel } from '../models-config/subagent-model-utils.js'
+import { getPmSubagentsConfig } from '../models-config/models-config.js'
+import { loadRoles } from '../prompts/roles.js'
+import { notifyAgentMessage } from '../utils/messages.ts'
+import { openSubagentViewer } from '../subagent/viewer.js'
+import { persistSnapshot } from '../utils/state.js'
+import { registerPlanDemoCommand } from '../plan/demo.js'
+import { registerSubagentDemoCommand } from '../subagent/demo.js'
+import { restoreSubagents } from '../subagent/restore.js'
+import { runPlanCommand } from '../plan/command.js'
 
 const COORDINATOR_MODE_WIDGET_KEY = 'pi-pm-subagents:coordinator-mode'
 

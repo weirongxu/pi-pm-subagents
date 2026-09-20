@@ -2,10 +2,9 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-
 import type { PmMode } from '../types.js'
-import { notifyAgentMessage } from '../utils/messages.js'
 import { escapeXml } from '../utils/xml.js'
+import { notifyAgentMessage } from '../utils/messages.js'
 
 export function buildPlanRequestMessage(prompt: string): string {
   return [

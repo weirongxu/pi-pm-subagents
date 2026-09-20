@@ -1,8 +1,7 @@
 import type { Api, Model } from '@earendil-works/pi-ai'
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
-
-import { resolveModelRef } from '../utils/model-ref.js'
 import { MODEL_DEFAULT } from './subagent-model-constants.js'
+import { resolveModelRef } from '../utils/model-ref.js'
 
 export interface CycleResult {
   readonly ref: string

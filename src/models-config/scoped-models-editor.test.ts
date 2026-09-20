@@ -1,8 +1,7 @@
-import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
 import type * as PiTuiModule from '@earendil-works/pi-tui'
 import { Key, matchesKey } from '@earendil-works/pi-tui'
 import { describe, expect, it, vi } from 'vitest'
-
+import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
 import { scopedModelsEditor } from './scoped-models-editor.js'
 
 vi.mock('@earendil-works/pi-tui', async (importOriginal) => {

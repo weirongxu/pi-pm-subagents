@@ -1,14 +1,13 @@
-import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
-import type { Theme } from '@earendil-works/pi-coding-agent'
-import type { TUI } from '@earendil-works/pi-tui'
-import { describe, expect, it, vi } from 'vitest'
-
 import {
   type ReviewPagerOptions,
   type ReviewPagerResult,
   askHowToProceed,
   createReviewPagerComponent,
 } from './review-pager.js'
+import { describe, expect, it, vi } from 'vitest'
+import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
+import type { TUI } from '@earendil-works/pi-tui'
+import type { Theme } from '@earendil-works/pi-coding-agent'
 
 vi.mock('@earendil-works/pi-coding-agent', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),

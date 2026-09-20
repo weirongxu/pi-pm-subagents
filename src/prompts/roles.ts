@@ -1,16 +1,14 @@
-import { readdir } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-import { CONFIG_DIR_NAME, getAgentDir } from '@earendil-works/pi-coding-agent'
-
 import {
   APPEND_SUFFIX,
   type PromptDefinition,
   loadMarkdown,
   mergePromptDefinitions,
 } from '../utils/markdown.js'
+import { CONFIG_DIR_NAME, getAgentDir } from '@earendil-works/pi-coding-agent'
+import { dirname, join } from 'node:path'
 import { composeTools } from '../utils/tools.js'
+import { fileURLToPath } from 'node:url'
+import { readdir } from 'node:fs/promises'
 
 const DEFAULT_ROLE = 'worker'
 

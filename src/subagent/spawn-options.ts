@@ -2,20 +2,19 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-
-import { requiredRuntime } from '../coordinator/runtime.js'
-import { resolveSubagentModelForSpawn } from '../models-config/subagent-model-utils.js'
-import { baseToolsOf } from '../pm-mode.js'
-import type { PmSubagentState } from '../types.js'
-import { askHowToProceed } from '../ui/review-pager.js'
 import type { PromptDefinition, ReviewOnEnd } from '../utils/markdown.js'
-import { composeTools } from '../utils/tools.js'
-import type { SpawnOptions } from './manager.js'
 import {
   buildReviewOptions,
   nextRevisedTitle,
   resolveReviewName,
 } from './review-utils.js'
+import type { PmSubagentState } from '../types.js'
+import type { SpawnOptions } from './manager.js'
+import { askHowToProceed } from '../ui/review-pager.js'
+import { baseToolsOf } from '../pm-mode.js'
+import { composeTools } from '../utils/tools.js'
+import { requiredRuntime } from '../coordinator/runtime.js'
+import { resolveSubagentModelForSpawn } from '../models-config/subagent-model-utils.js'
 
 export function buildSpawnOptions(
   pi: ExtensionAPI,

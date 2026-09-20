@@ -1,18 +1,17 @@
-import type { UserMessage } from '@earendil-works/pi-ai'
 import type {
   ExtensionAPI,
   SessionEntry,
 } from '@earendil-works/pi-coding-agent'
-import { describe, expect, it, vi } from 'vitest'
-
 import { type LiveSubagent, SubagentManager } from '../subagent/manager.js'
-import type { SubagentRecord } from '../types.js'
 import {
   createState,
   getLastPmSubagentState,
   persist,
   persistSnapshot,
 } from './state.js'
+import { describe, expect, it, vi } from 'vitest'
+import type { SubagentRecord } from '../types.js'
+import type { UserMessage } from '@earendil-works/pi-ai'
 
 function customEntry(data: unknown): SessionEntry {
   return {

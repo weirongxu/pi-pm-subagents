@@ -1,9 +1,3 @@
-import type { UserMessage } from '@earendil-works/pi-ai'
-import type {
-  ExtensionContext,
-  Theme,
-  ThemeColor,
-} from '@earendil-works/pi-coding-agent'
 import type {
   Component,
   Editor,
@@ -11,25 +5,30 @@ import type {
   TUI,
 } from '@earendil-works/pi-tui'
 import {
+  EDITOR_MAX_LINES,
+  capEditorLines,
+  createInlineEditor,
+} from '../ui/inline-editor.js'
+import type {
+  ExtensionContext,
+  Theme,
+  ThemeColor,
+} from '@earendil-works/pi-coding-agent'
+import {
   Key,
   isKeyRelease,
   matchesKey,
   visibleWidth,
   wrapTextWithAnsi,
 } from '@earendil-works/pi-tui'
-
-import type { SubagentStatus } from '../types.js'
-import { BorderView } from '../ui/border-view.js'
-import { renderFooterKeys } from '../ui/footer.js'
-import {
-  EDITOR_MAX_LINES,
-  capEditorLines,
-  createInlineEditor,
-} from '../ui/inline-editor.js'
-import { ScrollView } from '../ui/scroll-view.js'
-import { rightAlign, strInline } from '../utils/format.js'
-import { truncateText } from '../utils/truncate.js'
 import type { LiveSubagent, SubagentManager } from './manager.js'
+import { rightAlign, strInline } from '../utils/format.js'
+import { BorderView } from '../ui/border-view.js'
+import { ScrollView } from '../ui/scroll-view.js'
+import type { SubagentStatus } from '../types.js'
+import type { UserMessage } from '@earendil-works/pi-ai'
+import { renderFooterKeys } from '../ui/footer.js'
+import { truncateText } from '../utils/truncate.js'
 
 const STATUS_COLOR = {
   running: 'accent',

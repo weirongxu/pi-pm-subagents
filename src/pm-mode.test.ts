@@ -1,8 +1,4 @@
 import type { Api, Model } from '@earendil-works/pi-ai'
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-import { BASH_READONLY_TOOL_NAME } from './bash-readonly.js'
 import {
   type ToolConfig,
   WRITE_TOOLS,
@@ -10,6 +6,9 @@ import {
   calculateModeTools,
 } from './pm-mode.js'
 import { baseToolsOf, restoreTools } from './pm-mode.js'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { BASH_READONLY_TOOL_NAME } from './bash-readonly.js'
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import type { PmSubagentState } from './types.js'
 import { createState } from './utils/state.js'
 

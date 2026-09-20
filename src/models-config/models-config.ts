@@ -1,32 +1,30 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
-
 import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-import { getAgentDir } from '@earendil-works/pi-coding-agent'
-import type { Static } from 'typebox'
-import { Type } from 'typebox'
-import { Parse } from 'typebox/value'
-
+import {
+  MODEL_DEFAULT,
+  MODEL_DEFAULT_LABEL,
+} from './subagent-model-constants.js'
+import { dirname, join } from 'node:path'
 import {
   enterCoordinatorMode,
   renderCoordinatorModeWidget,
 } from '../coordinator/coordinator.js'
-import { customSelect } from '../custom-select.js'
-import type { PmSubagentState } from '../types.js'
-import type { PromptDefinition } from '../utils/markdown.js'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import {
   modelOptionOf,
   parseModelRef,
   resolveModelRef,
 } from '../utils/model-ref.js'
+import { Parse } from 'typebox/value'
+import type { PmSubagentState } from '../types.js'
+import type { PromptDefinition } from '../utils/markdown.js'
+import type { Static } from 'typebox'
+import { Type } from 'typebox'
+import { customSelect } from '../custom-select.js'
+import { getAgentDir } from '@earendil-works/pi-coding-agent'
 import { scopedModelsEditor } from './scoped-models-editor.js'
-import {
-  MODEL_DEFAULT,
-  MODEL_DEFAULT_LABEL,
-} from './subagent-model-constants.js'
 
 const PmSubagentsConfigSchema = Type.Object({
   subagentModel: Type.Optional(Type.String()),

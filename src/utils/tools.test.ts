@@ -1,6 +1,6 @@
+import { composeTools, removeToolNames } from './tools.js'
 import { describe, expect, it } from 'vitest'
 
-import { composeTools, removeToolNames } from './tools.js'
 describe('removeToolNames', () => {
   it('removes tools present in the removed set', () => {
     expect(

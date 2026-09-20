@@ -1,17 +1,16 @@
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
-
-import { setupBashReadonlyTool } from './bash-readonly.js'
-import { setupCoordinator } from './coordinator/coordinator.js'
-import { setupListDirTool } from './list-dir.js'
 import {
   loadPmSubagentsConfig,
   setupPmSubagentsConfig,
 } from './models-config/models-config.js'
-import { setupSubagentModelCycle } from './models-config/subagent-model-cycle.js'
-import { readModePrompt } from './prompts/mode.js'
-import { setupSessionLifecycle } from './session-lifecycle.js'
-import { isSubagentSpawnContext } from './subagent/identity.js'
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { createState } from './utils/state.js'
+import { isSubagentSpawnContext } from './subagent/identity.js'
+import { readModePrompt } from './prompts/mode.js'
+import { setupBashReadonlyTool } from './bash-readonly.js'
+import { setupCoordinator } from './coordinator/coordinator.js'
+import { setupListDirTool } from './list-dir.js'
+import { setupSessionLifecycle } from './session-lifecycle.js'
+import { setupSubagentModelCycle } from './models-config/subagent-model-cycle.js'
 
 export default async function pmSubagentsExtension(
   pi: ExtensionAPI,

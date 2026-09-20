@@ -1,11 +1,10 @@
-import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
-import type { TUI } from '@earendil-works/pi-tui'
-import { Editor } from '@earendil-works/pi-tui'
-import { describe, expect, it } from 'vitest'
-
-import type { SubagentRecord } from '../types.js'
-import { formatElapsed } from '../utils/format.js'
 import { FleetList, type FleetListOptions } from './fleet.js'
+import { describe, expect, it } from 'vitest'
+import { Editor } from '@earendil-works/pi-tui'
+import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
+import type { SubagentRecord } from '../types.js'
+import type { TUI } from '@earendil-works/pi-tui'
+import { formatElapsed } from '../utils/format.js'
 
 // Old FleetEntry shape: a record without prompt/activeTools (cast where needed)
 type FleetEntry = Omit<

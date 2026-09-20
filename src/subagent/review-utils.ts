@@ -1,5 +1,5 @@
-import type { ReviewPagerOptions } from '../ui/review-pager.js'
 import type { ReviewOnEnd } from '../utils/markdown.js'
+import type { ReviewPagerOptions } from '../ui/review-pager.js'
 
 /** Deliverable name reviewed at end of a subagent run. */
 export function resolveReviewName(

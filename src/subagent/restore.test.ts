@@ -4,12 +4,11 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-
-import { setRuntime } from '../coordinator/runtime.js'
+import { SubagentManager } from './manager.js'
 import type { SubagentRecord } from '../types.js'
 import { createState } from '../utils/state.js'
-import { SubagentManager } from './manager.js'
 import { restoreSubagents } from './restore.js'
+import { setRuntime } from '../coordinator/runtime.js'
 
 const openMock = vi.hoisted(() => vi.fn(() => ({})))
 

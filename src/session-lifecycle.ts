@@ -1,14 +1,13 @@
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
-
 import {
   applyCoordinatorMode,
   enterCoordinatorMode,
 } from './coordinator/coordinator.js'
+import { getLastPmSubagentState, persistSnapshot } from './utils/state.js'
 import { optionalRuntime, setRuntime } from './coordinator/runtime.js'
-import { getPmSubagentsConfig } from './models-config/models-config.js'
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import type { PmSubagentState } from './types.js'
 import type { PromptDefinition } from './utils/markdown.js'
-import { getLastPmSubagentState, persistSnapshot } from './utils/state.js'
+import { getPmSubagentsConfig } from './models-config/models-config.js'
 
 export function setupSessionLifecycle(
   pi: ExtensionAPI,

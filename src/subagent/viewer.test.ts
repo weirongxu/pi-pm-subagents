@@ -1,15 +1,14 @@
-import type { AgentSession } from '@earendil-works/pi-coding-agent'
-import type { Theme } from '@earendil-works/pi-coding-agent'
-import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
-import type { TUI } from '@earendil-works/pi-tui'
-import { describe, expect, it, vi } from 'vitest'
-
 import type { LiveSubagent, SubagentManager } from './manager.js'
 import {
   SubagentViewer,
   type SubagentViewerOptions,
   openSubagentViewer,
 } from './viewer.js'
+import { describe, expect, it, vi } from 'vitest'
+import type { AgentSession } from '@earendil-works/pi-coding-agent'
+import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
+import type { TUI } from '@earendil-works/pi-tui'
+import type { Theme } from '@earendil-works/pi-coding-agent'
 
 const ENTER = '\r'
 const ESC = '\x1b'

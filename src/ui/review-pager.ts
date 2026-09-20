@@ -1,4 +1,9 @@
 import {
+  EDITOR_MAX_LINES,
+  capEditorLines,
+  createInlineEditor,
+} from './inline-editor.js'
+import {
   type ExtensionContext,
   type Theme,
   getMarkdownTheme,
@@ -10,15 +15,9 @@ import {
   type TUI,
   matchesKey,
 } from '@earendil-works/pi-tui'
-
 import { BorderView } from './border-view.js'
-import { renderFooterKeys } from './footer.js'
-import {
-  EDITOR_MAX_LINES,
-  capEditorLines,
-  createInlineEditor,
-} from './inline-editor.js'
 import { ScrollView } from './scroll-view.js'
+import { renderFooterKeys } from './footer.js'
 
 const VIEWPORT_HEIGHT_PCT = 80
 const OVERLAY_WIDTH_PCT = '90%'

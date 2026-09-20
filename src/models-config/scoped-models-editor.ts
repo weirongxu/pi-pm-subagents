@@ -1,10 +1,3 @@
-import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
-import {
-  DynamicBorder,
-  type Theme,
-  keyText,
-} from '@earendil-works/pi-coding-agent'
-import type { Focusable, TUI } from '@earendil-works/pi-tui'
 import {
   Container,
   Input,
@@ -15,6 +8,13 @@ import {
   getKeybindings,
   matchesKey,
 } from '@earendil-works/pi-tui'
+import {
+  DynamicBorder,
+  type Theme,
+  keyText,
+} from '@earendil-works/pi-coding-agent'
+import type { Focusable, TUI } from '@earendil-works/pi-tui'
+import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
 
 export interface ScopedModelsItem {
   readonly key: string

@@ -1,14 +1,13 @@
+import type * as ManagerModule from '../subagent/manager.js'
+import type * as PmModeModule from '../pm-mode.js'
 import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-import { describe, expect, it, vi } from 'vitest'
-
-import type * as PmModeModule from '../pm-mode.js'
-import type * as ManagerModule from '../subagent/manager.js'
 import type { LiveSubagent, SubagentManager } from '../subagent/manager.js'
-import type { PmSubagentState, SubagentRecord } from '../types.js'
 import { PLUGIN_KEY, createState } from '../utils/state.js'
+import type { PmSubagentState, SubagentRecord } from '../types.js'
+import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../models-config/models-config.js', () => ({
   getPmSubagentsConfig: () => ({}),

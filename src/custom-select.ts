@@ -1,6 +1,3 @@
-import type { ExtensionContext, Theme } from '@earendil-works/pi-coding-agent'
-import { DynamicBorder } from '@earendil-works/pi-coding-agent'
-import type { Focusable, TUI } from '@earendil-works/pi-tui'
 import {
   Container,
   Input,
@@ -10,6 +7,9 @@ import {
   fuzzyFilter,
   matchesKey,
 } from '@earendil-works/pi-tui'
+import type { ExtensionContext, Theme } from '@earendil-works/pi-coding-agent'
+import type { Focusable, TUI } from '@earendil-works/pi-tui'
+import { DynamicBorder } from '@earendil-works/pi-coding-agent'
 
 export interface CustomSelectItem {
   readonly key: string

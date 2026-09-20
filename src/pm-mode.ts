@@ -3,13 +3,12 @@ import type {
   ExtensionContext,
   ThemeColor,
 } from '@earendil-works/pi-coding-agent'
-
-import { BASH_READONLY_TOOL_NAME } from './bash-readonly.js'
 import type { PmMode, PmSubagentState } from './types.js'
-import type { PromptDefinition } from './utils/markdown.js'
-import { modelRefOf, resolveModelRef } from './utils/model-ref.js'
-import { persist } from './utils/state.js'
 import { type ToolConfig, composeTools } from './utils/tools.js'
+import { modelRefOf, resolveModelRef } from './utils/model-ref.js'
+import { BASH_READONLY_TOOL_NAME } from './bash-readonly.js'
+import type { PromptDefinition } from './utils/markdown.js'
+import { persist } from './utils/state.js'
 
 export type { ToolConfig } from './utils/tools.js'
 

@@ -1,13 +1,12 @@
 import type { Api, Model } from '@earendil-works/pi-ai'
-import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
-import { describe, expect, it } from 'vitest'
-
-import { MODEL_DEFAULT } from './subagent-model-constants.js'
 import {
   cycleSubagentModel,
   formatSubagentModelLabel,
   resolveSubagentModelForSpawn,
 } from './subagent-model-utils.js'
+import { describe, expect, it } from 'vitest'
+import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
+import { MODEL_DEFAULT } from './subagent-model-constants.js'
 
 describe('cycleSubagentModel', () => {
   describe('empty scope', () => {
