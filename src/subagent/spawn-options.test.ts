@@ -4,11 +4,14 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import type { MessageBatcher, SubagentMessageType } from './batcher.js'
 import { describe, expect, it, vi } from 'vitest'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import type { LiveSubagent } from './manager.js'
 import type { PmSubagentState } from '../types.js'
 import { buildSpawnOptions } from './spawn-options.js'
 import { createState } from '../utils/state.js'
+import { join } from 'node:path'
 import { setRuntime } from '../coordinator/runtime.js'
+import { tmpdir } from 'node:os'
 
 const askHowToProceedMock = vi.hoisted(() => vi.fn())
 
@@ -82,7 +85,11 @@ function makeArgs(state: PmSubagentState) {
   return {
     pi: makePi(),
     state,
-    ctx: { cwd: '/tmp/proj', hasUI: true } as unknown as ExtensionContext,
+    ctx: {
+      cwd: '/tmp/proj',
+      hasUI: true,
+      ui: { notify: vi.fn() },
+    } as unknown as ExtensionContext,
   }
 }
 
@@ -126,5 +133,36 @@ describe('buildSpawnOptions revise flow', () => {
     await options.onComplete?.(makeSubagent(), 'the plan')
 
     expect(batcherItems).toEqual(['the plan'])
+  })
+
+  it('save action writes the review file', async () => {
+    setup()
+    const state: PmSubagentState = { ...createState(), mode: 'coordinator' }
+    const { pi, ctx } = makeArgs(state)
+    const dir = await mkdtemp(join(tmpdir(), 'spawn-save-'))
+    ctx.cwd = dir
+
+    const options = buildSpawnOptions(pi, state, ctx, makeRole(), 'planner')
+
+    askHowToProceedMock.mockImplementation(async (_ctx, pagerOptions) => {
+      const save = pagerOptions.choices.find(
+        (choice: { id: string }) => choice.id === 'save',
+      )
+      await save?.action()
+    })
+    await options.onComplete?.(makeSubagent(), 'the plan')
+
+    expect(await readFile(join(dir, '.pi', 'plan', 'review.md'), 'utf8')).toBe(
+      'the plan\n',
+    )
+    const notify = (
+      ctx as unknown as { ui: { notify: ReturnType<typeof vi.fn> } }
+    ).ui.notify
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining(join(dir, '.pi', 'plan', 'review.md')),
+      'info',
+    )
+
+    await rm(dir, { recursive: true, force: true })
   })
 })

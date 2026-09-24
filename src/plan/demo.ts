@@ -21,6 +21,9 @@ export function registerPlanDemoCommand(pi: ExtensionAPI): void {
           revise: async (updatePrompt: string) => {
             ctx.ui.notify(`Demo: steer with: ${updatePrompt}`, 'info')
           },
+          save: async () => {
+            ctx.ui.notify('Demo: saved to .pi/plan/plan.md', 'info')
+          },
         }),
       )
     },

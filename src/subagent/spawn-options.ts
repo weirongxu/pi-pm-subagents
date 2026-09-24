@@ -7,6 +7,7 @@ import {
   buildReviewOptions,
   nextRevisedTitle,
   resolveReviewName,
+  saveReviewFile,
 } from './review-utils.js'
 import type { PmSubagentState } from '../types.js'
 import type { SpawnOptions } from './manager.js'
@@ -72,6 +73,21 @@ export function buildSpawnOptions(
               title: nextRevisedTitle(subagent.record.title),
             })
             batcher.add(subagent, 'steer', fullPrompt)
+          },
+          save: async () => {
+            try {
+              const path = await saveReviewFile(
+                ctx.cwd,
+                reviewName,
+                lastMessage,
+              )
+              ctx.ui.notify(`Saved to ${path}`, 'info')
+            } catch (error) {
+              ctx.ui.notify(
+                error instanceof Error ? error.message : String(error),
+                'error',
+              )
+            }
           },
         }),
       )

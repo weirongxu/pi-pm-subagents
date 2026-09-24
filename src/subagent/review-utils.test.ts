@@ -2,8 +2,12 @@ import {
   buildReviewOptions,
   nextRevisedTitle,
   resolveReviewName,
+  saveReviewFile,
 } from './review-utils.js'
 import { describe, expect, it, vi } from 'vitest'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 describe('nextRevisedTitle', () => {
   it('appends "r1" when there is no suffix', () => {
@@ -46,18 +50,21 @@ describe('buildReviewOptions', () => {
       name: 'plan',
       send: vi.fn(),
       revise: vi.fn(async () => {}),
+      save: vi.fn(async () => {}),
     })
     expect(options.title).toBe('📋 Plan Review')
     expect(options.plan).toBe('content')
     expect(options.choices.map((c) => c.id)).toEqual([
       'send',
       'revise',
+      'save',
       'discard',
     ])
     expect(options.choices[0]?.label).toBe('Send plan to coordinator')
     expect(options.choices[1]?.label).toBe('Update the plan')
     expect(options.choices[1]?.inlineEditor).toBe(true)
-    expect(options.choices[2]?.label).toBe('Discard')
+    expect(options.choices[2]?.label).toBe('Save to file')
+    expect(options.choices[3]?.label).toBe('Discard')
   })
 
   it('derives title and labels for a custom deliverable name', () => {
@@ -66,6 +73,7 @@ describe('buildReviewOptions', () => {
       name: 'research',
       send: vi.fn(),
       revise: vi.fn(async () => {}),
+      save: vi.fn(async () => {}),
     })
     expect(options.title).toBe('📋 Research Review')
     expect(options.choices[0]?.label).toBe('Send research to coordinator')
@@ -79,6 +87,7 @@ describe('buildReviewOptions', () => {
       name: 'research',
       send,
       revise: vi.fn(async () => {}),
+      save: vi.fn(async () => {}),
     })
 
     await options.choices[0]?.action?.()
@@ -93,6 +102,7 @@ describe('buildReviewOptions', () => {
       name: 'plan',
       send: vi.fn(),
       revise,
+      save: vi.fn(async () => {}),
     })
 
     await options.choices[1]?.action?.('  fix it  ')
@@ -107,10 +117,55 @@ describe('buildReviewOptions', () => {
       name: 'plan',
       send: vi.fn(),
       revise,
+      save: vi.fn(async () => {}),
     })
 
     await options.choices[1]?.action?.('   ')
 
     expect(revise).not.toHaveBeenCalled()
+  })
+
+  it('save action delegates to callback', async () => {
+    const save = vi.fn(async () => {})
+    const options = buildReviewOptions({
+      content: 'content',
+      name: 'plan',
+      send: vi.fn(),
+      revise: vi.fn(async () => {}),
+      save,
+    })
+
+    await options.choices[2]?.action?.()
+
+    expect(save).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('saveReviewFile', () => {
+  it('writes content with a trailing newline', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'save-review-'))
+    try {
+      const path = await saveReviewFile(dir, 'plan', 'hello')
+      expect(path).toBe(join(dir, '.pi', 'plan', 'plan.md'))
+      expect(await readFile(path, 'utf8')).toBe('hello\n')
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('appends the revise suffix on conflict instead of overwriting', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'save-review-'))
+    try {
+      const first = await saveReviewFile(dir, 'plan', 'first')
+      const second = await saveReviewFile(dir, 'plan', 'second')
+      const third = await saveReviewFile(dir, 'plan', 'third')
+      expect(second).toBe(join(dir, '.pi', 'plan', 'plan (r1).md'))
+      expect(third).toBe(join(dir, '.pi', 'plan', 'plan (r2).md'))
+      expect(await readFile(first, 'utf8')).toBe('first\n')
+      expect(await readFile(second, 'utf8')).toBe('second\n')
+      expect(await readFile(third, 'utf8')).toBe('third\n')
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 })

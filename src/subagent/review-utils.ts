@@ -1,5 +1,8 @@
+import { mkdir, writeFile } from 'node:fs/promises'
 import type { ReviewOnEnd } from '../utils/markdown.js'
 import type { ReviewPagerOptions } from '../ui/review-pager.js'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 /** Deliverable name reviewed at end of a subagent run. */
 export function resolveReviewName(
@@ -19,11 +22,13 @@ export function buildReviewOptions({
   name,
   send,
   revise,
+  save,
 }: {
   content: string
   name: string
   send: (message: string) => void
   revise: (updatePrompt: string) => Promise<void>
+  save: () => Promise<void>
 }): ReviewPagerOptions {
   return {
     title: reviewTitle(name),
@@ -47,12 +52,33 @@ export function buildReviewOptions({
         },
       },
       {
+        id: 'save',
+        label: 'Save to file',
+        action: save,
+      },
+      {
         id: 'discard',
         label: 'Discard',
         action: () => {},
       },
     ],
   }
+}
+
+export async function saveReviewFile(
+  cwd: string,
+  name: string,
+  content: string,
+): Promise<string> {
+  const dir = join(cwd, '.pi', 'plan')
+  await mkdir(dir, { recursive: true })
+  let stem = name
+  while (existsSync(join(dir, `${stem}.md`))) {
+    stem = nextRevisedTitle(stem)
+  }
+  const path = join(dir, `${stem}.md`)
+  await writeFile(path, `${content.trimEnd()}\n`, 'utf8')
+  return path
 }
 
 const REVISED_SUFFIX = / \(r(\d+)\)$/
