@@ -467,7 +467,7 @@ function mockSessionFor(key: string, repeat: number = 1): AgentSession {
           timestamp: msg.timestamp,
         }
         messages.push(cloned)
-      } else {
+      } else if (msg.role === 'toolResult') {
         const cloned: ToolResultMessage = {
           role: 'toolResult',
           toolCallId: r > 1 ? `${msg.toolCallId}_r${r}` : msg.toolCallId,

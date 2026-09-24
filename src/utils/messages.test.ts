@@ -1,5 +1,6 @@
 import type {
   AssistantMessage,
+  JsonValue,
   TextContent,
   ThinkingContent,
   ToolCall,
@@ -21,7 +22,7 @@ function user(text: string): UserMessage {
 function assistant(opts: {
   text?: string
   toolCall?: string
-  toolCallArgs?: Record<string, unknown>
+  toolCallArgs?: Record<string, JsonValue>
   toolCallId?: string
 }): AssistantMessage {
   const content: (TextContent | ThinkingContent | ToolCall)[] = []

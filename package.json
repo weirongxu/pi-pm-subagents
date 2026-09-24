@@ -38,10 +38,10 @@
     "shell-quote": "^1.8.3"
   },
   "devDependencies": {
-    "@earendil-works/pi-agent-core": "0.85.1",
-    "@earendil-works/pi-ai": "0.85.1",
-    "@earendil-works/pi-coding-agent": "0.85.1",
-    "@earendil-works/pi-tui": "0.85.1",
+    "@earendil-works/pi-agent-core": "0.87.1",
+    "@earendil-works/pi-ai": "0.87.1",
+    "@earendil-works/pi-coding-agent": "0.87.1",
+    "@earendil-works/pi-tui": "0.87.1",
     "@raidou/oxlint-config-base": "^0.0.2",
     "@types/lodash-es": "^4.17.12",
     "@types/node": "26.1.2",
@@ -52,10 +52,10 @@
     "vitest": "4.1.10"
   },
   "peerDependencies": {
-    "@earendil-works/pi-agent-core": ">=0.85.0",
-    "@earendil-works/pi-ai": ">=0.85.0",
-    "@earendil-works/pi-coding-agent": ">=0.85.0",
-    "@earendil-works/pi-tui": ">=0.85.0",
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
     "typebox": ">=1.1.38"
   },
   "pi": {
