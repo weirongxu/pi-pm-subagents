@@ -20,7 +20,7 @@ export class BorderView implements Component {
     this.#theme = theme
   }
 
-  render(width: number): string[] {
+  render = (width: number): string[] => {
     if (width < 4) return this.#child.render(width)
 
     const contentWidth = Math.max(1, width - 2)

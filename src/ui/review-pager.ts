@@ -18,6 +18,7 @@ import {
 import { BorderView } from './border-view.js'
 import { ScrollView } from './scroll-view.js'
 import { renderFooterKeys } from './footer.js'
+import { truncateText } from '../utils/truncate.js'
 
 const VIEWPORT_HEIGHT_PCT = 80
 const OVERLAY_WIDTH_PCT = '90%'
@@ -79,12 +80,13 @@ export function createReviewPagerComponent(
     if (inlineChoice) done({ choiceId: inlineChoice.id, updatePrompt: text })
   }
 
-  function renderChoices(): string[] {
-    return choices.map((choice, index) =>
-      index === selected
-        ? theme.fg('accent', `→ ${choice.label}`)
-        : `  ${choice.label}`,
-    )
+  function renderChoices(width: number): string[] {
+    return choices.map((choice, index) => {
+      const label = truncateText(choice.label, width - 2)
+      return index === selected
+        ? theme.fg('accent', `→ ${label}`)
+        : `  ${label}`
+    })
   }
 
   function render(width: number): string[] {
@@ -118,11 +120,11 @@ export function createReviewPagerComponent(
       ? []
       : [
           theme.fg('muted', '─'.repeat(width)),
-          ...renderChoices(),
+          ...renderChoices(width),
           theme.fg('muted', '─'.repeat(width)),
         ]
     return [
-      theme.fg('accent', theme.bold(title)),
+      theme.fg('accent', theme.bold(truncateText(title, width))),
       ...scroll.render(width),
       ...choiceSection,
       ...editorSection,
