@@ -152,16 +152,75 @@ describe('buildSpawnOptions revise flow', () => {
     })
     await options.onComplete?.(makeSubagent(), 'the plan')
 
-    expect(await readFile(join(dir, '.pi', 'plan', 'review.md'), 'utf8')).toBe(
-      'the plan\n',
-    )
+    expect(
+      await readFile(join(dir, '.pi', 'plan', 'Plan the thing.md'), 'utf8'),
+    ).toBe('the plan\n')
     const notify = (
       ctx as unknown as { ui: { notify: ReturnType<typeof vi.fn> } }
     ).ui.notify
     expect(notify).toHaveBeenCalledWith(
-      expect.stringContaining(join(dir, '.pi', 'plan', 'review.md')),
+      expect.stringContaining(join(dir, '.pi', 'plan', 'Plan the thing.md')),
       'info',
     )
+
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  it('uses reviewOnEnd for UI copy and subagent title for the saved file name', async () => {
+    setup()
+    const state: PmSubagentState = { ...createState(), mode: 'coordinator' }
+    const { pi, ctx } = makeArgs(state)
+    const dir = await mkdtemp(join(tmpdir(), 'spawn-save-'))
+    ctx.cwd = dir
+
+    const options = buildSpawnOptions(pi, state, ctx, makeRole(), 'planner')
+
+    let pagerOptions:
+      | {
+          title?: string
+          choices?: Array<{ id: string; label: string }>
+        }
+      | undefined
+    askHowToProceedMock.mockImplementation(async (_ctx, opts) => {
+      pagerOptions = opts
+      const save = opts.choices.find(
+        (choice: { id: string }) => choice.id === 'save',
+      )
+      await save?.action()
+    })
+    await options.onComplete?.(makeSubagent(), 'the plan')
+
+    expect(pagerOptions?.title).toBe('📋 Review Review')
+    expect(pagerOptions?.choices?.[0]?.label).toBe('Send review to coordinator')
+    expect(
+      await readFile(join(dir, '.pi', 'plan', 'Plan the thing.md'), 'utf8'),
+    ).toBe('the plan\n')
+
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  it('save action sanitizes illegal filename characters from the title', async () => {
+    setup()
+    const state: PmSubagentState = { ...createState(), mode: 'coordinator' }
+    const { pi, ctx } = makeArgs(state)
+    const dir = await mkdtemp(join(tmpdir(), 'spawn-save-'))
+    ctx.cwd = dir
+    const subagent = makeSubagent()
+    subagent.record.title = 'Plan: a/b <thing>?'
+
+    const options = buildSpawnOptions(pi, state, ctx, makeRole(), 'planner')
+
+    askHowToProceedMock.mockImplementation(async (_ctx, pagerOptions) => {
+      const save = pagerOptions.choices.find(
+        (choice: { id: string }) => choice.id === 'save',
+      )
+      await save?.action()
+    })
+    await options.onComplete?.(subagent, 'the plan')
+
+    expect(
+      await readFile(join(dir, '.pi', 'plan', 'Plan- a-b -thing.md'), 'utf8'),
+    ).toBe('the plan\n')
 
     await rm(dir, { recursive: true, force: true })
   })

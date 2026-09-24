@@ -4,12 +4,20 @@ import type { ReviewPagerOptions } from '../ui/review-pager.js'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-/** Deliverable name reviewed at end of a subagent run. */
+export function sanitizeFileName(name: string): string {
+  return name
+    .replace(/[\\/:*?"<>|\n\r\t]/g, '-')
+    .trim()
+    .replace(/^-+|-+$/g, '')
+    .trim()
+}
+
+/** Deliverable name shown in review UI; derived from reviewOnEnd. */
 export function resolveReviewName(
   reviewOnEnd: ReviewOnEnd | undefined,
-): string | null {
+): string {
   if (typeof reviewOnEnd === 'string') return reviewOnEnd
-  return reviewOnEnd ? 'plan' : null
+  return 'plan'
 }
 
 function reviewTitle(name: string): string {

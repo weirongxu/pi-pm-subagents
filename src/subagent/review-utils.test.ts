@@ -2,6 +2,7 @@ import {
   buildReviewOptions,
   nextRevisedTitle,
   resolveReviewName,
+  sanitizeFileName,
   saveReviewFile,
 } from './review-utils.js'
 import { describe, expect, it, vi } from 'vitest'
@@ -30,16 +31,29 @@ describe('nextRevisedTitle', () => {
 describe('resolveReviewName', () => {
   it('returns the string as-is', () => {
     expect(resolveReviewName('research')).toBe('research')
-    expect(resolveReviewName('plan')).toBe('plan')
   })
 
-  it("returns 'plan' for true and null for false", () => {
+  it("returns 'plan' for true", () => {
     expect(resolveReviewName(true)).toBe('plan')
-    expect(resolveReviewName(false)).toBe(null)
+  })
+})
+
+describe('sanitizeFileName', () => {
+  it('replaces filesystem-unsafe characters with a hyphen', () => {
+    expect(sanitizeFileName('a/b\\c:d*e?f"g<h>i|j')).toBe('a-b-c-d-e-f-g-h-i-j')
+    expect(sanitizeFileName('line1\nline2')).toBe('line1-line2')
+    expect(sanitizeFileName('tab\there')).toBe('tab-here')
   })
 
-  it('returns null for undefined', () => {
-    expect(resolveReviewName(undefined)).toBe(null)
+  it('trims surrounding whitespace', () => {
+    expect(sanitizeFileName('  Plan the thing  ')).toBe('Plan the thing')
+    expect(sanitizeFileName('-Plan the thing-')).toBe('Plan the thing')
+  })
+
+  it('returns an empty string when nothing usable remains', () => {
+    expect(sanitizeFileName('   ')).toBe('')
+    expect(sanitizeFileName('')).toBe('')
+    expect(sanitizeFileName('\n\t')).toBe('')
   })
 })
 

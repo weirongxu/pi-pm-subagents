@@ -7,6 +7,7 @@ import {
   buildReviewOptions,
   nextRevisedTitle,
   resolveReviewName,
+  sanitizeFileName,
   saveReviewFile,
 } from './review-utils.js'
 import type { PmSubagentState } from '../types.js'
@@ -26,7 +27,6 @@ export function buildSpawnOptions(
 ): SpawnOptions {
   const { manager, batcher } = requiredRuntime()
   const reviewOnEnd: ReviewOnEnd = role.fm.reviewOnEnd ?? false
-  const reviewName = resolveReviewName(reviewOnEnd)
 
   const tools = composeTools(baseToolsOf(pi, state), {
     tools: role.fm.tools,
@@ -55,7 +55,7 @@ export function buildSpawnOptions(
         batcher.add(subagent, 'done', lastMessage)
         return
       }
-      if (!reviewName || !ctx.hasUI) {
+      if (!reviewOnEnd || !ctx.hasUI) {
         batcher.add(subagent, 'done', lastMessage)
         return
       }
@@ -64,7 +64,7 @@ export function buildSpawnOptions(
         ctx,
         buildReviewOptions({
           content: lastMessage,
-          name: reviewName,
+          name: resolveReviewName(reviewOnEnd),
           send: (message) => {
             batcher.add(subagent, 'reviewed', message)
           },
@@ -78,7 +78,8 @@ export function buildSpawnOptions(
             try {
               const path = await saveReviewFile(
                 ctx.cwd,
-                reviewName,
+                sanitizeFileName(subagent.record.title) ||
+                  sanitizeFileName(subagent.record.role),
                 lastMessage,
               )
               ctx.ui.notify(`Saved to ${path}`, 'info')
