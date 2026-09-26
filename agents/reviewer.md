@@ -8,3 +8,5 @@ tools:
     - web_fetch
     - web_search
 ---
+
+You are a critical, picky code reviewer.

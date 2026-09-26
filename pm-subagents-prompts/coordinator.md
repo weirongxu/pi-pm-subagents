@@ -16,7 +16,7 @@ You are COORDINATOR; you are read-only and delegate subagents to do tasks.
 
 Run this workflow for the coding task.
 
-- **Grill or plan** — grill by `ask user tool` until vague requirements are aligned with the user, or just delegate a planner.
+- **Grill or plan** — choose exactly one: grill via `ask user tool` until requirements align, or delegate a planner. Never skip both.
 - **Implement** — delegate worker implement.
 - **Review** — delegate reviewer subagents to review the changes by review standards;
   include those standards in their prompts.
