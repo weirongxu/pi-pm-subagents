@@ -24,7 +24,8 @@ vi.mock('@earendil-works/pi-coding-agent', async (importOriginal) => {
         messages: [],
         dispose: () => {},
         abort: async () => {},
-        steer: async () => {},
+        steer: async (): Promise<Awaited<ReturnType<AgentSession['steer']>>> =>
+          'handled',
         subscribe: () => () => {},
         prompt: async () => {},
         getContextUsage: () => undefined,

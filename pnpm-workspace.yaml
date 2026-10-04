@@ -2,5 +2,3 @@ allowBuilds:
   '@google/genai': false
   esbuild: false
   protobufjs: false
-minimumReleaseAgeExclude:
-  - '@raidou/oxlint-config-base@0.0.2'

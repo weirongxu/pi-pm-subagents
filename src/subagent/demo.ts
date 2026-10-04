@@ -494,9 +494,13 @@ function mockSessionFor(key: string, repeat: number = 1): AgentSession {
     messages,
     dispose: () => {},
     abort: async () => {},
-    steer: async (_text: string, _images?: ImageContent[]) => {
+    steer: async (
+      _text: string,
+      _images?: ImageContent[],
+    ): Promise<Awaited<ReturnType<AgentSession['steer']>>> => {
       void _text
       void _images
+      return 'handled'
     },
     subscribe: (_listener: AgentSessionEventListener) => {
       void _listener
