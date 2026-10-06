@@ -5,10 +5,26 @@ import type {
   ToolCall,
   ToolResultMessage,
 } from '@earendil-works/pi-ai'
+import { type Static, Type } from 'typebox'
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
-import { PLUGIN_KEY } from './state.ts'
+import { SubagentMessageTypeSchema } from '../subagent/batcher.js'
 import { truncateToBytes } from './format.js'
+
+/** customType for display-only subagent messages; matched by the message renderer registration. */
+export const MESSAGE_KEY = 'pm-subagents:message'
+
+/** Separator joining consecutive notification blocks. */
+export const BLOCK_SEPARATOR = '\n\n---\n\n'
+
+/** Structured metadata for subagent custom messages; not sent to the model, used by the UI renderer. */
+export const SubagentMessageDetailsSchema = Type.Object({
+  kind: SubagentMessageTypeSchema,
+  /** Per-item summaries (formatSubagentSummary output), first item first. */
+  jobs: Type.Array(Type.String()),
+})
+
+export type SubagentMessageDetails = Static<typeof SubagentMessageDetailsSchema>
 
 function isAssistantMessage(
   message: AgentMessage | undefined,
@@ -101,13 +117,19 @@ export function lastMessageText(
 export function notifyAgentMessage(
   pi: ExtensionAPI,
   content: string,
-  { triggerTurn }: { triggerTurn: boolean },
+  {
+    triggerTurn,
+  }: {
+    triggerTurn: boolean
+  },
+  details?: SubagentMessageDetails,
 ) {
   pi.sendMessage(
     {
-      customType: PLUGIN_KEY,
+      customType: MESSAGE_KEY,
       content,
       display: true,
+      details,
     },
     { deliverAs: 'steer', triggerTurn },
   )

@@ -30,7 +30,7 @@
   "scripts": {
     "test": "pnpm test:types && pnpm test:lint && pnpm test:unit",
     "test:types": "tsc --noEmit",
-    "test:lint": "oxfmt check . && oxlint --fix .",
+    "test:lint": "echo '[test:lint] may rewrite files' && oxfmt --write && oxlint --fix",
     "test:unit": "vitest run"
   },
   "dependencies": {

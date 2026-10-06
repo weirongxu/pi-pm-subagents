@@ -9,6 +9,7 @@ import { readModePrompt } from './prompts/mode.js'
 import { setupBashReadonlyTool } from './bash-readonly.js'
 import { setupCoordinator } from './coordinator/coordinator.js'
 import { setupListDirTool } from './list-dir.js'
+import { setupMessageRenderer } from './ui/subagent-message-renderer.js'
 import { setupSessionLifecycle } from './session-lifecycle.js'
 import { setupSubagentModelCycle } from './models-config/subagent-model-cycle.js'
 
@@ -34,5 +35,6 @@ export default async function pmSubagentsExtension(
   })
   setupPmSubagentsConfig(pi, state, coordinatorDefinition)
   setupSubagentModelCycle(pi, state)
+  setupMessageRenderer(pi)
   setupSessionLifecycle(pi, state, coordinatorDefinition)
 }

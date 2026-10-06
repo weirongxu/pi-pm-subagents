@@ -1,21 +1,53 @@
-import { type LiveSubagent, formatSubagentSummary } from './manager.js'
-import { escapeXml } from '../utils/xml.js'
+import { type Static, Type } from 'typebox'
+import { BLOCK_SEPARATOR } from '../utils/messages.js'
+import type { LiveSubagent } from './manager.js'
+import { formatSubagentSummary } from './manager.js'
+import { mapGroupBy } from '../utils/collection.js'
 
 const MESSAGE_TYPES = {
-  activity: { tag: 'subagent-activity', queue: 'response' },
-  done: { tag: 'subagent-done', queue: 'response' },
-  reviewed: { tag: 'subagent-reviewed', queue: 'response' },
-  steer: { tag: 'subagent-steer', queue: 'silent' },
-} as const satisfies Record<
-  string,
-  { tag: string; queue: 'silent' | 'response' }
->
+  activity: { queue: 'response' },
+  done: { queue: 'response' },
+  reviewed: { queue: 'response' },
+  steer: { queue: 'silent' },
+} as const satisfies Record<string, { queue: 'silent' | 'response' }>
 
-export type SubagentMessageType = keyof typeof MESSAGE_TYPES
+export const SubagentMessageTypeSchema = Type.Union([
+  Type.Literal('activity'),
+  Type.Literal('done'),
+  Type.Literal('reviewed'),
+  Type.Literal('steer'),
+])
+
+export type SubagentMessageType = Static<typeof SubagentMessageTypeSchema>
+
+/** One structured subagent notification item queued by MessageBatcher. */
+export interface SubagentNotification {
+  kind: SubagentMessageType
+  /** formatSubagentSummary(subagent) output, e.g. "done #3 implement auth 12% ctx 5m" */
+  job: string
+  /** Raw subagent message text, unmodified. */
+  message: string
+}
+
+/** Grouped, rendered batch handed to the flush callback per queue. */
+export interface SubagentBatchMessage {
+  kind: SubagentMessageType
+  content: string
+  jobs: string[]
+}
+
+function formatNotificationBlock(item: SubagentNotification): string {
+  const [status, id, ...rest] = item.job.split(' ')
+  const marker =
+    status && id ? `**[${status} ${id}]**` : `**[${item.job.trim()}]**`
+  const summary = rest.join(' ')
+  const heading = summary ? `${marker} ${summary}` : marker
+  return item.message ? `${heading}\n\n${item.message}` : heading
+}
 
 interface Buffer {
-  silent: string[]
-  response: string[]
+  silent: SubagentNotification[]
+  response: SubagentNotification[]
   timer: ReturnType<typeof setTimeout> | undefined
 }
 
@@ -24,7 +56,7 @@ export class MessageBatcher {
 
   constructor(
     private readonly flush: (
-      messages: readonly string[],
+      message: SubagentBatchMessage,
       triggerTurn: boolean,
     ) => void,
     private readonly windowMs = 3000,
@@ -35,15 +67,12 @@ export class MessageBatcher {
     type: SubagentMessageType,
     message: string,
   ): void {
-    const { tag, queue } = MESSAGE_TYPES[type]
-    const lines = [
-      `<${tag}>`,
-      `<type>${type}</type>`,
-      `<job>${escapeXml(formatSubagentSummary(subagent))}</job>`,
-      `<message>${escapeXml(message)}</message>`,
-      `</${tag}>`,
-    ]
-    this.buffer[queue].push(lines.join('\n'))
+    const { queue } = MESSAGE_TYPES[type]
+    this.buffer[queue].push({
+      kind: type,
+      job: formatSubagentSummary(subagent),
+      message,
+    })
     this.rescheduleTimer()
   }
 
@@ -52,8 +81,26 @@ export class MessageBatcher {
     const { silent, response } = this.buffer
     this.buffer.silent = []
     this.buffer.response = []
-    if (silent.length) this.flush(silent, false)
-    if (response.length) this.flush(response, true)
+    this.flushByKind(silent, false)
+    this.flushByKind(response, true)
+  }
+
+  private flushByKind(
+    items: SubagentNotification[],
+    triggerTurn: boolean,
+  ): void {
+    if (!items.length) return
+    const groups = mapGroupBy(items, (item) => item.kind)
+    for (const [kind, group] of groups) {
+      this.flush(
+        {
+          kind,
+          content: group.map(formatNotificationBlock).join(BLOCK_SEPARATOR),
+          jobs: group.map((item) => item.job),
+        },
+        triggerTurn,
+      )
+    }
   }
 
   clear(): void {

@@ -7,9 +7,15 @@ import type {
   ToolResultMessage,
   UserMessage,
 } from '@earendil-works/pi-ai'
-import { describe, expect, it } from 'vitest'
-import { lastMessageText, messageText } from './messages.js'
+import {
+  MESSAGE_KEY,
+  lastMessageText,
+  messageText,
+  notifyAgentMessage,
+} from './messages.js'
+import { describe, expect, it, vi } from 'vitest'
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 function user(text: string): UserMessage {
   return {
@@ -308,5 +314,84 @@ describe('messageText', () => {
     ]
     const result = lastMessageText(messages)
     expect(result).toBe('read({"path":"a.ts"})')
+  })
+})
+
+describe('notifyMessage', () => {
+  function makePi() {
+    const sendMessage = vi.fn()
+    return { sendMessage, pi: { sendMessage } as unknown as ExtensionAPI }
+  }
+
+  it('passes content through to sendMessage verbatim without details', () => {
+    const { sendMessage, pi } = makePi()
+    notifyAgentMessage(pi, '**[done #1]** write plan\n\nAll finished.', {
+      triggerTurn: true,
+    })
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+    const call = sendMessage.mock.calls[0]
+    expect(call?.[0]?.customType).toBe(MESSAGE_KEY)
+    expect(call?.[0]?.content).toBe('**[done #1]** write plan\n\nAll finished.')
+    expect(call?.[0]?.display).toBe(true)
+    expect(call?.[0]?.details).toBeUndefined()
+    expect(call?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: true })
+  })
+
+  it('passes triggerTurn through as false without a turn trigger', () => {
+    const { sendMessage, pi } = makePi()
+    notifyAgentMessage(pi, 'Steer note', { triggerTurn: false })
+    const call = sendMessage.mock.calls[0]
+    expect(call?.[0]?.customType).toBe(MESSAGE_KEY)
+    expect(call?.[0]?.display).toBe(true)
+    expect(call?.[0]?.details).toBeUndefined()
+    expect(call?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: false })
+  })
+})
+
+describe('notifySubagentMessage', () => {
+  function makePi() {
+    const sendMessage = vi.fn()
+    return { sendMessage, pi: { sendMessage } as unknown as ExtensionAPI }
+  }
+
+  it('passes message content and kind/jobs details through to sendMessage', () => {
+    const { sendMessage, pi } = makePi()
+    notifyAgentMessage(
+      pi,
+      '**[done #1]** write plan\n\nAll finished.',
+      { triggerTurn: true },
+      {
+        kind: 'done',
+        jobs: ['done #1 write plan'],
+      },
+    )
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+    const call = sendMessage.mock.calls[0]
+    expect(call?.[0]?.customType).toBe(MESSAGE_KEY)
+    expect(call?.[0]?.content).toBe('**[done #1]** write plan\n\nAll finished.')
+    expect(call?.[0]?.display).toBe(true)
+    expect(call?.[0]?.details).toEqual({
+      kind: 'done',
+      jobs: ['done #1 write plan'],
+    })
+    expect(call?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: true })
+  })
+
+  it('passes triggerTurn through as false with details for the subagent case', () => {
+    const { sendMessage, pi } = makePi()
+    notifyAgentMessage(
+      pi,
+      'Focus on auth',
+      { triggerTurn: false },
+      { kind: 'steer', jobs: ['running #2 focus'] },
+    )
+    const call = sendMessage.mock.calls[0]
+    expect(call?.[0]?.customType).toBe(MESSAGE_KEY)
+    expect(call?.[0]?.content).toBe('Focus on auth')
+    expect(call?.[0]?.details).toEqual({
+      kind: 'steer',
+      jobs: ['running #2 focus'],
+    })
+    expect(call?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: false })
   })
 })

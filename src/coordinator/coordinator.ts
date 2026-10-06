@@ -113,11 +113,17 @@ export async function setupCoordinator(
   },
 ): Promise<void> {
   let pendingUiPrompts = 0
-  const batcher = new MessageBatcher((messages, triggerTurn) => {
+  const batcher = new MessageBatcher((message, triggerTurn) => {
     if (state.mode !== 'coordinator') return
-    notifyAgentMessage(pi, messages.join('\n\n'), {
-      triggerTurn,
-    })
+    notifyAgentMessage(
+      pi,
+      message.content,
+      { triggerTurn },
+      {
+        kind: message.kind,
+        jobs: message.jobs,
+      },
+    )
   })
   const manager = new SubagentManager({
     state,

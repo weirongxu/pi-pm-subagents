@@ -174,25 +174,23 @@ describe('exitCoordinatorMode', () => {
   })
 })
 
-describe('message batcher delivery', () => {
-  function makeBatcherSubagent(
-    overrides: Partial<SubagentRecord>,
-  ): LiveSubagent {
-    return {
-      record: makeRecord({
-        status: 'done',
-        contextUsage: { tokens: 60000, contextWindow: 200000, percent: 30 },
-        ...overrides,
-      }),
-      session: { dispose: () => {} },
-    } as unknown as LiveSubagent
-  }
+function makeBatcherSubagent(overrides: Partial<SubagentRecord>): LiveSubagent {
+  return {
+    record: makeRecord({
+      status: 'done',
+      contextUsage: { tokens: 60000, contextWindow: 200000, percent: 30 },
+      ...overrides,
+    }),
+    session: { dispose: () => {} },
+  } as unknown as LiveSubagent
+}
 
+describe('message batcher delivery', () => {
   it('delivers steer-only batches without triggering a turn', async () => {
     const { sendMessage } = await makeSetup()
     const { batcher } = requiredRuntime()
     batcher.add(
-      makeBatcherSubagent({ id: 1, status: 'running' }),
+      makeBatcherSubagent({ id: 2, status: 'running' }),
       'steer',
       'Focus on auth',
     )
@@ -202,7 +200,11 @@ describe('message batcher delivery', () => {
     expect(sendMessage).toHaveBeenCalledTimes(1)
     const steerCall = sendMessage.mock.calls[0]
     expect(steerCall).toBeDefined()
-    expect(steerCall?.[0]?.content).toContain('<subagent-steer>')
+    expect(steerCall?.[0]?.content).toContain('Focus on auth')
+    expect(steerCall?.[0]?.details).toEqual({
+      kind: 'steer',
+      jobs: [expect.stringContaining('running #2')],
+    })
     expect(steerCall?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: false })
   })
 
@@ -210,11 +212,11 @@ describe('message batcher delivery', () => {
     const { sendMessage } = await makeSetup()
     const { batcher } = requiredRuntime()
     batcher.add(
-      makeBatcherSubagent({ id: 1, status: 'running' }),
+      makeBatcherSubagent({ id: 2, status: 'running' }),
       'steer',
       'Focus on auth',
     )
-    batcher.add(makeBatcherSubagent({ id: 2 }), 'done', 'Task completed')
+    batcher.add(makeBatcherSubagent({ id: 1 }), 'done', 'Task completed')
 
     batcher.flushNow()
 
@@ -222,12 +224,73 @@ describe('message batcher delivery', () => {
 
     const steerCall = sendMessage.mock.calls[0]
     expect(steerCall).toBeDefined()
-    expect(steerCall?.[0]?.content).toContain('<subagent-steer>')
+    expect(steerCall?.[0]?.details).toEqual({
+      kind: 'steer',
+      jobs: [expect.stringContaining('running #2')],
+    })
     expect(steerCall?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: false })
 
     const doneCall = sendMessage.mock.calls[1]
     expect(doneCall).toBeDefined()
-    expect(doneCall?.[0]?.content).toContain('<subagent-done>')
+    expect(doneCall?.[0]?.details).toEqual({
+      kind: 'done',
+      jobs: [expect.stringContaining('done #1')],
+    })
     expect(doneCall?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: true })
+  })
+
+  it('merges same-kind items into one delivery with combined jobs', async () => {
+    const { sendMessage } = await makeSetup()
+    const { batcher } = requiredRuntime()
+    batcher.add(makeBatcherSubagent({ id: 1 }), 'done', 'First done')
+    batcher.add(makeBatcherSubagent({ id: 2 }), 'done', 'Second done')
+
+    batcher.flushNow()
+
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+    const call = sendMessage.mock.calls[0]
+    expect(call?.[0]?.content).toContain('First done')
+    expect(call?.[0]?.content).toContain('Second done')
+    expect(call?.[0]?.details).toEqual({
+      kind: 'done',
+      jobs: [
+        expect.stringContaining('done #1'),
+        expect.stringContaining('done #2'),
+      ],
+    })
+    expect(call?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: true })
+  })
+
+  it('delivers mixed-kind items as one delivery per kind in first-appearance order', async () => {
+    const { sendMessage } = await makeSetup()
+    const { batcher } = requiredRuntime()
+    batcher.add(makeBatcherSubagent({ id: 1 }), 'done', 'Done text')
+    batcher.add(
+      makeBatcherSubagent({ id: 2, status: 'running' }),
+      'activity',
+      'Activity text',
+    )
+    batcher.add(makeBatcherSubagent({ id: 3 }), 'done', 'Second done')
+
+    batcher.flushNow()
+
+    expect(sendMessage).toHaveBeenCalledTimes(2)
+
+    const doneCall = sendMessage.mock.calls[0]
+    expect(doneCall?.[0]?.details).toEqual({
+      kind: 'done',
+      jobs: [
+        expect.stringContaining('done #1'),
+        expect.stringContaining('done #3'),
+      ],
+    })
+    expect(doneCall?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: true })
+
+    const activityCall = sendMessage.mock.calls[1]
+    expect(activityCall?.[0]?.details).toEqual({
+      kind: 'activity',
+      jobs: [expect.stringContaining('running #2')],
+    })
+    expect(activityCall?.[1]).toEqual({ deliverAs: 'steer', triggerTurn: true })
   })
 })

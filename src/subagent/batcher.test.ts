@@ -1,6 +1,27 @@
+import type * as managerModule from './manager.js'
+import {
+  MessageBatcher,
+  type SubagentBatchMessage,
+  type SubagentNotification,
+} from './batcher.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LiveSubagent } from './manager.js'
-import { MessageBatcher } from './batcher.js'
+
+// Overridable hook so tests can stub the job summary rendering.
+const jobOfMock = vi.hoisted(() => ({
+  fn: undefined as undefined | ((subagent: LiveSubagent) => string),
+}))
+
+vi.mock('./manager.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof managerModule>()
+  return {
+    ...actual,
+    formatSubagentSummary: (subagent: LiveSubagent) =>
+      jobOfMock.fn
+        ? jobOfMock.fn(subagent)
+        : actual.formatSubagentSummary(subagent),
+  }
+})
 
 const makeSubagent = (
   id: number,
@@ -23,19 +44,25 @@ const makeSubagent = (
 // Test-only accessor for the private buffer to inspect queued items.
 const bufferOf = (
   batcher: MessageBatcher,
-): { silent: string[]; response: string[] } =>
-  (batcher as unknown as { buffer: { silent: string[]; response: string[] } })
-    .buffer
+): { silent: SubagentNotification[]; response: SubagentNotification[] } =>
+  (
+    batcher as unknown as {
+      buffer: {
+        silent: SubagentNotification[]
+        response: SubagentNotification[]
+      }
+    }
+  ).buffer
 
 interface FlushedEntry {
-  messages: readonly string[]
+  message: SubagentBatchMessage
   triggerTurn: boolean
 }
 
 const makeBatcher = (windowMs = 100) => {
   const flushed: FlushedEntry[] = []
   const batcher = new MessageBatcher(
-    (messages, triggerTurn) => flushed.push({ messages, triggerTurn }),
+    (message, triggerTurn) => flushed.push({ message, triggerTurn }),
     windowMs,
   )
   return { batcher, flushed }
@@ -44,6 +71,7 @@ const makeBatcher = (windowMs = 100) => {
 describe('MessageBatcher', () => {
   afterEach(() => {
     vi.useRealTimers()
+    jobOfMock.fn = undefined
   })
 
   it('flushes after batching window', () => {
@@ -65,37 +93,85 @@ describe('MessageBatcher', () => {
     vi.advanceTimersByTime(1)
     expect(flushed).toHaveLength(1)
     const firstFlush = flushed[0]
-    expect(firstFlush?.messages[0]).toContain('done #1')
-    expect(firstFlush?.messages[0]).toContain('60k/200k')
-    expect(firstFlush?.messages[0]).toContain('<type>done</type>')
-    expect(firstFlush?.messages[0]).toContain(
-      '<message>Task completed</message>',
-    )
+    expect(firstFlush?.message.kind).toBe('done')
+    expect(firstFlush?.message.jobs).toEqual([
+      expect.stringContaining('done #1'),
+    ])
+    expect(firstFlush?.message.jobs[0]).toContain('60k/200k')
+    expect(firstFlush?.message.content).toContain('**[done #1]**')
+    expect(firstFlush?.message.content).toContain('Task completed')
+    expect(firstFlush?.triggerTurn).toBe(true)
     expect(bufferOf(batcher).silent).toEqual([])
     expect(bufferOf(batcher).response).toEqual([])
   })
 
-  it('combines multiple items in the same window', () => {
+  it('joins multiple same-kind items into one content block', () => {
     vi.useFakeTimers()
     const { batcher, flushed } = makeBatcher()
 
     const subagent1 = makeSubagent(1, 'task-1', 'done')
-    const subagent2 = makeSubagent(2, 'task-2', 'failed')
+    const subagent2 = makeSubagent(2, 'task-2', 'done')
 
     batcher.add(subagent1, 'done', 'Task 1 completed')
     vi.advanceTimersByTime(50)
-    batcher.add(subagent2, 'done', 'Task 2 failed')
+    batcher.add(subagent2, 'done', 'Task 2 completed')
     vi.advanceTimersByTime(100)
 
     expect(flushed).toHaveLength(1)
     const firstFlush = flushed[0]
-    expect(firstFlush?.messages.length).toBe(2)
-    expect(firstFlush?.messages[0]).toContain('done #1')
-    expect(firstFlush?.messages[0]).toContain('Task 1 completed')
-    expect(firstFlush?.messages[1]).toContain('failed #2')
-    expect(firstFlush?.messages[1]).toContain('Task 2 failed')
-    expect(bufferOf(batcher).silent).toEqual([])
-    expect(bufferOf(batcher).response).toEqual([])
+    expect(firstFlush?.message.kind).toBe('done')
+    expect(firstFlush?.message.jobs).toEqual([
+      expect.stringContaining('done #1'),
+      expect.stringContaining('done #2'),
+    ])
+    expect(firstFlush?.message.content).toContain(
+      '**[done #1]** task-1 ? ⟳ 0 5s\n\nTask 1 completed\n\n---\n\n**[done #2]** task-2 ? ⟳ 0 5s\n\nTask 2 completed',
+    )
+  })
+
+  it('renders a degenerate job fallback without status and id', () => {
+    vi.useFakeTimers()
+    const { batcher, flushed } = makeBatcher()
+    jobOfMock.fn = () => 'weird-job'
+
+    batcher.add(makeSubagent(1, 'task-1', 'done'), 'done', 'Task completed')
+    batcher.flushNow()
+
+    expect(flushed[0]?.message.content).toBe(
+      '**[weird-job]**\n\nTask completed',
+    )
+    expect(flushed[0]?.message.jobs).toEqual(['weird-job'])
+  })
+
+  it('flushes each kind independently with its own message', () => {
+    vi.useFakeTimers()
+    const { batcher, flushed } = makeBatcher()
+
+    batcher.add(makeSubagent(1, 'task-1', 'done'), 'done', 'Done message')
+    batcher.add(makeSubagent(2, 'task-2', 'running'), 'activity', 'Activity')
+    vi.advanceTimersByTime(100)
+
+    expect(flushed).toHaveLength(2)
+    const kinds = flushed.map((entry) => entry.message.kind)
+    expect(kinds).toContain('done')
+    expect(kinds).toContain('activity')
+    for (const entry of flushed) {
+      expect(entry.message.jobs).toHaveLength(1)
+    }
+  })
+
+  it('flushes immediately when requested via flushNow', () => {
+    vi.useFakeTimers()
+    const { batcher, flushed } = makeBatcher()
+
+    const subagent = makeSubagent(1, 'task-1', 'done')
+    batcher.add(subagent, 'done', 'Task completed')
+    batcher.flushNow()
+
+    expect(flushed).toHaveLength(1)
+    expect(flushed[0]?.message.jobs[0]).toContain('done #1')
+    vi.advanceTimersByTime(100)
+    expect(flushed).toHaveLength(1)
   })
 
   it('clears pending items after flushNow', () => {
@@ -113,13 +189,11 @@ describe('MessageBatcher', () => {
     batcher.flushNow()
 
     expect(flushed).toHaveLength(2)
-    expect(flushed[0]?.messages[0]).toContain('done #1')
-    expect(flushed[1]?.messages[0]).toContain('done #2')
-    expect(bufferOf(batcher).silent).toEqual([])
-    expect(bufferOf(batcher).response).toEqual([])
+    expect(flushed[0]?.message.jobs[0]).toContain('done #1')
+    expect(flushed[1]?.message.jobs[0]).toContain('done #2')
   })
 
-  it('escapes XML special characters in message and job summary', () => {
+  it('preserves raw message text without escaping', () => {
     vi.useFakeTimers()
     const { batcher, flushed } = makeBatcher()
     const subagent = makeSubagent(1, 'fix <auth> & "quotes"', 'done')
@@ -127,26 +201,10 @@ describe('MessageBatcher', () => {
     batcher.add(subagent, 'done', 'parsed <config> && values > 0')
     batcher.flushNow()
 
-    const item = flushed[0]?.messages[0] ?? ''
-    expect(item).toContain(
-      '<message>parsed &lt;config&gt; &amp;&amp; values &gt; 0</message>',
+    expect(flushed[0]?.message.content).toContain(
+      'parsed <config> && values > 0',
     )
-    expect(item).toContain('fix &lt;auth&gt; &amp; "quotes"')
-  })
-
-  it('flushes immediately when requested via flushNow', () => {
-    vi.useFakeTimers()
-    const { batcher, flushed } = makeBatcher()
-
-    const subagent = makeSubagent(1, 'task-1', 'done')
-    batcher.add(subagent, 'done', 'Task completed')
-    batcher.flushNow()
-
-    expect(flushed).toHaveLength(1)
-    const firstFlush = flushed[0]
-    expect(firstFlush?.messages[0]).toContain('done #1')
-    vi.advanceTimersByTime(100)
-    expect(flushed).toHaveLength(1)
+    expect(flushed[0]?.message.content).toContain('fix <auth> & "quotes"')
   })
 
   it('clears pending items without flushing via clear', () => {
@@ -163,168 +221,47 @@ describe('MessageBatcher', () => {
     expect(bufferOf(batcher).response).toEqual([])
   })
 
-  it('adds items in order and flushes them together', () => {
+  it('renders reviewed and steer kinds with correct markers', () => {
     vi.useFakeTimers()
     const { batcher, flushed } = makeBatcher()
 
-    const subagent1 = makeSubagent(1, 'task-1', 'done')
-    const subagent2 = makeSubagent(2, 'task-2', 'running')
-
-    batcher.add(subagent1, 'done', 'Subagent #1 work done.')
-    batcher.add(subagent2, 'activity', 'Subagent activity update')
-    vi.advanceTimersByTime(100)
-
-    expect(flushed).toHaveLength(1)
-    const firstFlush = flushed[0]
-    expect(firstFlush?.messages.length).toBe(2)
-    expect(firstFlush?.messages[0]).toContain('done #1')
-    expect(firstFlush?.messages[0]).toContain('Subagent #1 work done.')
-    expect(firstFlush?.messages[1]).toContain('running #2')
-    expect(firstFlush?.messages[1]).toContain('Subagent activity update')
-  })
-
-  it('adds reviewed tag for reviewed type', () => {
-    vi.useFakeTimers()
-    const { batcher, flushed } = makeBatcher()
-    const subagent = makeSubagent(1, 'plan-1', 'done')
-
-    batcher.add(subagent, 'reviewed', 'The implementation plan')
-    batcher.flushNow()
-
-    expect(flushed).toHaveLength(1)
-    const item = flushed[0]?.messages[0] ?? ''
-    expect(item).toContain('<subagent-reviewed>')
-    expect(item).toContain('</subagent-reviewed>')
-    expect(item).toContain('<type>reviewed</type>')
-    expect(item).not.toContain('reviewed-by-user')
-    expect(item).not.toContain('<revisions>')
-    expect(item).toContain('<message>The implementation plan</message>')
-  })
-
-  it('omits revisions for reviewed items', () => {
-    vi.useFakeTimers()
-    const { batcher, flushed } = makeBatcher()
-    const subagent = makeSubagent(1, 'plan-1', 'done')
-
-    batcher.add(subagent, 'reviewed', 'The updated plan')
-    batcher.flushNow()
-
-    const item = flushed[0]?.messages[0] ?? ''
-    expect(item).toContain('<message>The updated plan</message>')
-    expect(item).not.toContain('<revisions>')
-  })
-
-  it('uses steer tag for steer type with xml-escaped message', () => {
-    vi.useFakeTimers()
-    const { batcher, flushed } = makeBatcher()
-    const subagent = makeSubagent(1, 'task-1', 'running')
-
-    batcher.add(subagent, 'steer', 'focus on <auth> & "cases"')
-    batcher.flushNow()
-
-    expect(flushed).toHaveLength(1)
-    const item = flushed[0]?.messages[0] ?? ''
-    expect(item).toContain('<subagent-steer>')
-    expect(item).toContain('</subagent-steer>')
-    expect(item).toContain('<type>steer</type>')
-    expect(item).toContain(
-      '<message>focus on &lt;auth&gt; &amp; "cases"</message>',
+    batcher.add(makeSubagent(1, 'plan-1', 'done'), 'reviewed', 'Plan review')
+    batcher.add(
+      makeSubagent(2, 'task-2', 'running'),
+      'steer',
+      'focus on <auth>',
     )
-    expect(item).toContain('running #1')
-  })
-
-  it('uses done tag for done type', () => {
-    vi.useFakeTimers()
-    const { batcher, flushed } = makeBatcher()
-    const subagent = makeSubagent(1, 'task-1', 'done')
-
-    batcher.add(subagent, 'done', 'Task completed')
     batcher.flushNow()
 
-    const item = flushed[0]?.messages[0] ?? ''
-    expect(item).toContain('<subagent-done>')
-    expect(item).toContain('</subagent-done>')
-    expect(item).toContain('<type>done</type>')
-    expect(item).not.toContain('reviewed-by-user')
+    expect(flushed).toHaveLength(2)
+    const reviewed = flushed.find((e) => e.message.kind === 'reviewed')
+    const steer = flushed.find((e) => e.message.kind === 'steer')
+    expect(reviewed?.message.content).toContain('**[done #1]**')
+    expect(reviewed?.message.content).toContain('Plan review')
+    expect(steer?.message.content).toContain('**[running #2]**')
+    expect(steer?.message.content).toContain('focus on <auth>')
+    expect(steer?.triggerTurn).toBe(false)
+    expect(reviewed?.triggerTurn).toBe(true)
   })
 
   it('resets timer on each add', () => {
     vi.useFakeTimers()
     const { batcher, flushed } = makeBatcher()
 
-    const subagent1 = makeSubagent(1, 'task-1', 'done')
-    const subagent2 = makeSubagent(2, 'task-2', 'running')
-
-    batcher.add(subagent1, 'done', 'First message')
+    batcher.add(makeSubagent(1, 'task-1', 'done'), 'done', 'First message')
     vi.advanceTimersByTime(50)
     expect(flushed).toHaveLength(0)
 
-    batcher.add(subagent2, 'activity', 'Second message')
+    batcher.add(makeSubagent(2, 'task-2', 'running'), 'activity', 'Second')
     vi.advanceTimersByTime(50)
     expect(flushed).toHaveLength(0)
 
     vi.advanceTimersByTime(50)
-    expect(flushed).toHaveLength(1)
-
-    const firstFlush = flushed[0]
-    expect(firstFlush?.messages.length).toBe(2)
-    expect(firstFlush?.messages[0]).toContain('done #1')
-    expect(firstFlush?.messages[0]).toContain('First message')
-    expect(firstFlush?.messages[1]).toContain('running #2')
-    expect(firstFlush?.messages[1]).toContain('Second message')
-  })
-
-  it('clears old timer and starts new one when adding item', () => {
-    vi.useFakeTimers()
-    const { batcher, flushed } = makeBatcher()
-
-    const subagent = makeSubagent(1, 'task-1', 'done')
-
-    batcher.add(subagent, 'done', 'Message 1')
-    vi.advanceTimersByTime(80)
-    expect(flushed).toHaveLength(0)
-
-    batcher.add(subagent, 'activity', 'Message 2')
-    vi.advanceTimersByTime(80)
-    expect(flushed).toHaveLength(0)
-
-    vi.advanceTimersByTime(20)
-    expect(flushed).toHaveLength(1)
-
-    const firstFlush = flushed[0]
-    expect(firstFlush?.messages.length).toBe(2)
-    expect(firstFlush?.messages[0]).toContain('Message 1')
-    expect(firstFlush?.messages[1]).toContain('Message 2')
-  })
-
-  it('routes steer items to the silent channel and others to the responsive one', () => {
-    vi.useFakeTimers()
-    const { batcher, flushed } = makeBatcher()
-
-    batcher.add(makeSubagent(1, 'task-1', 'running'), 'steer', 'Steer message')
-    batcher.flushNow()
-    expect(flushed).toHaveLength(1)
-    expect(flushed[0]?.triggerTurn).toBe(false)
-    expect(flushed[0]?.messages[0]).toContain('Steer message')
-
-    batcher.add(makeSubagent(2, 'task-2', 'done'), 'done', 'Done message')
-    batcher.add(
-      makeSubagent(3, 'task-3', 'running'),
-      'activity',
-      'Activity message',
-    )
-    batcher.add(makeSubagent(4, 'plan-4', 'done'), 'reviewed', 'Reviewed plan')
-    batcher.flushNow()
-
+    // done and activity land in different kinds, so they flush separately.
     expect(flushed).toHaveLength(2)
-    expect(flushed[1]?.triggerTurn).toBe(true)
-    expect(flushed[1]?.messages.length).toBe(3)
-    expect(flushed[1]?.messages[0]).toContain('<type>done</type>')
-    expect(flushed[1]?.messages[1]).toContain('<type>activity</type>')
-    expect(flushed[1]?.messages[2]).toContain('<type>reviewed</type>')
   })
 
-  it('flushes steer and done items as two separate flushes with their own flags', () => {
+  it('routes each kind to its channel with the right trigger-turn flag', () => {
     vi.useFakeTimers()
     const { batcher, flushed } = makeBatcher()
 
@@ -332,11 +269,18 @@ describe('MessageBatcher', () => {
     batcher.add(makeSubagent(2, 'task-2', 'done'), 'done', 'Done message')
     batcher.flushNow()
 
-    expect(flushed).toHaveLength(2)
+    expect(flushed[0]?.message).toMatchObject({
+      kind: 'steer',
+      content: expect.stringContaining('Steer message'),
+      jobs: [expect.stringContaining('running #1')],
+    })
     expect(flushed[0]?.triggerTurn).toBe(false)
-    expect(flushed[0]?.messages[0]).toContain('<subagent-steer>')
+    expect(flushed[1]?.message).toMatchObject({
+      kind: 'done',
+      content: expect.stringContaining('Done message'),
+      jobs: [expect.stringContaining('done #2')],
+    })
     expect(flushed[1]?.triggerTurn).toBe(true)
-    expect(flushed[1]?.messages[0]).toContain('<subagent-done>')
   })
 
   it('shares one debounce window across silent and response queues', () => {
@@ -352,15 +296,17 @@ describe('MessageBatcher', () => {
 
     vi.advanceTimersByTime(60)
     expect(flushed).toHaveLength(2)
+    expect(flushed[0]?.message.kind).toBe('steer')
     expect(flushed[0]?.triggerTurn).toBe(false)
+    expect(flushed[1]?.message.kind).toBe('done')
     expect(flushed[1]?.triggerTurn).toBe(true)
   })
 
-  it('flushNow flushes both channels silently first, skipping empty channels', () => {
+  it('flushNow flushes silent first, skipping empty channels', () => {
     vi.useFakeTimers()
     const { batcher, flushed } = makeBatcher()
 
-    // Responsive-only: silent channel is empty and must be skipped.
+    // Response-only: silent channel is empty and must be skipped.
     batcher.add(makeSubagent(1, 'task-1', 'done'), 'done', 'Done message')
     batcher.flushNow()
     expect(flushed).toHaveLength(1)
@@ -372,7 +318,9 @@ describe('MessageBatcher', () => {
     batcher.flushNow()
 
     expect(flushed).toHaveLength(3)
+    expect(flushed[1]?.message.kind).toBe('steer')
     expect(flushed[1]?.triggerTurn).toBe(false)
+    expect(flushed[2]?.message.kind).toBe('done')
     expect(flushed[2]?.triggerTurn).toBe(true)
   })
 
@@ -387,23 +335,5 @@ describe('MessageBatcher', () => {
     expect(bufferOf(batcher).response).toEqual([])
     vi.advanceTimersByTime(200)
     expect(flushed).toHaveLength(0)
-  })
-
-  it('routes each item to its channel with the right trigger-turn flag', () => {
-    vi.useFakeTimers()
-    const { batcher, flushed } = makeBatcher()
-
-    batcher.add(makeSubagent(1, 'task-1', 'running'), 'steer', 'Steer message')
-    batcher.add(makeSubagent(2, 'task-2', 'done'), 'done', 'Done message')
-    batcher.flushNow()
-
-    expect(flushed[0]?.messages).toEqual([
-      expect.stringContaining('Steer message'),
-    ])
-    expect(flushed[0]?.triggerTurn).toBe(false)
-    expect(flushed[1]?.messages).toEqual([
-      expect.stringContaining('Done message'),
-    ])
-    expect(flushed[1]?.triggerTurn).toBe(true)
   })
 })
