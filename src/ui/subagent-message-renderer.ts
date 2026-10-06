@@ -132,9 +132,7 @@ class SubagentMessageComponent extends Container {
         this.#theme,
       )
     }
-    const box = new Box(1 + this.#outputPad, 1, (text) =>
-      this.#theme.bg('customMessageBg', text),
-    )
+    const box = createMessageBox(this.#theme, this.#outputPad)
     box.addChild(
       new Text(
         this.#theme.fg('customMessageLabel', this.#theme.bold(GENERIC_TITLE)),
@@ -179,6 +177,10 @@ export function setupMessageRenderer(pi: ExtensionAPI): void {
   )
 }
 
+function createMessageBox(theme: Theme, outputPad: number): Box {
+  return new Box(1 + outputPad, 1, (text) => theme.bg('customMessageBg', text))
+}
+
 function renderCollapsed(
   content: string,
   details: SubagentMessageDetails | undefined,
@@ -187,14 +189,16 @@ function renderCollapsed(
   theme: Theme,
 ): Component {
   const title = details ? formatDetailsTitle(details) : GENERIC_TITLE
-  const previewWidth = Math.max(0, width - outputPad * 2)
+  const previewWidth = Math.max(0, width - 2 * (1 + outputPad))
   const lines = [
     theme.fg('customMessageLabel', theme.bold(title)),
     ...previewLines(content).map((line) =>
       theme.fg('dim', truncateText(line, previewWidth)),
     ),
   ]
-  return new Text(lines.join('\n'), outputPad, 0)
+  const box = createMessageBox(theme, outputPad)
+  box.addChild(new Text(lines.join('\n'), 0, 0))
+  return box
 }
 
 function previewLines(content: string): string[] {

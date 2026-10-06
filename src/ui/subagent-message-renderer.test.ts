@@ -276,8 +276,24 @@ describe('shared rendering behavior', () => {
       .render(80)
       .join('\n')
     expect(rendered).toContain('...')
-    expect(rendered).toContain('x'.repeat(77))
-    expect(rendered).not.toContain('x'.repeat(78))
+    expect(rendered).toContain('x'.repeat(75))
+    expect(rendered).not.toContain('x'.repeat(76))
+  })
+
+  it('applies customMessageBg to the collapsed box', () => {
+    const taggedTheme = {
+      fg: (_color: unknown, text: string) => text,
+      bg: (color: unknown, text: string) => `[BG:${String(color)}]${text}`,
+      bold: (text: string) => text,
+    } as unknown as Theme
+    const rendered = renderSubagentMessage(
+      makeMessage('body', true, details),
+      { expanded: false, outputPad: 0 },
+      taggedTheme,
+    )
+      ?.render(120)
+      .join('\n')
+    expect(rendered).toContain('[BG:customMessageBg]')
   })
 
   it('reflects outputPad in the expanded padding', () => {
