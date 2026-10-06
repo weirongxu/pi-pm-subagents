@@ -26,7 +26,7 @@ import { truncateText } from '../utils/truncate.js'
 
 const FLEET_KEY = 'pi-pm-subagents:fleet'
 const TICK_MS = 200
-const MAX_ROWS = 8
+const MAX_ROWS = 4
 
 function visibleWindow(
   rowCount: number,
@@ -269,11 +269,7 @@ export class FleetList {
       ? '↑↓ select · enter view · esc back'
       : 'esc to interrupt · ←/↓ for items'
     const mainLine = this.renderMainLine(this.options.list(), theme, width)
-    const lines: string[] = [
-      truncateText(` ${theme.fg('dim', hint)}`, width),
-      '',
-      truncateText(mainLine, width),
-    ]
+    const lines: string[] = [truncateText(mainLine, width)]
 
     const selRow = sel >= 1 && sel <= rows.length ? rows[sel - 1] : undefined
     const selectedParentId =
@@ -312,6 +308,7 @@ export class FleetList {
         rightAlign('', theme.fg('dim', `↓ ${hiddenBelow} more`), width),
       )
     }
+    lines.push(truncateText(` ${theme.fg('dim', hint)}`, width))
     return lines
   }
 

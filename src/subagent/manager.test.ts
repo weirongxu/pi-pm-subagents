@@ -37,7 +37,11 @@ vi.mock('@earendil-works/pi-coding-agent', async (importOriginal) => {
     createAgentSession: createAgentSessionMock,
     createCodemodeExtension: (
       options?: PiCodingAgent.CodemodeExtensionOptions,
-    ) => createCodemodeExtensionMock(options),
+    ) => {
+      createCodemodeExtensionMock(options)
+      // Return a factory function like the real implementation does
+      return () => ({})
+    },
     DefaultResourceLoader: class {
       constructor(options: unknown) {
         resourceLoaderArgsMock(options)

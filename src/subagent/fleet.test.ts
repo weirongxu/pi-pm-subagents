@@ -1735,11 +1735,11 @@ describe('FleetList renderBar uses sorted roster order', () => {
     fleetList['selectedIndex'] = 1
     const lines1 = render(fleetList)
     expect(lines1.some((line) => line.match(/↑\s+\d+\s+more/))).toBe(false)
-    expect(lines1.some((line) => line.match(/↓\s+2\s+more/))).toBe(true)
+    expect(lines1.some((line) => line.match(/↓\s+6\s+more/))).toBe(true)
 
     fleetList['selectedIndex'] = 10
     const lines2 = render(fleetList)
-    expect(lines2.some((line) => line.match(/↑\s+2\s+more/))).toBe(true)
+    expect(lines2.some((line) => line.match(/↑\s+6\s+more/))).toBe(true)
     expect(lines2.some((line) => line.match(/↓\s+\d+\s+more/))).toBe(false)
   })
 
@@ -1779,7 +1779,7 @@ describe('FleetList renderBar uses sorted roster order', () => {
     const highlighted = lines.filter((line) => line.includes('[BG:selectedBg]'))
     expect(highlighted).toHaveLength(1)
     expect(highlighted[0]).toContain('previous 2')
-    expect(lines.some((line) => line.match(/↑\s+2\s+more/))).toBe(true)
+    expect(lines.some((line) => line.match(/↑\s+6\s+more/))).toBe(true)
     expect(lines.some((line) => line.match(/↓\s+\d+\s+more/))).toBe(false)
     expect(lines.some((line) => line.includes('task 8'))).toBe(false)
     expect(lines.some((line) => line.includes('task 1'))).toBe(true)
@@ -1822,7 +1822,7 @@ describe('FleetList renderBar uses sorted roster order', () => {
     const highlighted = lines.filter((line) => line.includes('[BG:selectedBg]'))
     expect(highlighted).toHaveLength(1)
     expect(highlighted[0]).toContain('previous 2')
-    expect(lines.some((line) => line.match(/↑\s+2\s+more/))).toBe(true)
+    expect(lines.some((line) => line.match(/↑\s+6\s+more/))).toBe(true)
     expect(lines.some((line) => line.match(/↓\s+1\s+more/))).toBe(true)
     expect(lines.some((line) => line.includes('task 9'))).toBe(false)
     expect(lines.some((line) => line.includes('task 1'))).toBe(false)
