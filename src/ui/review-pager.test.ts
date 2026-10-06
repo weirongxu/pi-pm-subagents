@@ -1,8 +1,8 @@
 import {
+  ReviewPager,
   type ReviewPagerOptions,
   type ReviewPagerResult,
   askHowToProceed,
-  createReviewPagerComponent,
 } from './review-pager.js'
 import { describe, expect, it, vi } from 'vitest'
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
@@ -35,11 +35,20 @@ const CTRL_C = '\x03'
 const PAGE_UP = '\x1b[5~'
 const PAGE_DOWN = '\x1b[6~'
 
-const makeTui = (): TUI =>
-  ({
+const makeTui = (): TUI => {
+  const listeners: ((data: string) => unknown)[] = []
+  return {
     terminal: { rows: 30, columns: 80 },
     requestRender: () => {},
-  }) as unknown as TUI
+    addInputListener: (listener: (data: string) => unknown) => {
+      listeners.push(listener)
+      return () => {
+        const index = listeners.indexOf(listener)
+        if (index >= 0) listeners.splice(index, 1)
+      }
+    },
+  } as unknown as TUI
+}
 
 const makeTheme = (): Theme =>
   ({
@@ -60,10 +69,15 @@ function makeOptions() {
 }
 
 function makeComponent(done: (result: ReviewPagerResult | undefined) => void) {
-  return createReviewPagerComponent(makeTui(), makeTheme(), makeOptions(), done)
+  return new ReviewPager({
+    tui: makeTui(),
+    theme: makeTheme(),
+    options: makeOptions(),
+    done,
+  })
 }
 
-describe('createReviewPagerComponent', () => {
+describe('ReviewPager', () => {
   it('renders the menu with all choices', () => {
     const component = makeComponent(() => {})
     const lines = component.render(60).join('\n')
@@ -173,12 +187,12 @@ describe('createReviewPagerComponent', () => {
 
   it('scrolls the plan with pgup/pgdn in the editor', () => {
     const plan = Array.from({ length: 60 }, (_, i) => `line${i}`).join('\n\n')
-    const component = createReviewPagerComponent(
-      makeTui(),
-      makeTheme(),
-      { ...makeOptions(), plan },
-      () => {},
-    )
+    const component = new ReviewPager({
+      tui: makeTui(),
+      theme: makeTheme(),
+      options: { ...makeOptions(), plan },
+      done: () => {},
+    })
     component.handleInput('2')
     const before = component.render(60).join('\n')
     component.handleInput(PAGE_DOWN)
@@ -220,10 +234,10 @@ describe('createReviewPagerComponent', () => {
 
   it('degrades to plain choice selection when no inline choice exists', () => {
     let result: ReviewPagerResult | undefined
-    const component = createReviewPagerComponent(
-      makeTui(),
-      makeTheme(),
-      {
+    const component = new ReviewPager({
+      tui: makeTui(),
+      theme: makeTheme(),
+      options: {
         title: 'Plan Review',
         plan: '# The plan',
         choices: [
@@ -231,10 +245,10 @@ describe('createReviewPagerComponent', () => {
           { id: 'discard', label: 'Discard' },
         ],
       },
-      (r) => {
+      done: (r) => {
         result = r
       },
-    )
+    })
     component.handleInput('2')
     expect(result).toEqual({ choiceId: 'discard' })
     // Still in menu mode: no editor chrome rendered

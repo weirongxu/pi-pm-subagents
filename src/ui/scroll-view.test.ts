@@ -16,8 +16,20 @@ const theme = {
   fg: (color: string, text: string) => `[${color}]${text}`,
 } as unknown as Theme
 
-const makeTui = (rows = 30): TUI =>
-  ({ terminal: { rows }, requestRender: () => {} }) as unknown as TUI
+const makeTui = (rows = 30): TUI => {
+  const listeners: ((data: string) => unknown)[] = []
+  return {
+    terminal: { rows },
+    requestRender: () => {},
+    addInputListener: (listener: (data: string) => unknown) => {
+      listeners.push(listener)
+      return () => {
+        const index = listeners.indexOf(listener)
+        if (index >= 0) listeners.splice(index, 1)
+      }
+    },
+  } as unknown as TUI
+}
 
 const flat = (lines: string[]) => lines.join('\n')
 
@@ -188,5 +200,109 @@ describe('ScrollView auto-follow', () => {
     v.render(20)
     content.splice(0, content.length, ...many(80))
     expect(flat(v.render(20))).not.toContain('l79')
+  })
+})
+
+describe('ScrollView wheel', () => {
+  const makeScrollTui = () => {
+    const listeners: ((data: string) => unknown)[] = []
+    const tui = {
+      terminal: { rows: 30 },
+      requestRender: () => {},
+      addInputListener: (listener: (data: string) => unknown) => {
+        listeners.push(listener)
+        return () => {
+          const i = listeners.indexOf(listener)
+          if (i >= 0) listeners.splice(i, 1)
+        }
+      },
+    }
+    return {
+      tui: tui as unknown as TUI,
+      wheel: (d: string) => listeners[0]?.(d),
+    }
+  }
+
+  const wrapWheel = (content: string[], viewportHeight: number) => {
+    const { tui, wheel } = makeScrollTui()
+    const v = new ScrollView(tui, theme, {
+      child: { render: () => content, invalidate: () => {} },
+      viewportHeight: () => viewportHeight,
+    })
+    v.render(20)
+    return { v, wheel }
+  }
+
+  it('scrolls one line per wheel event', () => {
+    const { v, wheel } = wrapWheel(many(50), 5)
+    expect(wheel('\x1b[<65;10;5M')).toEqual({ consume: true })
+    expect(v.offset).toBe(1)
+    expect(wheel('\x1b[<64;10;5M')).toEqual({ consume: true })
+    expect(v.offset).toBe(0)
+  })
+
+  it('disables autoFollow on wheel-up and re-enables at the bottom', () => {
+    const content = many(50)
+    const { tui, wheel } = makeScrollTui()
+    const v = new ScrollView(tui, theme, {
+      child: { render: () => content, invalidate: () => {} },
+      viewportHeight: () => 5,
+      autoFollow: true,
+    })
+    v.render(20)
+    wheel('\x1b[<64;10;5M')
+    v.render(20)
+    content.splice(0, content.length, ...many(80))
+    expect(flat(v.render(20))).not.toContain('l79')
+    content.splice(0, content.length, ...many(50))
+    v.render(20)
+    wheel('\x1b[<65;10;5M')
+    expect(v.offset).toBe(45)
+    v.render(20)
+    content.splice(0, content.length, ...many(80))
+    expect(flat(v.render(20))).toContain('l79')
+  })
+
+  it('ignores wheel release and non-wheel clicks', () => {
+    const { v, wheel } = wrapWheel(many(50), 5)
+    expect(wheel('\x1b[<64;10;5m')).toBeUndefined()
+    expect(wheel('\x1b[<0;10;5M')).toBeUndefined()
+    expect(v.offset).toBe(0)
+  })
+
+  it('stops consuming after dispose', () => {
+    const { tui, wheel } = makeScrollTui()
+    const v = new ScrollView(tui, theme, {
+      child: { render: () => many(50), invalidate: () => {} },
+      viewportHeight: () => 5,
+    })
+    v.render(20)
+    v.dispose()
+    expect(wheel('\x1b[<64;10;5M')).toBeUndefined()
+    expect(v.offset).toBe(0)
+  })
+
+  it('moves five lines with Alt held (button bit 8)', () => {
+    const { v, wheel } = wrapWheel(many(50), 5)
+    wheel('\x1b[<73;10;5M')
+    expect(v.offset).toBe(5)
+    wheel('\x1b[<72;10;5M')
+    expect(v.offset).toBe(0)
+  })
+
+  it('accelerates same-direction consecutive events', () => {
+    const { v, wheel } = wrapWheel(many(200), 5)
+    const steps: number[] = []
+    let prev = 0
+    for (let i = 0; i < 6; i++) {
+      wheel('\x1b[<65;10;5M')
+      const delta = v.offset - prev
+      steps.push(delta)
+      prev = v.offset
+    }
+    for (let i = 0; i < steps.length; i++) {
+      expect(steps[i]).toBeGreaterThanOrEqual(1)
+      if (i > 0) expect(steps[i]).toBeGreaterThanOrEqual(steps[i - 1] ?? 0)
+    }
   })
 })

@@ -215,6 +215,7 @@ export class SubagentViewer implements Component {
 
   dispose(): void {
     this.#unsubscribe()
+    this.#scroll.dispose()
   }
 
   private headerLine(width: number): string {

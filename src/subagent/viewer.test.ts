@@ -15,11 +15,20 @@ const ESC = '\x1b'
 const CTRL_C = '\x03'
 const PAGE_DOWN = '\x1b[6~'
 
-const makeTui = (): TUI =>
-  ({
+const makeTui = (): TUI => {
+  const listeners: ((data: string) => unknown)[] = []
+  return {
     terminal: { rows: 30, columns: 80 },
     requestRender: () => {},
-  }) as unknown as TUI
+    addInputListener: (listener: (data: string) => unknown) => {
+      listeners.push(listener)
+      return () => {
+        const index = listeners.indexOf(listener)
+        if (index >= 0) listeners.splice(index, 1)
+      }
+    },
+  } as unknown as TUI
+}
 
 const makeTheme = (): Theme =>
   ({

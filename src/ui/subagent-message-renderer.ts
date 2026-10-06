@@ -18,7 +18,6 @@ import {
   type MessageRenderer,
   type Theme,
   getMarkdownTheme,
-  keyHint,
 } from '@earendil-works/pi-coding-agent'
 import { Parse } from 'typebox/value'
 import { truncateText } from '../utils/truncate.js'
@@ -194,7 +193,6 @@ function renderCollapsed(
     ...previewLines(content).map((line) =>
       theme.fg('dim', truncateText(line, previewWidth)),
     ),
-    theme.fg('dim', keyHint('app.tools.expand', 'expand')),
   ]
   return new Text(lines.join('\n'), outputPad, 0)
 }

@@ -240,7 +240,7 @@ describe('shared rendering behavior', () => {
       .render(120)
       .join('\n')
     expect(rendered).toContain('[pm-subagents]')
-    expect(rendered).toContain('expand')
+    expect(rendered).not.toContain('expand')
   })
 
   it('adds no Markdown child for empty expanded content', () => {
@@ -326,7 +326,7 @@ describe('expand/collapse interaction', () => {
 
     component.setExpanded(false)
     const collapsed = component.render(120).join('\n')
-    expect(collapsed).toContain('expand')
+    expect(collapsed).not.toContain('expand')
     expect(collapsed).not.toContain('hidden body')
   })
 

@@ -29,6 +29,10 @@ export class ScrollView implements Component {
   readonly #theme: Theme
   readonly #child: Component
   readonly #viewportHeightFor: () => number
+  readonly #offWheel: () => void
+  #wheelDir = 0
+  #wheelSpeed = 0
+  #wheelAt = 0
 
   constructor(tui: TUI, theme: Theme, options: ScrollViewOptions) {
     this.#tui = tui
@@ -36,6 +40,12 @@ export class ScrollView implements Component {
     this.#child = options.child
     this.#viewportHeightFor = options.viewportHeight
     this.#autoFollow = options.autoFollow ?? false
+    this.#offWheel = tui.addInputListener((data) => this.#handleWheel(data))
+  }
+
+  /** Unregister the wheel input listener. */
+  dispose(): void {
+    this.#offWheel()
   }
 
   /** Top-most visible line after the last render. */
@@ -115,6 +125,33 @@ export class ScrollView implements Component {
 
   invalidate(): void {
     this.#child.invalidate()
+  }
+
+  // Overlays are composed via bare render() calls, bypassing the layout engine,
+  // so wheel events never reach us through routeWheel/handleMouse — the only hook
+  // is addInputListener, which runs before alt-screen wheel routing.
+  #handleWheel(data: string): { consume: true } | undefined {
+    // eslint-disable-next-line no-control-regex -- SGR mouse sequences contain control characters
+    const match = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/.exec(data)
+    if (!match || match[4] === 'm') return undefined
+    const button = Number(match[1])
+    if (button < 64 || button > 73) return undefined
+    const code = button & 63
+    let dir = 0
+    if (code === 0 || code === 8) dir = -1
+    else if (code === 1 || code === 9) dir = 1
+    if (dir === 0) return undefined
+    const now = performance.now()
+    this.#wheelSpeed =
+      this.#wheelDir === dir && now - this.#wheelAt <= 100
+        ? Math.min(6, this.#wheelSpeed + 1)
+        : 1
+    this.#wheelDir = dir
+    this.#wheelAt = now
+    const lines = this.#wheelSpeed * (button & 8 ? 5 : 1)
+    this.#moveTo(this.#offset + dir * lines)
+    this.#tui.requestRender()
+    return { consume: true }
   }
 
   get #halfPage(): number {
