@@ -7,4 +7,5 @@ tools:
     - bash_readonly
     - web_fetch
     - web_search
+    - codemode
 ---

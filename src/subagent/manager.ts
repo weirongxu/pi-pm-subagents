@@ -3,6 +3,7 @@ import {
   DefaultResourceLoader,
   SessionManager,
   createAgentSession,
+  createCodemodeExtension,
   getAgentDir,
 } from '@earendil-works/pi-coding-agent'
 import type { Api, Model } from '@earendil-works/pi-ai'
@@ -107,6 +108,7 @@ export class SubagentManager {
       cwd: options.cwd,
       agentDir: getAgentDir(),
       systemPromptOverride: (base) => `${base}\n\n${options.systemPrompt}`,
+      extensionFactories: [createCodemodeExtension()],
     })
     await loader.reload()
     return loader

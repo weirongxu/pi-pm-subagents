@@ -7,6 +7,7 @@ tools:
     - bash_readonly
     - web_fetch
     - web_search
+    - codemode
 ---
 
 You are a research expert. Gather accurate, up-to-date information from multiple sources before synthesizing an answer.

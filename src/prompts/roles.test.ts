@@ -12,6 +12,8 @@ import type { PromptDefinition } from '../utils/markdown.js'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
+const CODEMODE_TOOL_NAME = 'codemode'
+
 const MOCK_AGENT_DIR_VAR = 'PI_CODING_AGENT_DIR'
 
 function must(role: PromptDefinition | null): PromptDefinition {
@@ -43,6 +45,7 @@ describe('roles', () => {
         const worker = must(resolveRole('worker'))
         expect(worker.systemPrompt).toBe('')
         expect(worker.fm.tools).toBeUndefined()
+        expect(worker.fm.extraTools).toEqual([CODEMODE_TOOL_NAME])
         expect(worker.fm.removeTools).toBeUndefined()
         expect(worker.fm.model).toBeUndefined()
         expect(worker.fm.reviewOnEnd).toBeUndefined()
@@ -81,8 +84,23 @@ describe('roles', () => {
         const planner = must(resolveRole('planner'))
         expect(planner.systemPrompt).toContain('You are PLANNER (read-only)')
         expect(planner.fm.removeTools).toEqual(['write', 'edit', 'bash'])
-        expect(planner.fm.extraTools).toEqual([BASH_READONLY_TOOL_NAME])
+        expect(planner.fm.extraTools).toEqual([
+          BASH_READONLY_TOOL_NAME,
+          CODEMODE_TOOL_NAME,
+        ])
         expect(planner.fm.reviewOnEnd).toBe(true)
+        const bundledTools = [
+          'read',
+          'find',
+          'grep',
+          BASH_READONLY_TOOL_NAME,
+          'web_fetch',
+          'web_search',
+          CODEMODE_TOOL_NAME,
+        ]
+        expect(must(resolveRole('explorer')).fm.tools).toEqual(bundledTools)
+        expect(must(resolveRole('researcher')).fm.tools).toEqual(bundledTools)
+        expect(must(resolveRole('reviewer')).fm.tools).toEqual(bundledTools)
         expect(resolveRole('explorer')).not.toBeNull()
         expect(resolveRole('researcher')).not.toBeNull()
         expect(resolveRole('reviewer')).not.toBeNull()
@@ -139,7 +157,7 @@ Extra prompt.`,
         const planner = must(resolveRole('planner'))
         expect(planner.fm.description).toBe('Chinese planner.')
         expect(new Set(planner.fm.extraTools)).toEqual(
-          new Set([BASH_READONLY_TOOL_NAME, 'grep']),
+          new Set([BASH_READONLY_TOOL_NAME, 'grep', CODEMODE_TOOL_NAME]),
         )
         expect(planner.systemPrompt).toContain('You are PLANNER (read-only)')
         expect(planner.systemPrompt).toContain('Extra prompt.')

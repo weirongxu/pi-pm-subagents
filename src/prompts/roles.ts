@@ -12,7 +12,10 @@ import { readdir } from 'node:fs/promises'
 
 const DEFAULT_ROLE = 'worker'
 
-export const EMPTY_ROLE: PromptDefinition = { fm: {}, systemPrompt: '' }
+export const EMPTY_ROLE: PromptDefinition = {
+  fm: { extraTools: ['codemode'] },
+  systemPrompt: '',
+}
 
 const roles: Map<string, PromptDefinition> = new Map()
 

@@ -1,8 +1,9 @@
 import type * as Fs from 'node:fs'
 import type * as PiCodingAgent from '@earendil-works/pi-coding-agent'
-import type {
-  AgentSession,
-  ContextUsage,
+import {
+  type AgentSession,
+  type ContextUsage,
+  getAgentDir,
 } from '@earendil-works/pi-coding-agent'
 import {
   type LiveSubagent,
@@ -18,6 +19,8 @@ import { createState } from '../utils/state.js'
 const openMock = vi.hoisted(() => vi.fn())
 const createAgentSessionMock = vi.hoisted(() => vi.fn())
 const mkdirMock = vi.hoisted(() => vi.fn())
+const resourceLoaderArgsMock = vi.hoisted(() => vi.fn())
+const createCodemodeExtensionMock = vi.hoisted(() => vi.fn())
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof Fs>()
@@ -32,7 +35,14 @@ vi.mock('@earendil-works/pi-coding-agent', async (importOriginal) => {
       open: openMock,
     }),
     createAgentSession: createAgentSessionMock,
+    createCodemodeExtension: (
+      options?: PiCodingAgent.CodemodeExtensionOptions,
+    ) => createCodemodeExtensionMock(options),
     DefaultResourceLoader: class {
+      constructor(options: unknown) {
+        resourceLoaderArgsMock(options)
+      }
+
       async reload(): Promise<void> {}
     },
   }
@@ -728,6 +738,24 @@ describe('SubagentManager id sequencing', () => {
 
     expect(created.record.id).toBe(6)
     expect(state.maxSubagentId).toBe(6)
+  })
+
+  it('constructs the resource loader with the codemode extension factory', async () => {
+    mockOpenSession()
+    resourceLoaderArgsMock.mockClear()
+    createCodemodeExtensionMock.mockClear()
+    const manager = makeManager()
+
+    await manager.createNewSubagent('T', 'p', { cwd: '/tmp/proj' })
+
+    expect(resourceLoaderArgsMock).toHaveBeenCalledOnce()
+    expect(resourceLoaderArgsMock).toHaveBeenCalledWith({
+      cwd: '/tmp/proj',
+      agentDir: getAgentDir(),
+      systemPromptOverride: expect.any(Function),
+      extensionFactories: [expect.any(Function)],
+    })
+    expect(createCodemodeExtensionMock).toHaveBeenCalledOnce()
   })
 
   it('restore leaves the id counter untouched', async () => {

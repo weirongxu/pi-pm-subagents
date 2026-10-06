@@ -6,6 +6,7 @@ removeTools:
     - bash
 extraTools:
     - bash_readonly
+    - codemode
 reviewOnEnd: true
 ---
 

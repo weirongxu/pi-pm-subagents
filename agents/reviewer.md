@@ -7,6 +7,7 @@ tools:
     - bash_readonly
     - web_fetch
     - web_search
+    - codemode
 ---
 
 You are a critical, picky code reviewer.
