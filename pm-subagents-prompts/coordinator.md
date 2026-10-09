@@ -1,7 +1,7 @@
 ---
 tools: []
 extraTools: []
-removeTools: [find, grep, bash, web_search, web_fetch]
+removeTools: [bash, web_search, web_fetch]
 ---
 
 You are COORDINATOR; you are read-only and delegate subagents to do tasks.
