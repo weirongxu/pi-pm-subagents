@@ -181,6 +181,51 @@ describe('formatSubagentSummary', () => {
   })
 })
 
+describe('SubagentManager.abort', () => {
+  it('returns false when subagent does not exist or is not running', async () => {
+    const { session } = makeStubSession()
+    const manager = makeManager()
+    registerSubagent(manager, session, { id: 1, status: 'done' })
+
+    expect(await manager.abort(99)).toBe(false)
+    expect(await manager.abort(1)).toBe(false)
+    expect(session.abort).not.toHaveBeenCalled()
+  })
+
+  it('marks as killed and notifies after abort succeeds', async () => {
+    const { session, abortMock } = makeStubSession()
+    const onChangedMock = vi.fn()
+    const manager = makeManager(undefined, { onChanged: onChangedMock })
+    const subagent = registerSubagent(manager, session, {
+      id: 1,
+      status: 'running',
+    })
+
+    const result = await manager.abort(1)
+
+    expect(result).toBe(true)
+    expect(abortMock).toHaveBeenCalledOnce()
+    expect(subagent.record.status).toBe('killed')
+    expect(onChangedMock).toHaveBeenCalledOnce()
+  })
+
+  it('keeps status running and propagates the error when abort rejects', async () => {
+    const { session, abortMock } = makeStubSession()
+    const onChangedMock = vi.fn()
+    const manager = makeManager(undefined, { onChanged: onChangedMock })
+    const subagent = registerSubagent(manager, session, {
+      id: 1,
+      status: 'running',
+    })
+    abortMock.mockRejectedValue(new Error('abort failed'))
+
+    await expect(manager.abort(1)).rejects.toThrow('abort failed')
+
+    expect(subagent.record.status).toBe('running')
+    expect(onChangedMock).not.toHaveBeenCalled()
+  })
+})
+
 describe('SubagentManager.steer', () => {
   it('throws when subagent id does not exist', async () => {
     const manager = makeManager()

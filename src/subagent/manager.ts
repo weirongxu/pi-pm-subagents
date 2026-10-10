@@ -278,9 +278,9 @@ export class SubagentManager {
   async abort(id: number): Promise<boolean> {
     const subagent = this.subagents.get(id)
     if (!subagent || subagent.record.status !== 'running') return false
+    await subagent.session.abort()
     subagent.record.status = 'killed'
     this.options.onChanged?.()
-    await subagent.session.abort()
     return true
   }
 
