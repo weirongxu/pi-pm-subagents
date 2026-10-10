@@ -13,6 +13,7 @@ import {
   runInSubagentSpawnContext,
 } from './identity.js'
 import { formatContextUsage, formatElapsed } from '../utils/format.js'
+import { Mutex } from 'async-mutex'
 import { STEER_SYMBOL } from './consts.ts'
 import type { ThinkingLevel } from '@earendil-works/pi-agent-core'
 import { join } from 'node:path'
@@ -79,6 +80,7 @@ export function formatSubagentSummary(
 
 export class SubagentManager {
   private subagents = new Map<number, LiveSubagent>()
+  private spawnLock = new Mutex()
   private disposed = false
 
   private isDisposed(): boolean {
@@ -119,56 +121,62 @@ export class SubagentManager {
     prompt: string,
     options: SpawnOptions,
   ): Promise<LiveSubagent> {
-    if (this.countRunning() >= MAX_CONCURRENCY_SUBAGENT) {
-      throw new Error(
-        `Subagent concurrency limit reached (${MAX_CONCURRENCY_SUBAGENT}). Wait for an existing subagent to finish, or abort one.`,
-      )
-    }
-    const id = ++this.options.state.maxSubagentId
-    const subagentSessionDir = subagentDirFor(options.cwd, getAgentDir())
-    mkdirSync(subagentSessionDir, { recursive: true })
-    const created = await runInSubagentSpawnContext(id, async () => {
-      const loader = await this.createLoader(options)
-      return createAgentSession({
-        cwd: options.cwd,
-        model: options.model,
-        thinkingLevel: options.thinkingLevel,
-        tools: options.tools ? [...options.tools] : undefined,
-        resourceLoader: loader,
-        sessionManager: SessionManager.create(options.cwd, subagentSessionDir, {
-          id: `${SUBAGENT_SESSION_ID_PREFIX}${id}-${Date.now()}`,
-        }),
+    return this.spawnLock.runExclusive(async () => {
+      if (this.countRunning() >= MAX_CONCURRENCY_SUBAGENT) {
+        throw new Error(
+          `Subagent concurrency limit reached (${MAX_CONCURRENCY_SUBAGENT}). Wait for an existing subagent to finish, or abort one.`,
+        )
+      }
+      const id = ++this.options.state.maxSubagentId
+      const subagentSessionDir = subagentDirFor(options.cwd, getAgentDir())
+      mkdirSync(subagentSessionDir, { recursive: true })
+      const created = await runInSubagentSpawnContext(id, async () => {
+        const loader = await this.createLoader(options)
+        return createAgentSession({
+          cwd: options.cwd,
+          model: options.model,
+          thinkingLevel: options.thinkingLevel,
+          tools: options.tools ? [...options.tools] : undefined,
+          resourceLoader: loader,
+          sessionManager: SessionManager.create(
+            options.cwd,
+            subagentSessionDir,
+            {
+              id: `${SUBAGENT_SESSION_ID_PREFIX}${id}-${Date.now()}`,
+            },
+          ),
+        })
       })
+
+      const sessionFile = created.session.sessionFile
+      if (!sessionFile) throw new Error('Subagent session file is missing.')
+
+      const record: SubagentRecord = {
+        id,
+        title,
+        previousEntries: [],
+        prompt,
+        status: 'running',
+        startedAt: Date.now(),
+        steerCount: 0,
+        activeTools: options.tools ? [...options.tools] : [],
+        role: options.role ?? 'worker',
+        cwd: options.cwd,
+        sessionFile,
+      }
+      const subagent: LiveSubagent = {
+        record,
+        session: created.session,
+        onComplete: options.onComplete,
+      }
+
+      this.subagents.set(id, subagent)
+      this.subscribe(subagent)
+      this.options.onEachStart?.(subagent)
+      this.options.onChanged?.()
+      void this.run(subagent, prompt)
+      return subagent
     })
-
-    const sessionFile = created.session.sessionFile
-    if (!sessionFile) throw new Error('Subagent session file is missing.')
-
-    const record: SubagentRecord = {
-      id,
-      title,
-      previousEntries: [],
-      prompt,
-      status: 'running',
-      startedAt: Date.now(),
-      steerCount: 0,
-      activeTools: options.tools ? [...options.tools] : [],
-      role: options.role ?? 'worker',
-      cwd: options.cwd,
-      sessionFile,
-    }
-    const subagent: LiveSubagent = {
-      record,
-      session: created.session,
-      onComplete: options.onComplete,
-    }
-
-    this.subagents.set(id, subagent)
-    this.subscribe(subagent)
-    this.options.onEachStart?.(subagent)
-    this.options.onChanged?.()
-    void this.run(subagent, prompt)
-    return subagent
   }
 
   async restore(
@@ -329,8 +337,10 @@ export class SubagentManager {
       if (subagent.record.completedAt === undefined) {
         subagent.record.completedAt = Date.now()
         this.options.onChanged?.()
-        await subagent.onComplete?.(subagent, lastMessage ?? '')
-        this.options.onEachEnd?.(subagent)
+        void subagent.onComplete?.(subagent, lastMessage ?? '').then(
+          () => this.options.onEachEnd?.(subagent),
+          () => this.options.onEachEnd?.(subagent),
+        )
       }
     }
   }

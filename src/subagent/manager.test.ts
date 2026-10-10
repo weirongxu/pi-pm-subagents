@@ -7,6 +7,7 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import {
   type LiveSubagent,
+  MAX_CONCURRENCY_SUBAGENT,
   MAX_REUSE_STEERS,
   formatSubagentSummary,
 } from './manager.js'
@@ -756,6 +757,144 @@ describe('SubagentManager.restore disposed during await', () => {
     await expect(pending).resolves.toBe('failed')
     expect(disposeSpy).toHaveBeenCalledOnce()
     expect(manager.get(8)).toBeUndefined()
+  })
+})
+
+describe('SubagentManager run lifecycle races', () => {
+  function makeDeferred() {
+    let resolve: () => void = () => {}
+    const promise = new Promise<void>((r) => {
+      resolve = r
+    })
+    return { promise, resolve }
+  }
+
+  it('fires onComplete/onEachEnd exactly once per run when revival happens during onComplete', async () => {
+    const { session, promptMock } = makeStubSession()
+    const deferreds: ReturnType<typeof makeDeferred>[] = []
+    const events: string[] = []
+    const onComplete = vi.fn(() => {
+      const deferred = makeDeferred()
+      deferreds.push(deferred)
+      void deferred.promise.then(() => {
+        events.push('complete')
+      })
+      return deferred.promise
+    })
+    const onEachEnd = vi.fn(() => {
+      events.push('end')
+    })
+    const manager = makeManager(undefined, { onEachEnd })
+    const subagent = registerSubagent(manager, session, {
+      id: 1,
+      status: 'done',
+    })
+    subagent.onComplete = onComplete
+
+    let resolvePrompt1: () => void = () => {}
+    promptMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolvePrompt1 = resolve
+      }),
+    )
+    await manager.steer(1, 'task 1')
+    resolvePrompt1()
+    await vi.waitFor(() => {
+      expect(onComplete).toHaveBeenCalledOnce()
+    })
+
+    let resolvePrompt2: () => void = () => {}
+    promptMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolvePrompt2 = resolve
+      }),
+    )
+    await manager.steer(1, 'task 2')
+    expect(subagent.record.status).toBe('running')
+    expect(subagent.record.completedAt).toBeUndefined()
+
+    resolvePrompt2()
+    await vi.waitFor(() => {
+      expect(onComplete).toHaveBeenCalledTimes(2)
+    })
+
+    for (const deferred of deferreds) deferred.resolve()
+    await vi.waitFor(() => {
+      expect(onEachEnd).toHaveBeenCalledTimes(2)
+    })
+
+    expect(onComplete).toHaveBeenCalledTimes(2)
+    expect(onEachEnd).toHaveBeenCalledTimes(2)
+    expect(events).toEqual(['complete', 'end', 'complete', 'end'])
+    expect(subagent.record.status).toBe('done')
+    expect(subagent.record.completedAt).toBeGreaterThan(0)
+  })
+
+  it('does not start a second run when reviving an already-revived subagent concurrently', async () => {
+    const { session, promptMock, steerMock } = makeStubSession()
+    const manager = makeManager()
+    registerSubagent(manager, session, { id: 1, status: 'done' })
+    promptMock.mockReturnValue(new Promise(() => {}))
+
+    await Promise.all([manager.steer(1, 'first'), manager.steer(1, 'second')])
+
+    expect(promptMock).toHaveBeenCalledTimes(1)
+    expect(promptMock).toHaveBeenCalledWith('first')
+    expect(steerMock).toHaveBeenCalledTimes(1)
+    expect(steerMock).toHaveBeenCalledWith('second')
+  })
+})
+
+describe('SubagentManager.createNewSubagent concurrency', () => {
+  it('serializes concurrent spawns so the second counts the first', async () => {
+    mockOpenSession()
+    resourceLoaderArgsMock.mockClear()
+    let resolveCreate: (value: { session: AgentSession }) => void = () => {}
+    createAgentSessionMock.mockReturnValue(
+      new Promise<{ session: AgentSession }>((resolve) => {
+        resolveCreate = resolve
+      }),
+    )
+    const manager = makeManager()
+
+    const first = manager.createNewSubagent('T1', 'p', { cwd: '/tmp/proj' })
+    await vi.waitFor(() => {
+      expect(resourceLoaderArgsMock).toHaveBeenCalledOnce()
+    })
+    const second = manager.createNewSubagent('T2', 'p', { cwd: '/tmp/proj' })
+
+    await Promise.resolve()
+    expect(resourceLoaderArgsMock).toHaveBeenCalledOnce()
+
+    resolveCreate({
+      session: makeStubSession().session as unknown as AgentSession,
+    })
+    const [a, b] = await Promise.all([first, second])
+    expect(a.record.id).toBe(1)
+    expect(b.record.id).toBe(2)
+  })
+
+  it('throws the limit error when the concurrency cap is reached', async () => {
+    mockOpenSession()
+    const manager = makeManager()
+    const { session } = makeStubSession()
+    session.prompt = () => new Promise(() => {})
+    createAgentSessionMock.mockResolvedValue({
+      session: session as unknown as AgentSession,
+    })
+
+    for (let i = 0; i < MAX_CONCURRENCY_SUBAGENT; i++) {
+      await manager.createNewSubagent(`T${i}`, 'p', { cwd: '/tmp/proj' })
+    }
+    expect(
+      manager.list().filter((s) => s.record.status === 'running'),
+    ).toHaveLength(MAX_CONCURRENCY_SUBAGENT)
+
+    await expect(
+      manager.createNewSubagent('T6', 'p', { cwd: '/tmp/proj' }),
+    ).rejects.toThrow(
+      `Subagent concurrency limit reached (${MAX_CONCURRENCY_SUBAGENT}). Wait for an existing subagent to finish, or abort one.`,
+    )
   })
 })
 
