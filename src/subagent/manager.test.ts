@@ -654,7 +654,7 @@ describe('SubagentManager.restore', () => {
 })
 
 describe('SubagentManager.disposeAll', () => {
-  it('kills running records, fires onEachEnd, leaves done records untouched', async () => {
+  it('kills running records, fires onEachEnd, returns final records', async () => {
     const { session } = makeStubSession()
     const onEachEnd = vi.fn()
     const manager = makeManager(undefined, { onEachEnd })
@@ -664,15 +664,65 @@ describe('SubagentManager.disposeAll', () => {
     })
     const done = registerSubagent(manager, session, { id: 2, status: 'done' })
 
-    manager.disposeAll()
+    const records = manager.disposeAll()
 
     expect(running.record.status).toBe('killed')
     expect(running.record.completedAt).toBeGreaterThan(0)
     expect(done.record.status).toBe('done')
     expect(onEachEnd).toHaveBeenCalledOnce()
     expect(onEachEnd).toHaveBeenCalledWith(running)
+    expect(records).toEqual([running.record, done.record])
     // Records are cleared and sessions disposed.
     expect(manager.list()).toHaveLength(0)
+    await expect(
+      manager.restore({
+        id: 9,
+        title: 'T',
+        prompt: 'p',
+        status: 'done',
+        startedAt: Date.now(),
+        steerCount: 0,
+        activeTools: [],
+        role: 'worker',
+        cwd: '/tmp/proj',
+        sessionFile: '/tmp/proj/sessions/x.jsonl',
+        previousEntries: [],
+      }),
+    ).resolves.toBe('failed')
+  })
+})
+
+describe('SubagentManager.revive after disposeAll', () => {
+  it('lets restore succeed again after disposeAll → revive (exit → re-enter cycle)', async () => {
+    mockOpenSession()
+    const manager = makeManager()
+    manager.disposeAll()
+    manager.revive()
+
+    const result = await manager.restore({
+      id: 7,
+      title: 'T',
+      prompt: 'p',
+      status: 'killed',
+      startedAt: Date.now(),
+      steerCount: 0,
+      activeTools: [],
+      role: 'worker',
+      cwd: '/tmp/proj',
+      sessionFile: '/tmp/proj/sessions/x.jsonl',
+      previousEntries: [],
+    })
+
+    expect(result).toBe('restored')
+    expect(manager.get(7)).toBeDefined()
+  })
+
+  it('does not weaken the shutdown race guard during a pending restore', async () => {
+    mockOpenSession()
+    const manager = makeManager()
+    manager.revive()
+    manager.disposeAll()
+
     await expect(
       manager.restore({
         id: 9,

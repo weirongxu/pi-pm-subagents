@@ -121,17 +121,36 @@ describe('setupSessionLifecycle session_start', () => {
     expect(applyCoordinatorModeMock).toHaveBeenCalledOnce()
   })
 
-  it('clears subagents when the persisted mode is not coordinator', async () => {
+  it('preserves subagent records regardless of the persisted mode', async () => {
     const { runSessionStart, state } = makeSetup()
-    state.subagents = [{ id: 1 } as never]
+    const subagents = [
+      {
+        id: 1,
+        title: 'Task 1',
+        prompt: 'p',
+        status: 'killed',
+        startedAt: 1,
+        completedAt: 2,
+        steerCount: 0,
+        activeTools: [],
+        role: 'worker',
+        cwd: '/tmp/p',
+        sessionFile: '/tmp/p/s.jsonl',
+        previousEntries: [],
+      },
+    ]
     applyCoordinatorModeMock.mockClear()
 
     await runSessionStart(
-      makeCustomEntry({ mode: undefined, subagents: [], maxSubagentId: 0 }),
+      makeCustomEntry({
+        mode: undefined,
+        subagents,
+        maxSubagentId: 1,
+      }),
     )
 
     expect(state.mode).toBeUndefined()
-    expect(state.subagents).toBeUndefined()
+    expect(state.subagents).toEqual(subagents)
     expect(applyCoordinatorModeMock).not.toHaveBeenCalled()
   })
 
@@ -155,19 +174,40 @@ describe('setupSessionLifecycle session_shutdown', () => {
     setRuntime(undefined)
   })
 
-  it('persists the snapshot and tears down runtime in coordinator mode', () => {
+  it('persists killed records and tears down runtime in coordinator mode', () => {
     const { handlers, state, appendEntry } = makeSetup()
-    const { disposeAll, fleet, batcher, activityReporter } =
+    const { manager, fleet, batcher, activityReporter } =
       makeShutdownRuntime(state)
+    const record = {
+      id: 1,
+      title: 'T',
+      prompt: 'p',
+      status: 'running',
+      startedAt: 1,
+      steerCount: 0,
+      activeTools: [],
+      role: 'worker',
+      cwd: '/tmp/p',
+      sessionFile: '/tmp/p/s.jsonl',
+      previousEntries: [],
+    } as never
+    const subagents = (
+      manager as unknown as {
+        subagents: Map<number, { record: unknown; session: unknown }>
+      }
+    ).subagents
+    subagents.set(1, { record, session: { dispose: () => {} } })
     state.mode = 'coordinator'
 
     runShutdown(handlers)
 
-    expect(appendEntry).toHaveBeenCalledWith(
-      PLUGIN_KEY,
-      expect.objectContaining({ mode: 'coordinator', subagents: [] }),
+    const entry = appendEntry.mock.calls.find((call) => call[0] === PLUGIN_KEY)
+    expect(entry?.[1]).toEqual(
+      expect.objectContaining({
+        mode: 'coordinator',
+        subagents: [expect.objectContaining({ id: 1, status: 'killed' })],
+      }),
     )
-    expect(disposeAll).toHaveBeenCalledOnce()
     expect(batcher.clear).toHaveBeenCalledOnce()
     expect(activityReporter.stop).toHaveBeenCalledOnce()
     expect(fleet.dispose).toHaveBeenCalledOnce()

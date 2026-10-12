@@ -2,7 +2,7 @@ import {
   applyCoordinatorMode,
   enterCoordinatorMode,
 } from './coordinator/coordinator.js'
-import { getLastPmSubagentState, persistSnapshot } from './utils/state.js'
+import { getLastPmSubagentState, persistState } from './utils/state.js'
 import { optionalRuntime, setRuntime } from './coordinator/runtime.js'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import type { PmSubagentState } from './types.js'
@@ -26,8 +26,7 @@ export function setupSessionLifecycle(
       state.modeDiffTools = data.modeDiffTools
       state.previousModel = data.previousModel
       state.sessionSubagentModel = data.sessionSubagentModel
-      state.subagents =
-        state.mode === 'coordinator' ? data.subagents : undefined
+      state.subagents = data.subagents
       state.maxSubagentId = data.maxSubagentId
 
       if (state.mode === 'coordinator') {
@@ -54,8 +53,8 @@ export function setupSessionLifecycle(
       if (rt) {
         const { manager, fleet, batcher, activityReporter } = rt
         if (state.mode === 'coordinator') {
-          persistSnapshot(pi, state, manager)
-          manager.disposeAll()
+          state.subagents = manager.disposeAll()
+          persistState(pi, state)
         }
         batcher.clear()
         activityReporter.stop()

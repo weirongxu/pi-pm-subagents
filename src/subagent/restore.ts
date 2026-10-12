@@ -39,7 +39,7 @@ export async function restoreSubagents(
     if (restored > 0) parts.push(`restored ${restored}`)
     if (failed > 0) parts.push(`failed ${failed}`)
     ctx.ui.notify(
-      `Subagent restore from previous session: ${parts.join(', ')}`,
+      `Subagent restore: ${parts.join(', ')}`,
       failed > 0 ? 'warning' : 'info',
     )
   }

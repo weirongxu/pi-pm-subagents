@@ -20,8 +20,8 @@ vi.mock('../pm-mode.js', async (importOriginal) => {
     assertModeIdle: vi.fn(),
     // Real exitModeFor persists on exit; mirror that without tool/model restore.
     exitModeFor: vi.fn(async (_pi: ExtensionAPI, state: PmSubagentState) => {
-      const { persist } = await import('../utils/state.js')
-      persist(_pi, state)
+      const { persistState } = await import('../utils/state.js')
+      persistState(_pi, state)
     }),
     restoreModel: actual.restoreModel,
   }
@@ -80,7 +80,17 @@ vi.mock('../subagent/manager.js', async (importOriginal) => {
   }
 })
 
-import { exitCoordinatorMode, setupCoordinator } from './coordinator.js'
+const restoreSubagentsMock = vi.hoisted(() => vi.fn(async () => 0))
+
+vi.mock('../subagent/restore.js', () => ({
+  restoreSubagents: restoreSubagentsMock,
+}))
+
+import {
+  applyCoordinatorMode,
+  exitCoordinatorMode,
+  setupCoordinator,
+} from './coordinator.js'
 import { requiredRuntime } from './runtime.js'
 
 type AnyHandler = (event: never, ctx: ExtensionContext) => unknown
@@ -155,14 +165,18 @@ async function makeSetup() {
 }
 
 describe('exitCoordinatorMode', () => {
-  it('disposes running records, clears state.subagents, persists without a roster', async () => {
+  it('disposes running records, retains them as killed in state, persists the roster', async () => {
     const { appendEntry, emit, pi, state, manager } = await makeSetup()
     seedRecord(manager, makeRecord({ id: 1, status: 'running' }))
 
     await exitCoordinatorMode(pi, state, makeCtx())
 
     expect(state.mode).toBeUndefined()
-    expect(state.subagents).toBeUndefined()
+    expect(state.subagents).toHaveLength(1)
+    expect(state.subagents?.[0]).toEqual(
+      expect.objectContaining({ id: 1, status: 'killed' }),
+    )
+    expect(state.subagents?.[0]?.completedAt).toBeGreaterThan(0)
     expect(manager.list()).toHaveLength(0)
     expect(emit).toHaveBeenCalledWith(
       'pi-notify:job:end',
@@ -170,7 +184,55 @@ describe('exitCoordinatorMode', () => {
     )
     const data = lastPersistedData(appendEntry)
     expect(data.mode).toBeUndefined()
-    expect(data.subagents).toBeUndefined()
+    expect(data.subagents).toEqual(state.subagents)
+  })
+
+  it('revives the manager on re-entry and re-restores retained records', async () => {
+    const { pi, state, manager } = await makeSetup()
+    seedRecord(manager, makeRecord({ id: 1, status: 'running' }))
+
+    await exitCoordinatorMode(pi, state, makeCtx())
+    restoreSubagentsMock.mockClear()
+
+    const ctx = {
+      ui: {
+        setWidget: vi.fn(),
+        notify: vi.fn(),
+        theme: { fg: () => '', bold: () => '' },
+      },
+    } as unknown as ExtensionContext
+    await applyCoordinatorMode(pi, state, ctx, { fm: {}, systemPrompt: '' })
+
+    expect(restoreSubagentsMock).toHaveBeenCalledOnce()
+    expect(restoreSubagentsMock).toHaveBeenCalledWith(
+      pi,
+      state,
+      ctx,
+      state.subagents,
+    )
+  })
+})
+
+describe('onChanged wiring', () => {
+  it('syncs state and persists the roster when a manager action fires onChanged', async () => {
+    const { appendEntry, state, manager } = await makeSetup()
+    seedRecord(manager, makeRecord({ id: 1, status: 'running' }))
+    const subagents = (
+      manager as unknown as { subagents: Map<number, LiveSubagent> }
+    ).subagents
+    const live = subagents.get(1)
+    if (!live) throw new Error('seeded subagent missing')
+    live.session.abort = async () => {}
+
+    await manager.abort(1)
+
+    expect(state.subagents).toEqual(manager.listRecord())
+    expect(state.subagents?.[0]).toEqual(
+      expect.objectContaining({ id: 1, status: 'killed' }),
+    )
+    expect(lastPersistedData(appendEntry).subagents).toEqual(
+      manager.listRecord(),
+    )
   })
 })
 

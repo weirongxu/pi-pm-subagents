@@ -104,10 +104,7 @@ describe('restoreSubagents', () => {
       undefined,
       '/tmp/proj',
     )
-    expect(notify).toHaveBeenCalledWith(
-      'Subagent restore from previous session: restored 1',
-      'info',
-    )
+    expect(notify).toHaveBeenCalledWith('Subagent restore: restored 1', 'info')
   })
 
   it('skips records already live in the manager', async () => {
@@ -151,9 +148,6 @@ describe('restoreSubagents', () => {
     )
 
     expect(restored).toBe(0)
-    expect(notify).toHaveBeenCalledWith(
-      'Subagent restore from previous session: failed 1',
-      'warning',
-    )
+    expect(notify).toHaveBeenCalledWith('Subagent restore: failed 1', 'warning')
   })
 })

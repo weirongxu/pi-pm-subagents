@@ -99,6 +99,10 @@ export class SubagentManager {
     return [...this.subagents.values()]
   }
 
+  listRecord(): SubagentRecord[] {
+    return this.list().map(({ record }) => record)
+  }
+
   get(id: number): LiveSubagent | undefined {
     return this.subagents.get(id)
   }
@@ -292,21 +296,25 @@ export class SubagentManager {
     return true
   }
 
-  disposeAll(): void {
+  /** Re-enables restore/spawn after disposeAll; manager is reused across mode re-entry. */
+  revive(): void {
+    this.disposed = false
+  }
+
+  disposeAll(): SubagentRecord[] {
     this.disposed = true
-    const disposedSessions = new Set<AgentSession>()
+    const records: SubagentRecord[] = []
     for (const subagent of this.subagents.values()) {
       if (subagent.record.status === 'running') {
         subagent.record.status = 'killed'
         subagent.record.completedAt ??= Date.now()
         this.options.onEachEnd?.(subagent)
       }
-      if (!disposedSessions.has(subagent.session)) {
-        subagent.session.dispose()
-        disposedSessions.add(subagent.session)
-      }
+      records.push(subagent.record)
+      subagent.session.dispose()
     }
     this.subagents.clear()
+    return records
   }
 
   private subscribe(subagent: LiveSubagent): void {

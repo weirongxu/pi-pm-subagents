@@ -2,15 +2,8 @@ import type {
   ExtensionAPI,
   SessionEntry,
 } from '@earendil-works/pi-coding-agent'
-import { type LiveSubagent, SubagentManager } from '../subagent/manager.js'
-import {
-  createState,
-  getLastPmSubagentState,
-  persist,
-  persistSnapshot,
-} from './state.js'
 import { describe, expect, it, vi } from 'vitest'
-import type { SubagentRecord } from '../types.js'
+import { getLastPmSubagentState, persistState } from './state.js'
 import type { UserMessage } from '@earendil-works/pi-ai'
 
 function customEntry(data: unknown): SessionEntry {
@@ -31,50 +24,6 @@ function user(text: string): UserMessage {
     timestamp: Date.now(),
   }
 }
-
-describe('persistSnapshot', () => {
-  it('snapshots the manager into state and persists', () => {
-    const state = createState()
-    const record: SubagentRecord = {
-      id: 1,
-      title: 'worker',
-      prompt: 'do the thing',
-      status: 'done',
-      startedAt: 0,
-      steerCount: 0,
-      activeTools: [],
-      role: 'worker',
-      cwd: '/tmp/proj',
-      sessionFile: '/tmp/proj/sessions/x.jsonl',
-      previousEntries: [],
-    }
-    const manager = new SubagentManager({ state })
-    vi.spyOn(manager, 'list').mockReturnValue([{ record } as LiveSubagent])
-    const appendEntry = vi.fn()
-    const pi = { appendEntry } as unknown as ExtensionAPI
-
-    persistSnapshot(pi, state, manager)
-
-    expect(state.subagents).toEqual([record])
-
-    expect(appendEntry).toHaveBeenCalledWith(
-      'pm-subagents',
-      expect.objectContaining({
-        mode: undefined,
-        subagents: [record],
-      }),
-    )
-
-    // Deep copies: mutating the persisted payload must not affect the record.
-    const payload = appendEntry.mock.calls[0]?.[1] as {
-      subagents?: SubagentRecord[]
-    }
-    const persisted = payload.subagents?.[0]
-    if (!persisted) throw new Error('persisted payload is empty')
-    persisted.status = 'killed'
-    expect(record.status).toBe('done')
-  })
-})
 
 describe('getLastPmSubagentState', () => {
   it('returns undefined for empty entries array', () => {
@@ -321,7 +270,7 @@ describe('getLastPmSubagentState', () => {
     ])
     if (!state) throw new Error('state is missing')
 
-    persist(pi, state)
+    persistState(pi, state)
 
     const payload = appendEntry.mock.calls[0]?.[1] as {
       subagents?: { steerCount?: number }[]

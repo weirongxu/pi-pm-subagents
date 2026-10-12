@@ -19,7 +19,7 @@ import { getPmSubagentsConfig } from '../models-config/models-config.js'
 import { loadRoles } from '../prompts/roles.js'
 import { notifyAgentMessage } from '../utils/messages.ts'
 import { openSubagentViewer } from '../subagent/viewer.js'
-import { persistSnapshot } from '../utils/state.js'
+import { persistState } from '../utils/state.js'
 import { registerPlanDemoCommand } from '../plan/demo.js'
 import { registerSubagentDemoCommand } from '../subagent/demo.js'
 import { restoreSubagents } from '../subagent/restore.js'
@@ -79,6 +79,7 @@ export async function applyCoordinatorMode(
   })
 
   renderCoordinatorModeWidget(ctx, state)
+  requiredRuntime().manager.revive()
   await restoreSubagents(pi, state, ctx, state.subagents)
 
   fleet.update()
@@ -94,10 +95,9 @@ export async function exitCoordinatorMode(
   batcher.clear()
   activityReporter.stop()
   fleet.dispose()
-  manager.disposeAll()
   ctx.ui.setWidget(COORDINATOR_MODE_WIDGET_KEY, undefined)
   state.mode = undefined
-  state.subagents = undefined
+  state.subagents = manager.disposeAll()
   await exitModeFor(pi, state, ctx, 'coordinator')
 }
 
@@ -128,7 +128,8 @@ export async function setupCoordinator(
   const manager = new SubagentManager({
     state,
     onChanged: () => {
-      persistSnapshot(pi, state, manager)
+      state.subagents = manager.listRecord()
+      persistState(pi, state)
       fleet.update()
     },
     onEachStart: (subagent) => {

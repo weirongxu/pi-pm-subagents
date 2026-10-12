@@ -8,7 +8,7 @@ import { type ToolConfig, composeTools } from './utils/tools.js'
 import { modelRefOf, resolveModelRef } from './utils/model-ref.js'
 import { BASH_READONLY_TOOL_NAME } from './bash-readonly.js'
 import type { PromptDefinition } from './utils/markdown.js'
-import { persist } from './utils/state.js'
+import { persistState } from './utils/state.js'
 
 export type { ToolConfig } from './utils/tools.js'
 
@@ -91,7 +91,7 @@ export async function exitModeFor(
   restoreTools(pi, state)
   await restoreModel(pi, state, ctx)
   ctx.ui.setStatus(name, undefined)
-  persist(pi, state)
+  persistState(pi, state)
 }
 
 export async function applyModeModel(
@@ -137,5 +137,5 @@ export async function applyModeFor(
   pi.setActiveTools(calculateModeTools(pi, state, options.promptDefinition.fm))
   await applyModeModel(pi, state, ctx, options.promptDefinition.fm.model)
   ctx.ui.setStatus(pmMode, ctx.ui.theme.fg(options.color, pmMode))
-  persist(pi, state)
+  persistState(pi, state)
 }
