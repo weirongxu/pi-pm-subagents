@@ -875,7 +875,7 @@ describe('SubagentManager run lifecycle races', () => {
 
     expect(onComplete).toHaveBeenCalledTimes(2)
     expect(onEachEnd).toHaveBeenCalledTimes(2)
-    expect(events).toEqual(['complete', 'end', 'complete', 'end'])
+    expect(events).toEqual(['end', 'end', 'complete', 'complete'])
     expect(subagent.record.status).toBe('done')
     expect(subagent.record.completedAt).toBeGreaterThan(0)
   })

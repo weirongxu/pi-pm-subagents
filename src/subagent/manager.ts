@@ -345,10 +345,8 @@ export class SubagentManager {
       if (subagent.record.completedAt === undefined) {
         subagent.record.completedAt = Date.now()
         this.options.onChanged?.()
-        void subagent.onComplete?.(subagent, lastMessage ?? '').then(
-          () => this.options.onEachEnd?.(subagent),
-          () => this.options.onEachEnd?.(subagent),
-        )
+        this.options.onEachEnd?.(subagent)
+        void subagent.onComplete?.(subagent, lastMessage ?? '').catch(() => {})
       }
     }
   }
